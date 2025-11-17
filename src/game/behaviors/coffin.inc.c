@@ -82,7 +82,7 @@ void coffin_act_idle(void) {
                 // spawns dust there, then resets the position.
                 obj_perform_position_op(POS_OP_SAVE_POSITION);
                 o->oMoveAngleYaw = o->oFaceAngleYaw - 0x4000;
-                obj_set_dist_from_home(200.0f);
+                obj_set_dist_from_homeq(q(200.0f));
                 spawn_mist_from_global();
                 obj_perform_position_op(POS_OP_RESTORE_POSITION);
             }
@@ -93,8 +93,8 @@ void coffin_act_idle(void) {
             yawCos = coss(o->oFaceAngleYaw);
             yawSin = sins(o->oFaceAngleYaw);
 
-            dx = gMarioObject->oPosX - o->oPosX;
-            dz = gMarioObject->oPosZ - o->oPosZ;
+            dx = FFIELD(gMarioObject, oPosX) - FFIELD(o, oPosX);
+            dz = FFIELD(gMarioObject, oPosZ) - FFIELD(o, oPosZ);
 
             distForwards = dx * yawCos + dz * yawSin;
             distSideways = dz * yawCos - dx * yawSin;
@@ -102,8 +102,8 @@ void coffin_act_idle(void) {
             // This checks a box around the coffin and if it has been a bit since it stood up.
             // It also checks in the case Mario is squished, so he doesn't get permanently squished.
             if (o->oTimer > 60
-                && (o->oDistanceToMario > 100.0f || gMarioState->action == ACT_SQUISHED)) {
-                if (gMarioObject->oPosY - o->oPosY < 200.0f && absf(distForwards) < 140.0f) {
+                && (QFIELD(o, oDistanceToMario) > q(100.0) || gMarioState->action == ACT_SQUISHED)) {
+                if (FFIELD(gMarioObject, oPosY) - FFIELD(o, oPosY) < 200.0f && absf(distForwards) < 140.0f) {
                     if (distSideways < 150.0f && distSideways > -450.0f) {
                         cur_obj_play_sound_2(SOUND_GENERAL_BUTTON_PRESS_2_LOWPRIO);
                         o->oAction = COFFIN_ACT_STAND_UP;
@@ -151,7 +151,7 @@ void bhv_coffin_loop(void) {
         obj_mark_for_deletion(o);
     } else {
         // Scale the coffin vertically? Must have thought it was too short?
-        o->header.gfx.scale[1] = 1.1f;
+        o->header.gfx.scaleq[1] = q(1.1);
 
         switch (o->oAction) {
             case COFFIN_ACT_IDLE:

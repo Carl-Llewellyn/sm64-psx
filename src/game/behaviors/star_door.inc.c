@@ -1,10 +1,10 @@
 // star_door.c.inc
 
 void star_door_update_pos(void) {
-    o->oVelX = (o->oLeftVel) * coss(o->oMoveAngleYaw);
-    o->oVelZ = (o->oLeftVel) * -sins(o->oMoveAngleYaw);
-    o->oPosX += o->oVelX;
-    o->oPosZ += o->oVelZ;
+    FSETFIELD(o, oVelX, (FFIELD(o, oLeftVel)) * coss(o->oMoveAngleYaw));
+    FSETFIELD(o, oVelZ, (FFIELD(o, oLeftVel)) * -sins(o->oMoveAngleYaw));
+    QMODFIELD(o, oPosX, += QFIELD(o, oVelX));
+    QMODFIELD(o, oPosZ, += QFIELD(o, oVelZ));
 }
 
 void bhv_star_door_loop(void) {
@@ -27,7 +27,7 @@ void bhv_star_door_loop(void) {
 #endif
             }
             cur_obj_become_intangible();
-            o->oLeftVel = -8.0f;
+            QSETFIELD(o,  oLeftVel, q(-8));
             star_door_update_pos();
             if (o->oTimer >= 16)
                 o->oAction++;
@@ -43,7 +43,7 @@ void bhv_star_door_loop(void) {
                 queue_rumble_data(35, 30);
 #endif
             }
-            o->oLeftVel = 8.0f;
+            QSETFIELD(o,  oLeftVel, q(8));
             star_door_update_pos();
             if (o->oTimer >= 16)
                 o->oAction++;

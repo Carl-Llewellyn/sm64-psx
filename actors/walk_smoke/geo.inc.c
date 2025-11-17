@@ -1,6 +1,6 @@
 // 0x17000038
 const GeoLayout smoke_geo[] = {
-   GEO_SWITCH_CASE(7, geo_switch_anim_state),
+   GEO_SWITCH_CASE_DYN(7, DYN_geo_switch_anim_state),
    GEO_OPEN_NODE(),
       GEO_DISPLAY_LIST(LAYER_TRANSPARENT, smoke_seg4_dl_04021718),
       GEO_DISPLAY_LIST(LAYER_TRANSPARENT, smoke_seg4_dl_04021730),

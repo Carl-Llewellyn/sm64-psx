@@ -63,7 +63,7 @@ static struct Object *monty_mole_select_available_hole(f32 minDistToMario) {
 
     while (hole != NULL) {
         if (hole->oMontyMoleHoleCooldown == 0) {
-            if (hole->oDistanceToMario < 1500.0f && hole->oDistanceToMario > minDistToMario) {
+            if (FFIELD(hole, oDistanceToMario) < 1500.0f && FFIELD(hole, oDistanceToMario) > minDistToMario) {
                 numAvailableHoles++;
             }
         }
@@ -79,7 +79,7 @@ static struct Object *monty_mole_select_available_hole(f32 minDistToMario) {
 
         while (hole != NULL) {
             if (hole->oMontyMoleHoleCooldown == 0) {
-                if (hole->oDistanceToMario < 1500.0f && hole->oDistanceToMario > minDistToMario) {
+                if (FFIELD(hole, oDistanceToMario) < 1500.0f && FFIELD(hole, oDistanceToMario) > minDistToMario) {
                     if (numAvailableHoles == selectedHole) {
                         return hole;
                     }
@@ -162,22 +162,22 @@ static void monty_mole_act_select_hole(void) {
         o->oMontyMoleCurrentHole->oMontyMoleHoleCooldown = -1;
 
         // Position at hole
-        o->oPosX = o->oMontyMoleCurrentHole->oPosX;
-        o->oPosY = o->oFloorHeight = o->oMontyMoleCurrentHole->oPosY;
-        o->oPosZ = o->oMontyMoleCurrentHole->oPosZ;
+        QSETFIELD(o, oPosX, QFIELD(o->oMontyMoleCurrentHole, oPosX));
+        QSETFIELD(o, oPosY, QSETFIELD(o, oFloorHeight, QFIELD(o->oMontyMoleCurrentHole, oPosY)));
+        QSETFIELD(o, oPosZ, QFIELD(o->oMontyMoleCurrentHole, oPosZ));
 
         o->oFaceAnglePitch = 0;
         o->oMoveAngleYaw = o->oMontyMoleCurrentHole->oAngleToMario;
 
-        if (o->oDistanceToMario > 500.0f || minDistToMario > 100.0f || random_sign() < 0) {
+        if (QFIELD(o, oDistanceToMario) > q(500.0) || minDistToMario > 100.0f || random_sign() < 0) {
             o->oAction = MONTY_MOLE_ACT_RISE_FROM_HOLE;
-            o->oVelY = 3.0f;
-            o->oGravity = 0.0f;
+            QSETFIELD(o,  oVelY, q(3));
+            QSETFIELD(o, oGravity, q(0.0f));
             monty_mole_spawn_dirt_particles(0, 10);
         } else {
             o->oAction = MONTY_MOLE_ACT_JUMP_OUT_OF_HOLE;
-            o->oVelY = 50.0f;
-            o->oGravity = -4.0f;
+            QSETFIELD(o,  oVelY, q(50));
+            QSETFIELD(o, oGravity, q(-4.0f));
             monty_mole_spawn_dirt_particles(0, 20);
         }
 
@@ -192,9 +192,9 @@ static void monty_mole_act_select_hole(void) {
 static void monty_mole_act_rise_from_hole(void) {
     cur_obj_init_animation_with_sound(1);
 
-    if (o->oMontyMoleHeightRelativeToFloor >= 49.0f) {
-        o->oPosY = o->oFloorHeight + 50.0f;
-        o->oVelY = 0.0f;
+    if (QFIELD(o, oMontyMoleHeightRelativeToFloor) >= q(49.0f)) {
+        FSETFIELD(o, oPosY, FFIELD(o, oFloorHeight) + 50.0f);
+        QSETFIELD(o,  oVelY, q(0));
 
         if (cur_obj_check_if_near_animation_end()) {
             o->oAction = MONTY_MOLE_ACT_SPAWN_ROCK;
@@ -228,8 +228,8 @@ static void monty_mole_act_spawn_rock(void) {
 static void monty_mole_act_begin_jump_into_hole(void) {
     if (cur_obj_init_anim_and_check_if_end(3) || obj_is_near_to_and_facing_mario(1000.0f, 0x4000)) {
         o->oAction = MONTY_MOLE_ACT_JUMP_INTO_HOLE;
-        o->oVelY = 40.0f;
-        o->oGravity = -6.0f;
+        QSETFIELD(o,  oVelY, q(40));
+        QSETFIELD(o, oGravity, q(-6.0f));
     }
 }
 
@@ -253,11 +253,11 @@ static void monty_mole_act_throw_rock(void) {
 static void monty_mole_act_jump_into_hole(void) {
     cur_obj_init_anim_extend(0);
 
-    o->oFaceAnglePitch = -atan2s(o->oVelY, -4.0f);
+    o->oFaceAnglePitch = -atan2s(FFIELD(o, oVelY), -4.0f);
 
-    if (o->oVelY < 0.0f && o->oMontyMoleHeightRelativeToFloor < 120.0f) {
+    if (FFIELD(o, oVelY) < 0.0f && FFIELD(o, oMontyMoleHeightRelativeToFloor) < 120.0f) {
         o->oAction = MONTY_MOLE_ACT_HIDE;
-        o->oGravity = 0.0f;
+        QSETFIELD(o, oGravity, q(0.0f));
         monty_mole_spawn_dirt_particles(-80, 15);
     }
 }
@@ -268,7 +268,7 @@ static void monty_mole_act_jump_into_hole(void) {
 static void monty_mole_hide_in_hole(void) {
     o->oMontyMoleCurrentHole->oMontyMoleHoleCooldown = 30;
     o->oAction = MONTY_MOLE_ACT_SELECT_HOLE;
-    o->oVelY = 0.0f;
+    QSETFIELD(o,  oVelY, q(0));
 
     //! Even though the object becomes intangible here, it is still possible
     //  for a bob-omb to interact with it later in the frame (since bob-ombs
@@ -290,7 +290,7 @@ static void monty_mole_act_hide(void) {
         cur_obj_hide();
         monty_mole_hide_in_hole();
     } else {
-        approach_f32_ptr(&o->oVelY, -4.0f, 0.5f);
+        APPROACH_F32_FIELD(o, oVelY, -4.0f, 0.5f);
     }
 }
 
@@ -299,15 +299,15 @@ static void monty_mole_act_hide(void) {
  * action.
  */
 static void monty_mole_act_jump_out_of_hole(void) {
-    if (o->oVelY > 0.0f) {
+    if (QFIELD(o, oVelY) > 0) {
         cur_obj_init_animation_with_sound(9);
     } else {
         cur_obj_init_anim_extend(4);
 
-        if (o->oMontyMoleHeightRelativeToFloor < 50.0f) {
-            o->oPosY = o->oFloorHeight + 50.0f;
+        if (QFIELD(o, oMontyMoleHeightRelativeToFloor) < q(50.0f)) {
+            FSETFIELD(o, oPosY, FFIELD(o, oFloorHeight) + 50.0f);
             o->oAction = MONTY_MOLE_ACT_BEGIN_JUMP_INTO_HOLE;
-            o->oVelY = o->oGravity = 0.0f;
+            FSETFIELD(o, oVelY, QSETFIELD(o, oGravity, q(0.0f)));
         }
     }
 }
@@ -336,7 +336,7 @@ void bhv_monty_mole_update(void) {
     o->oDeathSound = SOUND_OBJ_DYING_ENEMY1;
     cur_obj_update_floor_and_walls();
 
-    o->oMontyMoleHeightRelativeToFloor = o->oPosY - o->oFloorHeight;
+    QSETFIELD(o, oMontyMoleHeightRelativeToFloor, QFIELD(o, oPosY) - QFIELD(o, oFloorHeight));
 
     switch (o->oAction) {
         case MONTY_MOLE_ACT_SELECT_HOLE:
@@ -368,9 +368,9 @@ void bhv_monty_mole_update(void) {
     // Spawn a 1-up if you kill 8 monty moles
     if (obj_check_attacks(&sMontyMoleHitbox, o->oAction)) {
         if (sMontyMoleKillStreak != 0) {
-            f32 dx = o->oPosX - sMontyMoleLastKilledPosX;
-            f32 dy = o->oPosY - sMontyMoleLastKilledPosY;
-            f32 dz = o->oPosZ - sMontyMoleLastKilledPosZ;
+            f32 dx = FFIELD(o, oPosX) - sMontyMoleLastKilledPosX;
+            f32 dy = FFIELD(o, oPosY) - sMontyMoleLastKilledPosY;
+            f32 dz = FFIELD(o, oPosZ) - sMontyMoleLastKilledPosZ;
 
             f32 distToLastKill = sqrtf(dx * dx + dy * dy + dz * dz);
 
@@ -390,9 +390,9 @@ void bhv_monty_mole_update(void) {
         //! No overflow check
         sMontyMoleKillStreak += 1;
 
-        sMontyMoleLastKilledPosX = o->oPosX;
-        sMontyMoleLastKilledPosY = o->oPosY;
-        sMontyMoleLastKilledPosZ = o->oPosZ;
+        sMontyMoleLastKilledPosX = FFIELD(o, oPosX);
+        sMontyMoleLastKilledPosY = FFIELD(o, oPosY);
+        sMontyMoleLastKilledPosZ = FFIELD(o, oPosZ);
 
         monty_mole_hide_in_hole();
 
@@ -408,23 +408,23 @@ void bhv_monty_mole_update(void) {
  */
 static void monty_mole_rock_act_held(void) {
     // The position is offset since the monty mole is throwing it with its hand
-    o->oParentRelativePosX = 80.0f;
-    o->oParentRelativePosY = -50.0f;
-    o->oParentRelativePosZ = 0.0f;
+    QSETFIELD(o, oParentRelativePosX, q(80));
+    QSETFIELD(o, oParentRelativePosY, q(-50));
+    QSETFIELD(o, oParentRelativePosZ, q(0));
 
     if (o->parentObj->prevObj == NULL) {
-        f32 distToMario = o->oDistanceToMario;
-        if (distToMario > 600.0f) {
-            distToMario = 600.0f;
+        q32 distToMarioq = QFIELD(o, oDistanceToMario);
+        if (distToMarioq > q(600)) {
+            distToMarioq = q(600);
         }
 
         o->oAction = MONTY_MOLE_ROCK_ACT_MOVE;
 
         // The angle is adjusted to compensate for the start position offset
-        o->oMoveAngleYaw = (s32)(o->parentObj->oMoveAngleYaw + 0x1F4 - distToMario * 0.1f);
+        o->oMoveAngleYaw = (s32)(o->parentObj->oMoveAngleYaw + 0x1F4 - qtrunc(distToMarioq) / 10);
 
-        o->oForwardVel = 40.0f;
-        o->oVelY = distToMario * 0.08f + 8.0f;
+        QSETFIELD(o, oForwardVel, q(40));
+        QSETFIELD(o, oVelY, qmul(distToMarioq, q(0.08)) + q(8));
 
         o->oMoveFlags = 0;
     }

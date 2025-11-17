@@ -110,6 +110,7 @@
 /**
  * 0x0A: Create camera frustum scene graph node
  *   0x01: u8  if nonzero, enable function field
+ * 				^ from psx port: if 2, passes an ID instead
  *   0x02: s16 field of view
  *   0x04: s16 near
  *   0x06: s16 far
@@ -118,10 +119,14 @@
 #define GEO_CAMERA_FRUSTUM(fov, near, far) \
     CMD_BBH(0x0A, 0x00, fov), \
     CMD_HH(near, far)
-#define GEO_CAMERA_FRUSTUM_WITH_FUNC(fov, near, far, func) \
-    CMD_BBH(0x0A, 0x01, fov), \
+//#define GEO_CAMERA_FRUSTUM_WITH_FUNC(fov, near, far, func) \
+//    CMD_BBH(0x0A, 0x01, fov), \
+//    CMD_HH(near, far), \
+//    CMD_PTR(func)
+#define GEO_CAMERA_FRUSTUM_WITH_FUNC_DYN(fov, near, far, func) \
+    CMD_BBH(0x0A, 0x02, fov), \
     CMD_HH(near, far), \
-    CMD_PTR(func)
+    CMD_W(func)
 
 /**
  * 0x0B: Create a root scene graph node
@@ -150,17 +155,20 @@
 
 /**
  * 0x0E: Create switch-case scene graph node
- *   0x01: unused
+ *   0x01: unused (now used for dyn mode)
  *   0x02: s16 numCases
  *   0x04: GraphNodeFunc caseSelectorFunc
  */
-#define GEO_SWITCH_CASE(count, function) \
-    CMD_BBH(0x0E, 0x00, count), \
-    CMD_PTR(function)
+//#define GEO_SWITCH_CASE(count, function) \
+//    CMD_BBH(0x0E, 0x00, count), \
+//    CMD_PTR(function)
+#define GEO_SWITCH_CASE_DYN(count, function) \
+    CMD_BBH(0x0E, 0x01, count), \
+    CMD_W(function)
 
 /**
  * 0x0F: Create a camera scene graph node.
- *   0x01: unused
+ *   0x01: unused (now used for dyn mode)
  *   0x02: s16 camera type
  *   0x04: s16 posX
  *   0x06: s16 posY
@@ -174,6 +182,10 @@
     CMD_BBH(0x0F, 0x00, type), \
     CMD_HHHHHH(x1, y1, z1, x2, y2, z2), \
     CMD_PTR(function)
+#define GEO_CAMERA_DYN(type, x1, y1, z1, x2, y2, z2, function) \
+    CMD_BBH(0x0F, 0x01, type), \
+    CMD_HHHHHH(x1, y1, z1, x2, y2, z2), \
+    CMD_W(function)
 
 /**
  * 0x10: Create translation & rotation scene graph node with optional display list
@@ -195,10 +207,14 @@
 #define GEO_TRANSLATE_ROTATE(layer, tx, ty, tz, rx, ry, rz) \
     CMD_BBH(0x10, (0x00 | layer), 0x0000), \
     CMD_HHHHHH(tx, ty, tz, rx, ry, rz)
-#define GEO_TRANSLATE_ROTATE_WITH_DL(layer, tx, ty, tz, rx, ry, rz, displayList) \
-    CMD_BBH(0x10, (0x00 | layer | 0x80), 0x0000), \
+//#define GEO_TRANSLATE_ROTATE_WITH_DL(layer, tx, ty, tz, rx, ry, rz, displayList) \
+//    CMD_BBH(0x10, (0x00 | layer | 0x80), 0x0000), \
+//    CMD_HHHHHH(tx, ty, tz, rx, ry, rz), \
+//    CMD_PTR(displayList)
+#define GEO_TRANSLATE_ROTATE_WITH_DL_DYN(layer, tx, ty, tz, rx, ry, rz, displayList) \
+    CMD_BBH(0x10, (0x00 | layer | 0x80), 0x0001), \
     CMD_HHHHHH(tx, ty, tz, rx, ry, rz), \
-    CMD_PTR(displayList)
+    CMD_W(displayList)
 
 /**
  *   fieldLayout = 1: Translate
@@ -254,10 +270,14 @@
 #define GEO_TRANSLATE_NODE(layer, ux, uy, uz) \
     CMD_BBH(0x11, layer, ux), \
     CMD_HH(uy, uz)
-#define GEO_TRANSLATE_NODE_WITH_DL(layer, ux, uy, uz, displayList) \
+// #define GEO_TRANSLATE_NODE_WITH_DL(layer, ux, uy, uz, displayList) \
+//     CMD_BBH(0x11, (layer | 0x80), ux), \
+//     CMD_HH(uy, uz), \
+//     CMD_PTR(displayList)
+#define GEO_TRANSLATE_NODE_WITH_DL_DYN(layer, ux, uy, uz, displayList) \
     CMD_BBH(0x11, (layer | 0x80), ux), \
     CMD_HH(uy, uz), \
-    CMD_PTR(displayList)
+    CMD_W(displayList)
 
 /**
  * 0x12: Create rotation scene graph node with optional display list
@@ -319,6 +339,9 @@
 #define GEO_DISPLAY_LIST(layer, displayList) \
     CMD_BBH(0x15, layer, 0x0000), \
     CMD_PTR(displayList)
+#define GEO_DISPLAY_LIST_DYN(layer, displayList) \
+    CMD_BBH(0x15, layer, 0x0001), \
+    CMD_W(displayList)
 
 /**
  * 0x16: Create shadow scene graph node
@@ -340,32 +363,41 @@
 
 /**
  * 0x18: Create dynamically generated displaylist scene graph node
- *   0x01: unused
+ *   0x01: unused (now used for dyn mode)
  *   0x02: s16 parameter
  *   0x04: GraphNodeFunc function
  */
-#define GEO_ASM(param, function) \
-    CMD_BBH(0x18, 0x00, param), \
-    CMD_PTR(function)
+//#define GEO_ASM(param, function) \
+//    CMD_BBH(0x18, 0x00, param), \
+//    CMD_PTR(function)
+#define GEO_ASM_DYN(param, function) \
+    CMD_BBH(0x18, 0x01, param), \
+    CMD_W(function)
 
 /**
  * 0x19: Create background scene graph node
+ *   0x01: unused (now used for dyn mode)
  *   0x02: s16 background: background ID, or RGBA5551 color if backgroundFunc is null
  *   0x04: GraphNodeFunc backgroundFunc
  */
-#define GEO_BACKGROUND(background, function) \
-    CMD_BBH(0x19, 0x00, background), \
-    CMD_PTR(function)
+//#define GEO_BACKGROUND(background, function) \
+//    CMD_BBH(0x19, 0x00, background), \
+//    CMD_PTR(function)
+#define GEO_BACKGROUND_DYN(background, function) \
+    CMD_BBH(0x19, 0x01, background), \
+    CMD_W(function)
 #define GEO_BACKGROUND_COLOR(background) \
-    GEO_BACKGROUND(background, NULL)
+    CMD_BBH(0x19, 0x00, background), \
+    CMD_PTR(NULL)
 
-/**
- * 0x1A: No operation
- */
+///**
+// * 0x1A: No operation
+// */
+/*
 #define GEO_NOP_1A() \
     CMD_BBH(0x1A, 0x00, 0x0000), \
     CMD_HH(0x0000, 0x0000)
-
+*/
 /**
  * 0x1B: Copy the shared children from an object parent node from a specific view
  * to a newly created object parent.
@@ -382,10 +414,14 @@
  *  cmd+0x06: s16 offsetZ
  *  cmd+0x08: GraphNodeFunc nodeFunc
  */
-#define GEO_HELD_OBJECT(param, ux, uy, uz, nodeFunc) \
-    CMD_BBH(0x1C, param, ux), \
+//#define GEO_HELD_OBJECT(param, ux, uy, uz, nodeFunc) \
+//    CMD_BBH(0x1C, param, ux), \
+//    CMD_HH(uy, uz), \
+//    CMD_PTR(nodeFunc)
+#define GEO_HELD_OBJECT_DYN(param, ux, uy, uz, nodeFunc) \
+    CMD_BBH(0x21, param, ux), \
     CMD_HH(uy, uz), \
-    CMD_PTR(nodeFunc)
+    CMD_W(nodeFunc)
 
 /**
  * 0x1D: Create scale scene graph node with optional display list

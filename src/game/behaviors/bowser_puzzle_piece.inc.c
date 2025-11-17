@@ -84,13 +84,13 @@ static struct BowserPuzzlePiece sBowserPuzzlePieces[] = {
 /**
  * Spawn a single puzzle piece.
  */
-void bhv_lll_bowser_puzzle_spawn_piece(s16 model, const BehaviorScript *behavior,
-                                       f32 xOffset, f32 zOffset,
+void bhv_lll_bowser_puzzle_spawn_pieceq(s16 model, const BehaviorScript *behavior,
+                                       q32 xOffsetq, q32 zOffsetq,
                                        s8 initialAction, s8 *actionList) {
     struct Object *puzzlePiece = spawn_object(o, model, behavior);
-    puzzlePiece->oPosX += xOffset;
-    puzzlePiece->oPosY += 50.0f;
-    puzzlePiece->oPosZ += zOffset;
+    QMODFIELD(puzzlePiece, oPosX, += xOffsetq);
+    QMODFIELD(puzzlePiece, oPosY, += q(50));
+    QMODFIELD(puzzlePiece, oPosZ, += zOffsetq);
     puzzlePiece->oAction = initialAction; // This action never gets executed.
     puzzlePiece->oBowserPuzzlePieceActionList = actionList;
     puzzlePiece->oBowserPuzzlePieceNextAction = actionList;
@@ -99,16 +99,16 @@ void bhv_lll_bowser_puzzle_spawn_piece(s16 model, const BehaviorScript *behavior
 /**
  * Spawn the 14 puzzle pieces.
  */
-void bhv_lll_bowser_puzzle_spawn_pieces(f32 pieceWidth) {
+void bhv_lll_bowser_puzzle_spawn_piecesq(q32 pieceWidthq) {
     s32 i;
 
     // Spawn all 14 puzzle pieces.
     for (i = 0; i < 14; i++)
-        bhv_lll_bowser_puzzle_spawn_piece(sBowserPuzzlePieces[i].model, bhvLllBowserPuzzlePiece,
-                                          sBowserPuzzlePieces[i].xOffset * pieceWidth / 10.0f,
-                                          sBowserPuzzlePieces[i].zOffset * pieceWidth / 10.0f,
-                                          sBowserPuzzlePieces[i].initialAction,
-                                          sBowserPuzzlePieces[i].actionList);
+        bhv_lll_bowser_puzzle_spawn_pieceq(sBowserPuzzlePieces[i].model, bhvLllBowserPuzzlePiece,
+                                           sBowserPuzzlePieces[i].xOffset * pieceWidthq / 10,
+                                           sBowserPuzzlePieces[i].zOffset * pieceWidthq / 10,
+                                           sBowserPuzzlePieces[i].initialAction,
+                                           sBowserPuzzlePieces[i].actionList);
 
     // The pieces should only be spawned once so go to the next action.
     o->oAction++;
@@ -122,11 +122,11 @@ void bhv_lll_bowser_puzzle_loop(void) {
     UNUSED struct Object *sp28;
     switch (o->oAction) {
         case BOWSER_PUZZLE_ACT_SPAWN_PIECES:
-            bhv_lll_bowser_puzzle_spawn_pieces(480.0f);
+            bhv_lll_bowser_puzzle_spawn_piecesq(q(480.0f));
             break;
         case BOWSER_PUZZLE_ACT_WAIT_FOR_COMPLETE:
             // If both completion flags are set and Mario is within 1000 units...
-            if (o->oBowserPuzzleCompletionFlags == 3 && o->oDistanceToMario < 1000.0f) {
+            if (o->oBowserPuzzleCompletionFlags == 3 && QFIELD(o, oDistanceToMario) < q(1000.0)) {
                 // Spawn 5 coins.
                 for (i = 0; i < 5; i++)
                     sp28 = spawn_object(o, MODEL_YELLOW_COIN, bhvSingleCoinGetsSpawned);
@@ -153,7 +153,7 @@ void bhv_lll_bowser_puzzle_piece_action_0(void) {
  * Action 1 is never executed since it is not defined in any action lists.
  */
 void bhv_lll_bowser_puzzle_piece_action_1(void) {
-    o->oPosY += 50.0f;
+    QMODFIELD(o, oPosY, += q(50.0f));
     o->oAction = 3;
 }
 
@@ -194,9 +194,9 @@ void bhv_lll_bowser_puzzle_piece_move(f32 xOffset, f32 zOffset, s32 duration, UN
     // For the first 20 frames, shake the puzzle piece up and down.
     if (o->oTimer < 20) {
         if (o->oTimer % 2)
-            o->oBowserPuzzlePieceOffsetY = 0.0f;
+            QSETFIELD(o, oBowserPuzzlePieceOffsetY, q(0));
         else
-            o->oBowserPuzzlePieceOffsetY = -6.0f;
+            QSETFIELD(o, oBowserPuzzlePieceOffsetY, q(-6));
     } else {
         // On frame 20, play the shifting sound.
         if (o->oTimer == 20)
@@ -204,8 +204,8 @@ void bhv_lll_bowser_puzzle_piece_move(f32 xOffset, f32 zOffset, s32 duration, UN
 
         // For the number of frames specified by duration, move the piece.
         if (o->oTimer < duration + 20) {
-            o->oBowserPuzzlePieceOffsetX += xOffset;
-            o->oBowserPuzzlePieceOffsetZ += zOffset;
+            QMODFIELD(o, oBowserPuzzlePieceOffsetX, += q(xOffset));
+            QMODFIELD(o, oBowserPuzzlePieceOffsetZ, += q(zOffset));
         } else {
             // This doesn't actually accomplish anything since
             //   cur_obj_change_action is going to be called before the
@@ -257,7 +257,7 @@ void bhv_lll_bowser_puzzle_piece_loop(void) {
 
     cur_obj_call_action_function(sBowserPuzzlePieceActions);
 
-    o->oPosX = o->oBowserPuzzlePieceOffsetX + o->oHomeX;
-    o->oPosY = o->oBowserPuzzlePieceOffsetY + o->oHomeY;
-    o->oPosZ = o->oBowserPuzzlePieceOffsetZ + o->oHomeZ;
+    QSETFIELD(o, oPosX, QFIELD(o, oBowserPuzzlePieceOffsetX) + QFIELD(o, oHomeX));
+    QSETFIELD(o, oPosY, QFIELD(o, oBowserPuzzlePieceOffsetY) + QFIELD(o, oHomeY));
+    QSETFIELD(o, oPosZ, QFIELD(o, oBowserPuzzlePieceOffsetZ) + QFIELD(o, oHomeZ));
 }

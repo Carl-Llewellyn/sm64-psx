@@ -5,8 +5,8 @@
 #include <PR/gbi.h>
 
 // from main menu segment 7
-extern u8 dl_menu_idle_hand[];
-extern u8 dl_menu_grabbing_hand[];
+extern const u8 texture_menu_idle_hand[];
+extern const u8 texture_menu_grabbing_hand[];
 extern u8 menu_hud_lut[];
 extern u8 menu_font_lut[];
 extern u8 dl_menu_ia8_text_begin[];

@@ -1,10 +1,12 @@
 #include <ultra64.h>
 #include "sm64.h"
-
+#include <stdbool.h>
 #include "geo_layout.h"
 #include "math_util.h"
 #include "game/memory.h"
 #include "graph_node.h"
+#include <level_commands.h>
+#include <stdio.h>
 
 typedef void (*GeoLayoutCommandProc)(void);
 
@@ -42,6 +44,7 @@ GeoLayoutCommandProc GeoLayoutJumpTable[] = {
     geo_layout_cmd_nop2,
     geo_layout_cmd_nop3,
     geo_layout_cmd_node_culling_radius,
+	geo_layout_cmd_node_held_obj_dyn,
 };
 
 struct GraphNode gObjParentGraphNode;
@@ -110,7 +113,9 @@ void geo_layout_cmd_branch_and_link(void) {
     gGeoLayoutStack[gGeoLayoutStackIndex++] = (uintptr_t) (gGeoLayoutCommand + CMD_PROCESS_OFFSET(8));
     gGeoLayoutStack[gGeoLayoutStackIndex++] = (gCurGraphNodeIndex << 16) + gGeoLayoutReturnIndex;
     gGeoLayoutReturnIndex = gGeoLayoutStackIndex;
-    gGeoLayoutCommand = segmented_to_virtual(cur_geo_cmd_ptr(0x04));
+	volatile void* tmp = cur_geo_cmd_ptr(0x04);
+	//printf("%lx\n", tmp);
+    gGeoLayoutCommand = segmented_to_virtual((void*) tmp);
 }
 
 // 0x01: Terminate geo layout
@@ -262,11 +267,15 @@ void geo_layout_cmd_node_perspective(void) {
 
     if (cur_geo_cmd_u8(0x01) != 0) {
         // optional asm function
-        frustumFunc = (GraphNodeFunc) cur_geo_cmd_ptr(0x08);
+		if(cur_geo_cmd_u8(0x01) == 2) {
+			frustumFunc = (GraphNodeFunc) segmented_to_virtual(geo_dyn_map[cur_geo_cmd_u32(0x08)]);
+		} else {
+			frustumFunc = (GraphNodeFunc) segmented_to_virtual(cur_geo_cmd_ptr(0x08));
+		}
         gGeoLayoutCommand += 4 << CMD_SIZE_SHIFT;
     }
 
-    graphNode = init_graph_node_perspective(gGraphNodePool, NULL, (f32) fov, near, far, frustumFunc, 0);
+    graphNode = init_graph_node_perspectiveq(gGraphNodePool, NULL, q(fov), near, far, frustumFunc, 0);
 
     register_scene_graph_node(&graphNode->fnNode.node);
 
@@ -335,12 +344,21 @@ void geo_layout_cmd_node_level_of_detail(void) {
 void geo_layout_cmd_node_switch_case(void) {
     struct GraphNodeSwitchCase *graphNode;
 
-    graphNode =
-        init_graph_node_switch_case(gGraphNodePool, NULL,
-                                    cur_geo_cmd_s16(0x02), // case which is initially selected
-                                    0,
-                                    (GraphNodeFunc) cur_geo_cmd_ptr(0x04), // case update function
-                                    0);
+	if(cur_geo_cmd_u8(0x01)) {
+		graphNode =
+			init_graph_node_switch_case(gGraphNodePool, NULL,
+										cur_geo_cmd_s16(0x02), // case which is initially selected
+										0,
+										(GraphNodeFunc) segmented_to_virtual(geo_dyn_map[cur_geo_cmd_u32(0x04)]), // case update function
+										0);
+	} else {
+		graphNode =
+			init_graph_node_switch_case(gGraphNodePool, NULL,
+										cur_geo_cmd_s16(0x02), // case which is initially selected
+										0,
+										(GraphNodeFunc) segmented_to_virtual(cur_geo_cmd_ptr(0x04)), // case update function
+										0);
+	}
 
     register_scene_graph_node(&graphNode->fnNode.node);
 
@@ -362,13 +380,18 @@ void geo_layout_cmd_node_camera(void) {
     struct GraphNodeCamera *graphNode;
     s16 *cmdPos = (s16 *) &gGeoLayoutCommand[4];
 
-    Vec3f pos, focus;
+    Vec3q posq, focusq;
 
-    cmdPos = read_vec3s_to_vec3f(pos, cmdPos);
-    cmdPos = read_vec3s_to_vec3f(focus, cmdPos);
+    cmdPos = read_vec3s_to_vec3q(posq, cmdPos);
+    cmdPos = read_vec3s_to_vec3q(focusq, cmdPos);
 
-    graphNode = init_graph_node_camera(gGraphNodePool, NULL, pos, focus,
-                                       (GraphNodeFunc) cur_geo_cmd_ptr(0x10), cur_geo_cmd_s16(0x02));
+	if(cur_geo_cmd_u8(0x01)) {
+		graphNode = init_graph_node_cameraq(gGraphNodePool, NULL, posq, focusq,
+                                       (GraphNodeFunc) segmented_to_virtual(geo_dyn_map[cur_geo_cmd_u32(0x10)]), cur_geo_cmd_s16(0x02));
+	} else {
+		graphNode = init_graph_node_cameraq(gGraphNodePool, NULL, posq, focusq,
+                                       (GraphNodeFunc) segmented_to_virtual(cur_geo_cmd_ptr(0x10)), cur_geo_cmd_s16(0x02));
+	}
 
     register_scene_graph_node(&graphNode->fnNode.node);
 
@@ -414,7 +437,7 @@ void geo_layout_cmd_node_camera(void) {
 void geo_layout_cmd_node_translation_rotation(void) {
     struct GraphNodeTranslationRotation *graphNode;
 
-    Vec3s translation, rotation;
+    Vec3s translation = {0, 0, 0}, rotation = {0, 0, 0};
 
     void *displayList = NULL;
     s16 drawingLayer = 0;
@@ -429,27 +452,30 @@ void geo_layout_cmd_node_translation_rotation(void) {
             break;
         case 1:
             cmdPos = read_vec3s(translation, &cmdPos[1]);
-            vec3s_copy(rotation, gVec3sZero);
+            //vec3s_set(rotation, 0, 0, 0);
             break;
         case 2:
             cmdPos = read_vec3s_angle(rotation, &cmdPos[1]);
-            vec3s_copy(translation, gVec3sZero);
+            //vec3s_set(translation, 0, 0, 0);
             break;
         case 3:
-            vec3s_copy(translation, gVec3sZero);
+            //vec3s_set(translation, 0, 0, 0);
             vec3s_set(rotation, 0, (cmdPos[1] << 15) / 180, 0);
             cmdPos += 2 << CMD_SIZE_SHIFT;
             break;
     }
 
     if (params & 0x80) {
-        displayList = *(void **) &cmdPos[0];
+		if(cur_geo_cmd_s16(0x02)) {
+			displayList = segmented_to_virtual(geo_dyn_map[*(u32*) cmdPos]);
+		} else {
+			displayList = segmented_to_virtual(*(void **) cmdPos);
+		}
         drawingLayer = params & 0x0F;
         cmdPos += 2 << CMD_SIZE_SHIFT;
     }
 
-    graphNode = init_graph_node_translation_rotation(gGraphNodePool, NULL, drawingLayer, displayList,
-                                                     translation, rotation);
+    graphNode = init_graph_node_translation_rotation(gGraphNodePool, NULL, drawingLayer, displayList, translation, rotation);
     register_scene_graph_node(&graphNode->node);
 
     gGeoLayoutCommand = (u8 *) cmdPos;
@@ -478,7 +504,8 @@ void geo_layout_cmd_node_translation(void) {
     cmdPos = read_vec3s(translation, &cmdPos[1]);
 
     if (params & 0x80) {
-        displayList = *(void **) &cmdPos[0];
+        //displayList = *(void **) &cmdPos[0];
+        displayList = (void*) geo_dyn_map[*(u32*) &cmdPos[0]];
         drawingLayer = params & 0x0F;
         cmdPos += 2 << CMD_SIZE_SHIFT;
     }
@@ -543,7 +570,7 @@ void geo_layout_cmd_node_scale(void) {
     void *displayList = NULL;
 
     if (params & 0x80) {
-        displayList = cur_geo_cmd_ptr(0x08);
+        displayList = segmented_to_virtual(cur_geo_cmd_ptr(0x08));
         drawingLayer = params & 0x0F;
         gGeoLayoutCommand += 4 << CMD_SIZE_SHIFT;
     }
@@ -572,7 +599,7 @@ void geo_layout_cmd_node_animated_part(void) {
     struct GraphNodeAnimatedPart *graphNode;
     Vec3s translation;
     s32 drawingLayer = cur_geo_cmd_u8(0x01);
-    void *displayList = cur_geo_cmd_ptr(0x08);
+    void *displayList = segmented_to_virtual(cur_geo_cmd_ptr(0x08));
     s16 *cmdPos = (s16 *) gGeoLayoutCommand;
 
     read_vec3s(translation, &cmdPos[1]);
@@ -626,7 +653,8 @@ void geo_layout_cmd_node_billboard(void) {
 void geo_layout_cmd_node_display_list(void) {
     struct GraphNodeDisplayList *graphNode;
     s32 drawingLayer = cur_geo_cmd_u8(0x01);
-    void *displayList = cur_geo_cmd_ptr(0x04);
+    void* displayList = (void*) (cur_geo_cmd_s16(0x02)? geo_dyn_map[cur_geo_cmd_u32(0x04)]: cur_geo_cmd_ptr(0x04));
+	displayList = segmented_to_virtual(displayList);
 
     graphNode = init_graph_node_display_list(gGraphNodePool, NULL, drawingLayer, displayList);
 
@@ -670,12 +698,20 @@ void geo_layout_cmd_node_object_parent(void) {
    cmd+0x02: s16 parameter
    cmd+0x04: GraphNodeFunc func
 */
+#include <assert.h>
 void geo_layout_cmd_node_generated(void) {
     struct GraphNodeGenerated *graphNode;
 
-    graphNode = init_graph_node_generated(gGraphNodePool, NULL,
-                                          (GraphNodeFunc) cur_geo_cmd_ptr(0x04), // asm function
-                                          cur_geo_cmd_s16(0x02));                // parameter
+	if(cur_geo_cmd_u8(0x01)) {
+		graphNode = init_graph_node_generated(gGraphNodePool, NULL,
+			                                  (GraphNodeFunc) segmented_to_virtual(geo_dyn_map[cur_geo_cmd_u32(0x04)]), // asm function
+                                              cur_geo_cmd_s16(0x02));                // parameter
+	} else {
+		abort();
+		//graphNode = init_graph_node_generated(gGraphNodePool, NULL,
+		//	                                  (GraphNodeFunc) segmented_to_virtual(cur_geo_cmd_ptr(0x04)), // asm function
+		//		                              cur_geo_cmd_s16(0x02));                // parameter
+	}
 
     register_scene_graph_node(&graphNode->fnNode.node);
 
@@ -690,11 +726,19 @@ void geo_layout_cmd_node_generated(void) {
 void geo_layout_cmd_node_background(void) {
     struct GraphNodeBackground *graphNode;
 
-    graphNode = init_graph_node_background(
-        gGraphNodePool, NULL,
-        cur_geo_cmd_s16(0x02), // background ID, or RGBA5551 color if asm function is null
-        (GraphNodeFunc) cur_geo_cmd_ptr(0x04), // asm function
-        0);
+	if(cur_geo_cmd_u8(0x01)) {
+		graphNode = init_graph_node_background(
+			gGraphNodePool, NULL,
+			cur_geo_cmd_s16(0x02), // background ID, or RGBA5551 color if asm function is null
+			(GraphNodeFunc) segmented_to_virtual(geo_dyn_map[cur_geo_cmd_u32(0x04)]), // asm function
+			0);
+	} else {
+		graphNode = init_graph_node_background(
+			gGraphNodePool, NULL,
+			cur_geo_cmd_s16(0x02), // background ID, or RGBA5551 color if asm function is null
+			(GraphNodeFunc) segmented_to_virtual(cur_geo_cmd_ptr(0x04)), // asm function
+			0);
+	}
 
     register_scene_graph_node(&graphNode->fnNode.node);
 
@@ -748,7 +792,20 @@ void geo_layout_cmd_node_held_obj(void) {
     read_vec3s(offset, (s16 *) &gGeoLayoutCommand[0x02]);
 
     graphNode = init_graph_node_held_object(
-        gGraphNodePool, NULL, NULL, offset, (GraphNodeFunc) cur_geo_cmd_ptr(0x08), cur_geo_cmd_u8(0x01));
+        gGraphNodePool, NULL, NULL, offset, (GraphNodeFunc) segmented_to_virtual(cur_geo_cmd_ptr(0x08)), cur_geo_cmd_u8(0x01));
+
+    register_scene_graph_node(&graphNode->fnNode.node);
+
+    gGeoLayoutCommand += 0x0C << CMD_SIZE_SHIFT;
+}
+void geo_layout_cmd_node_held_obj_dyn(void) {
+    struct GraphNodeHeldObject *graphNode;
+    Vec3s offset;
+
+    read_vec3s(offset, (s16 *) &gGeoLayoutCommand[0x02]);
+
+    graphNode = init_graph_node_held_object(
+        gGraphNodePool, NULL, NULL, offset, (GraphNodeFunc) segmented_to_virtual(geo_dyn_map[cur_geo_cmd_u32(0x08)]), cur_geo_cmd_u8(0x01));
 
     register_scene_graph_node(&graphNode->fnNode.node);
 
@@ -781,6 +838,7 @@ struct GraphNode *process_geo_layout(struct AllocOnlyPool *pool, void *segptr) {
     gGeoLayoutReturnIndex = 2; // stack index is often copied here?
 
     gGeoLayoutCommand = segmented_to_virtual(segptr);
+	//printf("starting at 0x%lx -> 0x%lx\n", segptr, gGeoLayoutCommand);
 
     gGraphNodePool = pool;
 
@@ -788,6 +846,14 @@ struct GraphNode *process_geo_layout(struct AllocOnlyPool *pool, void *segptr) {
     gGeoLayoutStack[1] = 0;
 
     while (gGeoLayoutCommand != NULL) {
+		// the crash is because the location of <geo_intro_super_mario_64_logo> changed between building the level geo and linking the main game so the fix would be forcing incomplete.o to have absolute symbols
+		// update: i HATE linking, my solution was to edit the level scripts to dynamically find those functions instead
+		if(gGeoLayoutCommand[0x00] >= ARRAY_COUNT(GeoLayoutJumpTable)) {
+			//printf("invalid geolayout %lx\n", gGeoLayoutCommand[0x00]);
+			gGeoLayoutCommand = NULL;
+			break;
+		}
+		//printf("bytes: %02x%02x%02x%02x%02x%02x%02x%02x\n", gGeoLayoutCommand[0], gGeoLayoutCommand[1], gGeoLayoutCommand[2], gGeoLayoutCommand[3], gGeoLayoutCommand[4], gGeoLayoutCommand[5], gGeoLayoutCommand[6], gGeoLayoutCommand[7]);
         GeoLayoutJumpTable[gGeoLayoutCommand[0x00]]();
     }
 

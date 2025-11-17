@@ -74,9 +74,9 @@ void spawn_macro_abs_special(s32 model, const BehaviorScript *behavior, s16 x, s
         spawn_object_abs_with_rot(&gMacroObjectDefaultParent, 0, model, behavior, x, y, z, 0, 0, 0);
 
     // Are all three of these values unused?
-    newObj->oMacroUnk108 = (f32) unkA;
-    newObj->oMacroUnk10C = (f32) unkB;
-    newObj->oMacroUnk110 = (f32) unkC;
+    FSETFIELD(newObj, oMacroUnk108, (f32) unkA);
+    FSETFIELD(newObj, oMacroUnk10C, (f32) unkB);
+    FSETFIELD(newObj, oMacroUnk110, (f32) unkC);
 }
 
 UNUSED static void spawn_macro_coin_unknown(const BehaviorScript *behavior, s16 a1[]) {
@@ -301,14 +301,11 @@ void spawn_special_objects(s16 areaIndex, s16 **specialObjList) {
                 spawn_macro_abs_yrot_2params(model, behavior, x, y, z, extraParams[0], extraParams[1]);
                 break;
             case SPTYPE_UNKNOWN:
-                extraParams[0] =
-                    **specialObjList; // Unknown, gets put into obj->oMacroUnk108 as a float
+                extraParams[0] = **specialObjList; // Unknown, gets put into oMacroUnk108 as a float
                 (*specialObjList)++;
-                extraParams[1] =
-                    **specialObjList; // Unknown, gets put into obj->oMacroUnk10C as a float
+                extraParams[1] = **specialObjList; // Unknown, gets put into oMacroUnk10C as a float
                 (*specialObjList)++;
-                extraParams[2] =
-                    **specialObjList; // Unknown, gets put into obj->oMacroUnk110 as a float
+                extraParams[2] = **specialObjList; // Unknown, gets put into oMacroUnk110 as a float
                 (*specialObjList)++;
                 spawn_macro_abs_special(model, behavior, x, y, z, extraParams[0], extraParams[1],
                                         extraParams[2]);

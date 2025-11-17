@@ -7,6 +7,37 @@
 #define GLOBAL_ASM(...)
 #endif
 
+#if defined(TARGET_PSX) && !defined(NO_SCRATCHPAD)
+#define scratchpad [[gnu::section(".scratchpad")]]
+#else
+#ifdef TARGET_PSX
+#warning scratchpad usage is off!!!
+#endif
+#define scratchpad
+#endif
+
+#ifdef TARGET_PC
+#define sdata
+#define sbss
+#else
+#define sdata [[gnu::section(".sdata")]]
+#define sbss [[gnu::section(".sbss")]]
+#endif
+
+#ifdef NO_INLINE
+#ifndef TARGET_PC
+#warning forced inlining is off!!
+#endif
+#define ALWAYS_INLINE [[gnu::noinline]] [[gnu::noipa]]
+#else
+#define ALWAYS_INLINE [[gnu::always_inline]] inline
+#endif
+
+#ifdef unreachable
+#undef unreachable
+#endif
+#define unreachable __builtin_unreachable
+
 #if !defined(__sgi) && (!defined(NON_MATCHING) || !defined(AVOID_UB))
 // asm-process isn't supported outside of IDO, and undefined behavior causes
 // crashes.
@@ -39,10 +70,19 @@
 #define STATIC_ASSERT(cond, msg) typedef char GLUE2(static_assertion_failed, __LINE__)[(cond) ? 1 : -1]
 #endif
 
+// Align to 4-byte boundary
+#ifdef __GNUC__
+#define ALIGNED4 __attribute__((aligned(4)))
+#else
+#error no
+#define ALIGNED4
+#endif
+
 // Align to 8-byte boundary for DMA requirements
 #ifdef __GNUC__
 #define ALIGNED8 __attribute__((aligned(8)))
 #else
+#error no
 #define ALIGNED8
 #endif
 
@@ -53,20 +93,9 @@
 #define ALIGNED16
 #endif
 
-#ifndef NO_SEGMENTED_MEMORY
-// convert a virtual address to physical.
-#define VIRTUAL_TO_PHYSICAL(addr)   ((uintptr_t)(addr) & 0x1FFFFFFF)
-
-// convert a physical address to virtual.
-#define PHYSICAL_TO_VIRTUAL(addr)   ((uintptr_t)(addr) | 0x80000000)
-
-// another way of converting virtual to physical
-#define VIRTUAL_TO_PHYSICAL2(addr)  ((u8 *)(addr) - 0x80000000U)
-#else
 // no conversion needed other than cast
 #define VIRTUAL_TO_PHYSICAL(addr)   ((uintptr_t)(addr))
 #define PHYSICAL_TO_VIRTUAL(addr)   ((uintptr_t)(addr))
 #define VIRTUAL_TO_PHYSICAL2(addr)  ((void *)(addr))
-#endif
 
 #endif // MACROS_H

@@ -17,7 +17,7 @@ void jumping_box_act_0(void) {
         if (o->oJumpingBoxUnkF8-- < 0)
             o->oSubAction++;
         if (o->oTimer > o->oJumpingBoxUnkF4) {
-            o->oVelY = random_float() * 5.0f + 15.0f;
+            FSETFIELD(o, oVelY, random_float() * 5.0f + 15.0f);
             o->oSubAction++;
         }
     } else if (o->oMoveFlags & OBJ_MOVE_ON_GROUND) {
@@ -37,7 +37,7 @@ void (*sJumpingBoxActions[])(void) = { jumping_box_act_0, jumping_box_act_1 };
 
 void jumping_box_free_update(void) {
     cur_obj_set_model(MODEL_BREAKABLE_BOX);
-    cur_obj_scale(0.5f);
+    cur_obj_scaleq(q(0.5f));
     obj_set_hitbox(o, &sJumpingBoxHitbox);
     cur_obj_update_floor_and_walls();
     cur_obj_move_standard(78);

@@ -69,39 +69,39 @@ void bhv_wiggler_body_part_update(void) {
     struct ChainSegment *segment = &o->parentObj->oWigglerSegments[o->oBehParams2ndByte];
     f32 posOffset;
 
-    cur_obj_scale(o->parentObj->header.gfx.scale[0]);
+    cur_obj_scaleq(o->parentObj->header.gfx.scaleq[0]);
 
     o->oFaceAnglePitch = segment->pitch;
     o->oFaceAngleYaw = segment->yaw;
 
     // TODO: What is this for?
-    posOffset = -37.5f * o->header.gfx.scale[0];
+    posOffset = qtof(qmul(q(-37.5), o->header.gfx.scaleq[0]));
     dy = posOffset * coss(o->oFaceAnglePitch) - posOffset;
     dxz = posOffset * sins(o->oFaceAnglePitch);
     dx = dxz * sins(o->oFaceAngleYaw);
     dz = dxz * coss(o->oFaceAngleYaw);
 
-    o->oPosX = segment->posX + dx;
-    o->oPosY = segment->posY + dy;
-    o->oPosZ = segment->posZ + dz;
+    FSETFIELD(o, oPosX, segment->posX + dx);
+    FSETFIELD(o, oPosY, segment->posY + dy);
+    FSETFIELD(o, oPosZ, segment->posZ + dz);
 
-    if (o->oPosY < o->parentObj->oWigglerFallThroughFloorsHeight) {
+    if (FFIELD(o, oPosY) < FFIELD(o->parentObj, oWigglerFallThroughFloorsHeight)) {
         //! Since position is recomputed each frame, tilting the wiggler up
         //  while on the ground could cause the tail segments to clip through
         //  the floor
-        o->oPosY += -30.0f;
+        FMODFIELD(o, oPosY,  += -30.0f);
         cur_obj_update_floor_height();
-        if (o->oFloorHeight > o->oPosY) // TODO: Check ineq swap
+        if (QFIELD(o, oFloorHeight) > QFIELD(o, oPosY)) // TODO: Check ineq swap
         {
-            o->oPosY = o->oFloorHeight;
+            QSETFIELD(o,  oPosY, QFIELD(o,  oFloorHeight));
         }
     }
 
-    segment->posY = o->oPosY;
+    segment->posY = FFIELD(o, oPosY);
 
     // Inherit walking animation speed from wiggler
-    cur_obj_init_animation_with_accel_and_sound(0, o->parentObj->oWigglerWalkAnimSpeed);
-    if (o->parentObj->oWigglerWalkAnimSpeed == 0.0f) {
+    cur_obj_init_animation_with_accel_and_sound(0, FFIELD(o->parentObj, oWigglerWalkAnimSpeed));
+    if (FFIELD(o->parentObj, oWigglerWalkAnimSpeed) == 0.0f) {
         cur_obj_reverse_animation();
     }
 
@@ -129,9 +129,9 @@ void wiggler_init_segments(void) {
         for (i = 0; i <= 3; i++) {
             chain_segment_init(segments + i);
 
-            (segments + i)->posX = o->oPosX;
-            (segments + i)->posY = o->oPosY;
-            (segments + i)->posZ = o->oPosZ;
+            (segments + i)->posX = FFIELD(o, oPosX);
+            (segments + i)->posY = FFIELD(o, oPosY);
+            (segments + i)->posZ = FFIELD(o, oPosZ);
 
             (segments + i)->pitch = o->oFaceAnglePitch;
             (segments + i)->yaw = o->oFaceAngleYaw;
@@ -177,7 +177,7 @@ void wiggler_init_segments(void) {
     s32 i;
     f32 segmentLength;
 
-    segmentLength = 35.0f * o->header.gfx.scale[0];
+    segmentLength = qtof(35.0f * o->header.gfx.scaleq[0]);
 
     for (i = 1; i <= 3; i++) {
         prevBodyPart = &o->oWigglerSegments[i - 1];
@@ -217,7 +217,7 @@ void wiggler_init_segments(void) {
 static void wiggler_act_walk(void) {
     s16 yawTurnSpeed;
 
-    o->oWigglerWalkAnimSpeed = 0.06f * o->oForwardVel;
+    FSETFIELD(o, oWigglerWalkAnimSpeed, 0.06f * FFIELD(o, oForwardVel));
 
     // Update text if necessary
     if (o->oWigglerTextStatus < WIGGLER_TEXT_STATUS_COMPLETED_DIALOG) {
@@ -228,7 +228,7 @@ static void wiggler_act_walk(void) {
 
         // If Mario is positioned below the wiggler, assume he entered through the
         // lower cave entrance, so don't display text.
-        if (gMarioObject->oPosY < o->oPosY || cur_obj_update_dialog_with_cutscene(
+        if (QFIELD(gMarioObject, oPosY) < QFIELD(o, oPosY) || cur_obj_update_dialog_with_cutscene(
             MARIO_DIALOG_LOOK_UP, DIALOG_FLAG_NONE, CUTSCENE_DIALOG, DIALOG_150)) {
             o->oWigglerTextStatus = WIGGLER_TEXT_STATUS_COMPLETED_DIALOG;
         }
@@ -237,12 +237,12 @@ static void wiggler_act_walk(void) {
         //  to 4 until after this runs the first time. It indexes out of bounds
         //  and uses the value 113762.3 for one frame on US. This is fixed up
         //  in wiggler_init_segments if AVOID_UB is defined.
-        obj_forward_vel_approach(sWigglerSpeeds[o->oHealth - 1], 1.0f);
+        obj_forward_vel_approachq(q(sWigglerSpeeds[o->oHealth - 1]), q(1.0f));
 
         if (o->oWigglerWalkAwayFromWallTimer != 0) {
             o->oWigglerWalkAwayFromWallTimer -= 1;
         } else {
-            if (o->oDistanceToMario >= 25000.0f) {
+            if (QFIELD(o, oDistanceToMario) >= q(25000)) {
                 // If >1200 away from home, turn to home
                 o->oWigglerTargetYaw = o->oAngleToMario;
             }
@@ -266,7 +266,7 @@ static void wiggler_act_walk(void) {
 
         // If moving at high speeds, could overflow. But can't reach such speeds
         // in practice
-        yawTurnSpeed = (s16)(30.0f * o->oForwardVel);
+        yawTurnSpeed = qtrunc(30 * QFIELD(o, oForwardVel));
         cur_obj_rotate_yaw_toward(o->oWigglerTargetYaw, yawTurnSpeed);
         obj_face_yaw_approach(o->oMoveAngleYaw, 2 * yawTurnSpeed);
 
@@ -281,7 +281,7 @@ static void wiggler_act_walk(void) {
             }
 
             o->oWigglerWalkAwayFromWallTimer = 0;
-            o->oWigglerWalkAnimSpeed = 0.0f;
+            QSETFIELD(o,  oWigglerWalkAnimSpeed, q(0));
         }
     }
 }
@@ -294,18 +294,18 @@ static void wiggler_act_jumped_on(void) {
     s32 attackText[3] = { DIALOG_152, DIALOG_168, DIALOG_151 };
 
     // Shrink until the squish speed becomes 0, then unisquish
-    if (approach_f32_ptr(&o->oWigglerSquishSpeed, 0.0f, 0.05f)) {
+    if (APPROACH_F32_FIELD(o, oWigglerSquishSpeed, 0.0f, 0.05f)) {
         // Note that 4 is the default scale
-        approach_f32_ptr(&o->header.gfx.scale[1], 4.0f, 0.2f);
+        approach_q32_ptr(&o->header.gfx.scaleq[1], q(4), q(0.2));
     } else {
-        o->header.gfx.scale[1] -= o->oWigglerSquishSpeed;
+        o->header.gfx.scaleq[1] -= QFIELD(o, oWigglerSquishSpeed);
     }
 
     // Wait for a second after unsquishing, then show text and either shrink (if
     // defeated) or go back to walking
-    if (o->header.gfx.scale[1] >= 4.0f) {
+    if (o->header.gfx.scaleq[1] >= q(4)) {
         if (o->oTimer > 30) {
-            if (cur_obj_update_dialog_with_cutscene(MARIO_DIALOG_LOOK_UP, 
+            if (cur_obj_update_dialog_with_cutscene(MARIO_DIALOG_LOOK_UP,
                 DIALOG_FLAG_NONE, CUTSCENE_DIALOG, attackText[o->oHealth - 2])) {
                 // Because we don't want the wiggler to disappear after being
                 // defeated, we leave its health at 1
@@ -318,8 +318,8 @@ static void wiggler_act_jumped_on(void) {
 
                     if (o->oHealth == 2) {
                         cur_obj_play_sound_2(SOUND_OBJ_WIGGLER_JUMP);
-                        o->oForwardVel = 10.0f;
-                        o->oVelY = 70.0f;
+                        QSETFIELD(o,  oForwardVel, q(10));
+                        QSETFIELD(o,  oVelY, q(70));
                     }
                 }
             }
@@ -335,13 +335,13 @@ static void wiggler_act_jumped_on(void) {
  * Decelerate to a stop and then enter the walk action.
  */
 static void wiggler_act_knockback(void) {
-    if (o->oVelY > 0.0f) {
-        o->oFaceAnglePitch -= o->oVelY * 30.0f;
+    if (QFIELD(o, oVelY) > 0) {
+        o->oFaceAnglePitch -= FFIELD(o, oVelY) * 30.0f;
     } else {
         obj_face_pitch_approach(0, 0x190);
     }
 
-    if (obj_forward_vel_approach(0.0f, 1.0f) && o->oFaceAnglePitch == 0) {
+    if (obj_forward_vel_approachq(q(0.0f), q(1.0f)) && o->oFaceAnglePitch == 0) {
         o->oAction = WIGGLER_ACT_WALK;
         o->oMoveAngleYaw = o->oFaceAngleYaw;
     }
@@ -359,12 +359,12 @@ static void wiggler_act_shrink(void) {
         }
 
         // 4 is the default scale, so shrink to 1/4 of regular size
-        if (approach_f32_ptr(&o->header.gfx.scale[0], 1.0f, 0.1f)) {
+        if (approach_q32_ptr(&o->header.gfx.scaleq[0], QONE, q(0.1))) {
             spawn_default_star(0.0f, 2048.0f, 0.0f);
             o->oAction = WIGGLER_ACT_FALL_THROUGH_FLOOR;
         }
 
-        cur_obj_scale(o->header.gfx.scale[0]);
+        cur_obj_scaleq(o->header.gfx.scaleq[0]);
     }
 }
 
@@ -374,9 +374,9 @@ static void wiggler_act_shrink(void) {
 static void wiggler_act_fall_through_floor(void) {
     if (o->oTimer == 60) {
         stop_background_music(SEQUENCE_ARGS(4, SEQ_EVENT_BOSS));
-        o->oWigglerFallThroughFloorsHeight = 1700.0f;
+        QSETFIELD(o,  oWigglerFallThroughFloorsHeight, q(1700));
     } else if (o->oTimer > 60) {
-        if (o->oPosY < o->oWigglerFallThroughFloorsHeight) {
+        if (QFIELD(o, oPosY) < QFIELD(o, oWigglerFallThroughFloorsHeight)) {
             o->oAction = WIGGLER_ACT_WALK;
         } else {
             o->oFaceAnglePitch = obj_get_pitch_from_vel();
@@ -393,8 +393,8 @@ static void wiggler_act_fall_through_floor(void) {
 void wiggler_jumped_on_attack_handler(void) {
     cur_obj_play_sound_2(SOUND_OBJ_WIGGLER_ATTACKED);
     o->oAction = WIGGLER_ACT_JUMPED_ON;
-    o->oForwardVel = o->oVelY = 0.0f;
-    o->oWigglerSquishSpeed = 0.4f;
+    FSETFIELD(o, oForwardVel, QSETFIELD(o,  oVelY, q(0)));
+    QSETFIELD(o,  oWigglerSquishSpeed, q(0.4));
 }
 
 /**
@@ -409,11 +409,11 @@ void bhv_wiggler_update(void) {
         if (o->oAction == WIGGLER_ACT_FALL_THROUGH_FLOOR) {
             wiggler_act_fall_through_floor();
         } else {
-            treat_far_home_as_mario(1200.0f);
+            treat_far_home_as_marioq(q(1200.0f));
 
             // Walking animation and sound
-            cur_obj_init_animation_with_accel_and_sound(0, o->oWigglerWalkAnimSpeed);
-            if (o->oWigglerWalkAnimSpeed != 0.0f) {
+            cur_obj_init_animation_with_accel_and_sound(0, FFIELD(o, oWigglerWalkAnimSpeed));
+            if (QFIELD(o, oWigglerWalkAnimSpeed) != 0) {
                 cur_obj_play_sound_at_anim_range(0, 13,
                               o->oHealth >= 4 ? SOUND_OBJ_WIGGLER_LOW_PITCH : SOUND_OBJ_WIGGLER_HIGH_PITCH);
             } else {
@@ -443,9 +443,9 @@ void bhv_wiggler_update(void) {
         }
 
         // Update segment 0 with data from the wiggler object
-        o->oWigglerSegments[0].posX = o->oPosX;
-        o->oWigglerSegments[0].posY = o->oPosY;
-        o->oWigglerSegments[0].posZ = o->oPosZ;
+        o->oWigglerSegments[0].posX = FFIELD(o, oPosX);
+        o->oWigglerSegments[0].posY = FFIELD(o, oPosY);
+        o->oWigglerSegments[0].posZ = FFIELD(o, oPosZ);
         o->oWigglerSegments[0].pitch = o->oFaceAnglePitch;
         o->oWigglerSegments[0].yaw = o->oFaceAngleYaw;
 

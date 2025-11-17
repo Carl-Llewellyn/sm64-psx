@@ -9,7 +9,7 @@ s32 square_plat_set_yaw_until_timer(u16 yaw, s32 a) {
 }
 
 void bhv_squarish_path_moving_loop(void) {
-    o->oForwardVel = 10.0f;
+    QSETFIELD(o,  oForwardVel, q(10));
     switch (o->oAction) {
         case 0:
             o->oAction = (o->oBehParams2ndByte & 3) + 1;

@@ -1,6 +1,12 @@
 #ifndef STDARG_H
 #define STDARG_H
 
+#ifdef TARGET_PC
+
+#include_next <stdarg.h>
+
+#else
+
 // When not building with IDO, use the builtin vaarg macros for portability.
 #ifndef __sgi
 #define va_list __builtin_va_list
@@ -39,4 +45,7 @@ typedef char *va_list;
 #define va_end(__list)
 
 #endif
+
+#endif
+
 #endif

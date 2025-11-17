@@ -26,7 +26,7 @@ void breakable_box_init(void) {
             o->oNumLootCoins = 5;
             break;
         case 3:
-            cur_obj_scale(1.5f);
+            cur_obj_scaleq(q(1.5f));
             break;
     }
 }

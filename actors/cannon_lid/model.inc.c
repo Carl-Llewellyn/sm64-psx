@@ -48,4 +48,3 @@ const Gfx cannon_lid_seg8_dl_080048E0[] = {
     gsSPSetGeometryMode(G_SHADING_SMOOTH),
     gsSPEndDisplayList(),
 };
-

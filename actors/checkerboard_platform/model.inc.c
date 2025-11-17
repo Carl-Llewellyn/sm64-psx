@@ -95,4 +95,3 @@ const Gfx checkerboard_platform_seg8_dl_0800D680[] = {
     gsSPSetGeometryMode(G_SHADING_SMOOTH),
     gsSPEndDisplayList(),
 };
-

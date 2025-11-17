@@ -24,7 +24,7 @@ static struct ObjectHitbox sEnemyLakituHitbox = {
  * Wait for mario to approach, then spawn the cloud and become visible.
  */
 static void enemy_lakitu_act_uninitialized(void) {
-    if (o->oDistanceToMario < 2000.0f) {
+    if (QFIELD(o, oDistanceToMario) < q(2000)) {
         spawn_object_relative_with_scale(CLOUD_BP_LAKITU_CLOUD, 0, 0, 0, 2.0f, o, MODEL_MIST, bhvCloud);
 
         cur_obj_unhide();
@@ -35,20 +35,18 @@ static void enemy_lakitu_act_uninitialized(void) {
 /**
  * Accelerate toward mario vertically.
  */
-static void enemy_lakitu_update_vel_y(f32 offsetY) {
+static void enemy_lakitu_update_vel_yq(q32 offsetYq) {
     // In order to encourage oscillation, pass mario by a small margin before
     // accelerating the opposite direction
-    f32 margin;
-    if (o->oVelY < 0.0f) {
-        margin = -3.0f;
-    } else {
-        margin = 3.0f;
+    q32 marginq = q(3);
+    if (QFIELD(o, oVelY) < 0) {
+        marginq = -marginq;
     }
 
-    if (o->oPosY < gMarioObject->oPosY + offsetY + margin) {
-        obj_y_vel_approach(4.0f, 0.4f);
+    if (QFIELD(o, oPosY) < QFIELD(gMarioObject, oPosY) + offsetYq + marginq) {
+        obj_y_vel_approachq(q(4.0f), q(0.4f));
     } else {
-        obj_y_vel_approach(-4.0f, 0.4f);
+        obj_y_vel_approachq(q(-4.0f), q(0.4f));
     }
 }
 
@@ -60,7 +58,7 @@ static void enemy_lakitu_update_speed_and_angle(void) {
     f32 minSpeed;
     s16 turnSpeed;
 
-    f32 distToMario = o->oDistanceToMario;
+    f32 distToMario = FFIELD(o, oDistanceToMario);
     if (distToMario > 500.0f) {
         distToMario = 500.0f;
     }
@@ -69,11 +67,11 @@ static void enemy_lakitu_update_speed_and_angle(void) {
     if ((minSpeed = 1.2f * gMarioStates[0].forwardVel) < 8.0f) {
         minSpeed = 8.0f;
     }
-    o->oForwardVel = distToMario * 0.04f;
-    clamp_f32(&o->oForwardVel, minSpeed, 40.0f);
+    FSETFIELD(o, oForwardVel, distToMario * 0.04f);
+    CLAMP_F32_FIELD(o, oForwardVel, minSpeed, 40.0f);
 
     // Accelerate toward mario vertically
-    enemy_lakitu_update_vel_y(300.0f);
+    enemy_lakitu_update_vel_yq(q(300.0f));
 
     // Turn toward mario except right after throwing a spiny
     if (o->oEnemyLakituFaceForwardCountdown != 0) {
@@ -97,7 +95,7 @@ static void enemy_lakitu_sub_act_no_spiny(void) {
 
     if (o->oEnemyLakituSpinyCooldown != 0) {
         o->oEnemyLakituSpinyCooldown -= 1;
-    } else if (o->oEnemyLakituNumSpinies < 3 && o->oDistanceToMario < 800.0f
+    } else if (o->oEnemyLakituNumSpinies < 3 && QFIELD(o, oDistanceToMario) < q(800.0)
                && abs_angle_diff(o->oAngleToMario, o->oFaceAngleYaw) < 0x4000) {
         struct Object *spiny = spawn_object(o, MODEL_SPINY_BALL, bhvSpiny);
         if (spiny != NULL) {
@@ -123,8 +121,8 @@ static void enemy_lakitu_sub_act_hold_spiny(void) {
         o->oEnemyLakituSpinyCooldown -= 1;
     }
     // TODO: Check if anything interesting happens if we bypass this with speed
-    else if (o->oDistanceToMario > o->oDrawingDistance - 100.0f
-             || (o->oDistanceToMario < 500.0f
+    else if (FFIELD(o, oDistanceToMario) > FFIELD(o, oDrawingDistance) - 100.0f
+             || (QFIELD(o, oDistanceToMario) < q(500.0)
                  && abs_angle_diff(o->oAngleToMario, o->oFaceAngleYaw) < 0x2000)) {
         o->oSubAction = ENEMY_LAKITU_SUB_ACT_THROW_SPINY;
         o->oEnemyLakituFaceForwardCountdown = 20;
@@ -188,7 +186,7 @@ static void enemy_lakitu_act_main(void) {
 void bhv_enemy_lakitu_update(void) {
     // PARTIAL_UPDATE
 
-    treat_far_home_as_mario(2000.0f);
+    treat_far_home_as_marioq(q(2000.0f));
 
     switch (o->oAction) {
         case ENEMY_LAKITU_ACT_UNINITIALIZED:

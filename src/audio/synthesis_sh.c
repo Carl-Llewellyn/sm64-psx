@@ -10,7 +10,7 @@
 #include "external.h"
 
 #ifndef TARGET_N64
-#include "../pc/mixer.h"
+#include "../port/mixer.h"
 #endif
 
 

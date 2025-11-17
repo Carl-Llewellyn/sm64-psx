@@ -1,3 +1,4 @@
+#ifndef NO_AUDIO
 #include <PR/ultratypes.h>
 
 #include "data.h"
@@ -2851,3 +2852,4 @@ void init_sequence_players(void) {
     }
 }
 
+#endif

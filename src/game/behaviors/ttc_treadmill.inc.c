@@ -49,18 +49,18 @@ void bhv_ttc_treadmill_update(void) {
             // until it's time to switch
             if (o->oTimer > o->oTTCTreadmillTimeUntilSwitch) {
                 // Then stop and select new target speed and time until switch
-                if (approach_f32_ptr(&o->oTTCTreadmillSpeed, 0.0f, 10.0f)) {
+                if (APPROACH_F32_FIELD(o, oTTCTreadmillSpeed, 0.0f, 10.0f)) {
                     o->oTTCTreadmillTimeUntilSwitch = random_mod_offset(10, 20, 7);
-                    o->oTTCTreadmillTargetSpeed = random_sign() * 50.0f;
+                    FSETFIELD(o, oTTCTreadmillTargetSpeed, random_sign() * 50.0f);
                     o->oTimer = 0;
                 }
             } else if (o->oTimer > 5) {
-                approach_f32_ptr(&o->oTTCTreadmillSpeed, o->oTTCTreadmillTargetSpeed, 10.0f);
+                APPROACH_F32_FIELD(o, oTTCTreadmillSpeed, FFIELD(o, oTTCTreadmillTargetSpeed), 10.0f);
             }
 
-            *o->oTTCTreadmillBigSurface = *o->oTTCTreadmillSmallSurface = o->oTTCTreadmillSpeed;
+            *o->oTTCTreadmillBigSurface = *o->oTTCTreadmillSmallSurface = FFIELD(o, oTTCTreadmillSpeed);
         }
     }
 
-    o->oForwardVel = 0.084f * *o->oTTCTreadmillBigSurface;
+    FSETFIELD(o, oForwardVel, 0.084f * *o->oTTCTreadmillBigSurface);
 }

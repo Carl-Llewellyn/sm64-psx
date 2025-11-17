@@ -15,7 +15,7 @@
 static void bird_act_inactive(void) {
     // Start flying if the object is a spawned bird or if it's a spawner bird
     // and Mario is within 2000 units.
-    if (o->oBehParams2ndByte == BIRD_BP_SPAWNED || o->oDistanceToMario < 2000.0f) {
+    if (o->oBehParams2ndByte == BIRD_BP_SPAWNED || QFIELD(o, oDistanceToMario) < q(2000)) {
         // If the object is a spawner bird, play the sound of birds flying away,
         // and spawn 6 spawned birds (which will start flying on the next frame).
         if (o->oBehParams2ndByte != BIRD_BP_SPAWNED) {
@@ -28,8 +28,8 @@ static void bird_act_inactive(void) {
             }
 
             // The spawner bird's home acts as its target location.
-            o->oHomeX = -20.0f;
-            o->oHomeZ = -3990.0f;
+            QSETFIELD(o,  oHomeX, q(-20));
+            QSETFIELD(o,  oHomeZ, q(-3990));
         }
 
         // Start flying
@@ -40,7 +40,7 @@ static void bird_act_inactive(void) {
         o->oMoveAnglePitch = 5000 - (s32)(4000.0f * random_float());
         o->oMoveAngleYaw = random_u16();
 
-        o->oBirdSpeed = 40.0f;
+        QSETFIELD(o,  oBirdSpeed, q(40));
 
         cur_obj_unhide();
     }
@@ -53,39 +53,39 @@ static void bird_act_inactive(void) {
  */
 static void bird_act_fly(void) {
     UNUSED s32 unused;
-    f32 distance;
+    q32 distanceq;
 
     // Compute forward velocity and vertical velocity from oBirdSpeed and pitch
-    obj_compute_vel_from_move_pitch(o->oBirdSpeed);
+    obj_compute_vel_from_move_pitchq(QFIELD(o, oBirdSpeed));
 
     // If the bird's parent is higher than 8000 units, despawn the bird.
     // A spawned bird's parent is its spawner bird. A spawner bird's parent
     // is itself. In other words, when a group of birds has its spawner bird
     // fly past Y=8000, they will all despawn simultaneously. Otherwise, fly.
-    if (o->parentObj->oPosY > 8000.0f) {
+    if (IFIELD(o->parentObj, oPosY) > 8000) {
         obj_mark_for_deletion(o);
     } else {
         // If the bird is a spawner bird, fly towards its home; otherwise,
         // fly towards the bird's spawner bird.
         if (o->oBehParams2ndByte != BIRD_BP_SPAWNED) {
-            distance = cur_obj_lateral_dist_to_home();
+            distanceq = q(cur_obj_lateral_dist_to_home());
 
             // The spawner bird will start with its downwards (positive) pitch
             // and will continuously decrease its pitch (i.e. make itself face more upwards)
             // until it reaches its home, at which point it will face directly up.
             // This is done by making its target pitch the arctangent of its distance
             // to its home and its position - 10,000 (which is always negative).
-            o->oBirdTargetPitch = atan2s(distance, o->oPosY - 10000.0f);
+            o->oBirdTargetPitch = atan2sq(distanceq, QFIELD(o, oPosY) - q(10000));
             o->oBirdTargetYaw = cur_obj_angle_to_home();
         } else {
-            distance = lateral_dist_between_objects(o, o->parentObj);
+            distanceq = lateral_dist_between_objectsq(o, o->parentObj);
 
             // The bird's target pitch will face directly to its spawner bird.
-            o->oBirdTargetPitch = atan2s(distance, o->oPosY - o->parentObj->oPosY);
+            o->oBirdTargetPitch = atan2sq(distanceq, QFIELD(o, oPosY) - QFIELD(o->parentObj, oPosY));
             o->oBirdTargetYaw = obj_angle_to_object(o, o->parentObj);
 
             // The bird goes faster the farther it is from its spawner bird so it can catch up.
-            o->oBirdSpeed = 0.04f * dist_between_objects(o, o->parentObj) + 20.0f;
+            QSETFIELD(o, oBirdSpeed, qmul(q(0.04), dist_between_objectsq(o, o->parentObj)) + q(20));
         }
 
         // Approach to match the bird's target yaw and pitch.

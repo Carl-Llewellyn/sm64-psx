@@ -36,7 +36,7 @@ void bhv_castle_floor_trap_open(void) {
 }
 
 void bhv_castle_floor_trap_close_detect(void) {
-    if (o->oDistanceToMario > 1000.0f)
+    if (QFIELD(o, oDistanceToMario) > q(1000.0))
         o->oAction = 3; // close trapdoor
 }
 

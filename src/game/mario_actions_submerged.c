@@ -26,7 +26,7 @@ static s16 sWaterCurrentSpeeds[] = { 28, 12, 8, 4 };
 
 static s16 sBobTimer;
 static s16 sBobIncrement;
-static f32 sBobHeight;
+static s32 sBobHeight;
 
 static void set_swimming_at_surface_particles(struct MarioState *m, u32 particleFlag) {
     s16 atSurface = m->pos[1] >= m->waterLevel - 130;
@@ -188,7 +188,7 @@ static u32 perform_water_step(struct MarioState *m) {
 
     stepResult = perform_water_full_step(m, nextPos);
 
-    vec3f_copy(marioObj->header.gfx.pos, m->pos);
+    vec3f_to_vec3s(marioObj->header.gfx.posi, m->pos);
     vec3s_set(marioObj->header.gfx.angle, -m->faceAngle[0], m->faceAngle[1], m->faceAngle[2]);
 
     return stepResult;
@@ -198,8 +198,8 @@ static BAD_RETURN(u32) update_water_pitch(struct MarioState *m) {
     struct Object *marioObj = m->marioObj;
 
     if (marioObj->header.gfx.angle[0] > 0) {
-        marioObj->header.gfx.pos[1] +=
-            60.0f * sins(marioObj->header.gfx.angle[0]) * sins(marioObj->header.gfx.angle[0]);
+        marioObj->header.gfx.posi[1] +=
+            qtrunc(qmul(60 * sinqs(marioObj->header.gfx.angle[0]), sinqs(marioObj->header.gfx.angle[0])));
     }
 
     if (marioObj->header.gfx.angle[0] < 0) {
@@ -419,7 +419,7 @@ static s32 act_hold_water_action_end(struct MarioState *m) {
 static void reset_bob_variables(struct MarioState *m) {
     sBobTimer = 0;
     sBobIncrement = 0x800;
-    sBobHeight = m->faceAngle[0] / 256.0f + 20.0f;
+    sBobHeight = m->faceAngle[0] / 256 + 20;
 }
 
 /**
@@ -428,7 +428,7 @@ static void reset_bob_variables(struct MarioState *m) {
 static void surface_swim_bob(struct MarioState *m) {
     if (sBobIncrement != 0 && m->pos[1] > m->waterLevel - 85 && m->faceAngle[0] >= 0) {
         if ((sBobTimer += sBobIncrement) >= 0) {
-            m->marioObj->header.gfx.pos[1] += sBobHeight * sins(sBobTimer);
+            m->marioObj->header.gfx.posi[1] += sBobHeight * sinqs(sBobTimer) / ONE;
             return;
         }
     }
@@ -559,7 +559,7 @@ static s32 act_breaststroke(struct MarioState *m) {
 
 #if ENABLE_RUMBLE
     if (m->actionTimer < 6) {
-        func_sh_8024CA04();
+        rumble_for_swimming();
     }
 #endif
 
@@ -776,8 +776,8 @@ static s32 check_water_grab(struct MarioState *m) {
     // you can use water grab to pick up heave ho.
     if (m->marioObj->collidedObjInteractTypes & INTERACT_GRABBABLE) {
         struct Object *object = mario_get_collided_object(m, INTERACT_GRABBABLE);
-        f32 dx = object->oPosX - m->pos[0];
-        f32 dz = object->oPosZ - m->pos[2];
+        f32 dx = FFIELD(object, oPosX) - m->pos[0];
+        f32 dz = FFIELD(object, oPosZ) - m->pos[2];
         s16 dAngleToObject = atan2s(dz, dx) - m->faceAngle[1];
 
         if (dAngleToObject >= -0x2AAA && dAngleToObject <= 0x2AAA) {
@@ -1046,12 +1046,12 @@ static s32 act_caught_in_whirlpool(struct MarioState *m) {
     struct Object *marioObj = m->marioObj;
     struct Object *whirlpool = m->usedObj;
 
-    f32 dx = m->pos[0] - whirlpool->oPosX;
-    f32 dz = m->pos[2] - whirlpool->oPosZ;
+    f32 dx = m->pos[0] - FFIELD(whirlpool, oPosX);
+    f32 dz = m->pos[2] - FFIELD(whirlpool, oPosZ);
     f32 distance = sqrtf(dx * dx + dz * dz);
 
-    if ((marioObj->oMarioWhirlpoolPosY += m->vel[1]) < 0.0f) {
-        marioObj->oMarioWhirlpoolPosY = 0.0f;
+    if (FMODFIELD(marioObj, oMarioWhirlpoolPosY, += m->vel[1]) < 0.0f) {
+        QSETFIELD(marioObj,  oMarioWhirlpoolPosY, q(0));
         if (distance < 16.1f && m->actionTimer++ == 16) {
             level_trigger_warp(m, WARP_OP_DEATH);
         }
@@ -1081,14 +1081,14 @@ static s32 act_caught_in_whirlpool(struct MarioState *m) {
         dz *= newDistance / distance;
     }
 
-    m->pos[0] = whirlpool->oPosX + dx * cosAngleChange + dz * sinAngleChange;
-    m->pos[2] = whirlpool->oPosZ - dx * sinAngleChange + dz * cosAngleChange;
-    m->pos[1] = whirlpool->oPosY + marioObj->oMarioWhirlpoolPosY;
+    m->pos[0] = FFIELD(whirlpool, oPosX) + dx * cosAngleChange + dz * sinAngleChange;
+    m->pos[2] = FFIELD(whirlpool, oPosZ) - dx * sinAngleChange + dz * cosAngleChange;
+    m->pos[1] = FFIELD(whirlpool, oPosY) + FFIELD(marioObj, oMarioWhirlpoolPosY);
 
     m->faceAngle[1] = atan2s(dz, dx) + 0x8000;
 
     set_mario_animation(m, MARIO_ANIM_GENERAL_FALL);
-    vec3f_copy(m->marioObj->header.gfx.pos, m->pos);
+    vec3f_to_vec3s(m->marioObj->header.gfx.posi, m->pos);
     vec3s_set(m->marioObj->header.gfx.angle, 0, m->faceAngle[1], 0);
 #if ENABLE_RUMBLE
     reset_rumble_timers();
@@ -1120,7 +1120,7 @@ static void update_metal_water_walking_speed(struct MarioState *m) {
         m->forwardVel += 1.1f;
     } else if (m->forwardVel <= val) {
         m->forwardVel += 1.1f - m->forwardVel / 43.0f;
-    } else if (m->floor->normal.y >= 0.95f) {
+    } else if (m->floor->compressed_normal.y >= (s8) (0.95 * COMPRESSED_NORMAL_ONE)) {
         m->forwardVel -= 1.0f;
     }
 
@@ -1524,8 +1524,6 @@ static s32 check_common_submerged_cancels(struct MarioState *m) {
 }
 
 s32 mario_execute_submerged_action(struct MarioState *m) {
-    s32 cancel;
-
     if (check_common_submerged_cancels(m)) {
         return TRUE;
     }
@@ -1537,40 +1535,39 @@ s32 mario_execute_submerged_action(struct MarioState *m) {
 
     /* clang-format off */
     switch (m->action) {
-        case ACT_WATER_IDLE:                 cancel = act_water_idle(m);                 break;
-        case ACT_HOLD_WATER_IDLE:            cancel = act_hold_water_idle(m);            break;
-        case ACT_WATER_ACTION_END:           cancel = act_water_action_end(m);           break;
-        case ACT_HOLD_WATER_ACTION_END:      cancel = act_hold_water_action_end(m);      break;
-        case ACT_DROWNING:                   cancel = act_drowning(m);                   break;
-        case ACT_BACKWARD_WATER_KB:          cancel = act_backward_water_kb(m);          break;
-        case ACT_FORWARD_WATER_KB:           cancel = act_forward_water_kb(m);           break;
-        case ACT_WATER_DEATH:                cancel = act_water_death(m);                break;
-        case ACT_WATER_SHOCKED:              cancel = act_water_shocked(m);              break;
-        case ACT_BREASTSTROKE:               cancel = act_breaststroke(m);               break;
-        case ACT_SWIMMING_END:               cancel = act_swimming_end(m);               break;
-        case ACT_FLUTTER_KICK:               cancel = act_flutter_kick(m);               break;
-        case ACT_HOLD_BREASTSTROKE:          cancel = act_hold_breaststroke(m);          break;
-        case ACT_HOLD_SWIMMING_END:          cancel = act_hold_swimming_end(m);          break;
-        case ACT_HOLD_FLUTTER_KICK:          cancel = act_hold_flutter_kick(m);          break;
-        case ACT_WATER_SHELL_SWIMMING:       cancel = act_water_shell_swimming(m);       break;
-        case ACT_WATER_THROW:                cancel = act_water_throw(m);                break;
-        case ACT_WATER_PUNCH:                cancel = act_water_punch(m);                break;
-        case ACT_WATER_PLUNGE:               cancel = act_water_plunge(m);               break;
-        case ACT_CAUGHT_IN_WHIRLPOOL:        cancel = act_caught_in_whirlpool(m);        break;
-        case ACT_METAL_WATER_STANDING:       cancel = act_metal_water_standing(m);       break;
-        case ACT_METAL_WATER_WALKING:        cancel = act_metal_water_walking(m);        break;
-        case ACT_METAL_WATER_FALLING:        cancel = act_metal_water_falling(m);        break;
-        case ACT_METAL_WATER_FALL_LAND:      cancel = act_metal_water_fall_land(m);      break;
-        case ACT_METAL_WATER_JUMP:           cancel = act_metal_water_jump(m);           break;
-        case ACT_METAL_WATER_JUMP_LAND:      cancel = act_metal_water_jump_land(m);      break;
-        case ACT_HOLD_METAL_WATER_STANDING:  cancel = act_hold_metal_water_standing(m);  break;
-        case ACT_HOLD_METAL_WATER_WALKING:   cancel = act_hold_metal_water_walking(m);   break;
-        case ACT_HOLD_METAL_WATER_FALLING:   cancel = act_hold_metal_water_falling(m);   break;
-        case ACT_HOLD_METAL_WATER_FALL_LAND: cancel = act_hold_metal_water_fall_land(m); break;
-        case ACT_HOLD_METAL_WATER_JUMP:      cancel = act_hold_metal_water_jump(m);      break;
-        case ACT_HOLD_METAL_WATER_JUMP_LAND: cancel = act_hold_metal_water_jump_land(m); break;
+        case ACT_WATER_IDLE:                 return act_water_idle(m);                 break;
+        case ACT_HOLD_WATER_IDLE:            return act_hold_water_idle(m);            break;
+        case ACT_WATER_ACTION_END:           return act_water_action_end(m);           break;
+        case ACT_HOLD_WATER_ACTION_END:      return act_hold_water_action_end(m);      break;
+        case ACT_DROWNING:                   return act_drowning(m);                   break;
+        case ACT_BACKWARD_WATER_KB:          return act_backward_water_kb(m);          break;
+        case ACT_FORWARD_WATER_KB:           return act_forward_water_kb(m);           break;
+        case ACT_WATER_DEATH:                return act_water_death(m);                break;
+        case ACT_WATER_SHOCKED:              return act_water_shocked(m);              break;
+        case ACT_BREASTSTROKE:               return act_breaststroke(m);               break;
+        case ACT_SWIMMING_END:               return act_swimming_end(m);               break;
+        case ACT_FLUTTER_KICK:               return act_flutter_kick(m);               break;
+        case ACT_HOLD_BREASTSTROKE:          return act_hold_breaststroke(m);          break;
+        case ACT_HOLD_SWIMMING_END:          return act_hold_swimming_end(m);          break;
+        case ACT_HOLD_FLUTTER_KICK:          return act_hold_flutter_kick(m);          break;
+        case ACT_WATER_SHELL_SWIMMING:       return act_water_shell_swimming(m);       break;
+        case ACT_WATER_THROW:                return act_water_throw(m);                break;
+        case ACT_WATER_PUNCH:                return act_water_punch(m);                break;
+        case ACT_WATER_PLUNGE:               return act_water_plunge(m);               break;
+        case ACT_CAUGHT_IN_WHIRLPOOL:        return act_caught_in_whirlpool(m);        break;
+        case ACT_METAL_WATER_STANDING:       return act_metal_water_standing(m);       break;
+        case ACT_METAL_WATER_WALKING:        return act_metal_water_walking(m);        break;
+        case ACT_METAL_WATER_FALLING:        return act_metal_water_falling(m);        break;
+        case ACT_METAL_WATER_FALL_LAND:      return act_metal_water_fall_land(m);      break;
+        case ACT_METAL_WATER_JUMP:           return act_metal_water_jump(m);           break;
+        case ACT_METAL_WATER_JUMP_LAND:      return act_metal_water_jump_land(m);      break;
+        case ACT_HOLD_METAL_WATER_STANDING:  return act_hold_metal_water_standing(m);  break;
+        case ACT_HOLD_METAL_WATER_WALKING:   return act_hold_metal_water_walking(m);   break;
+        case ACT_HOLD_METAL_WATER_FALLING:   return act_hold_metal_water_falling(m);   break;
+        case ACT_HOLD_METAL_WATER_FALL_LAND: return act_hold_metal_water_fall_land(m); break;
+        case ACT_HOLD_METAL_WATER_JUMP:      return act_hold_metal_water_jump(m);      break;
+        case ACT_HOLD_METAL_WATER_JUMP_LAND: return act_hold_metal_water_jump_land(m); break;
     }
     /* clang-format on */
-
-    return cancel;
+    return FALSE;
 }

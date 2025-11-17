@@ -13,15 +13,15 @@ struct ObjectHitbox sBowserKeyHitbox = {
 };
 
 void bhv_bowser_key_loop(void) {
-    cur_obj_scale(0.5f);
+    cur_obj_scaleq(q(0.5f));
     if (o->oAngleVelYaw > 0x400)
         o->oAngleVelYaw -= 0x100;
     o->oFaceAngleYaw += o->oAngleVelYaw;
     o->oFaceAngleRoll = -0x4000;
-    o->oGraphYOffset = 165.0f;
+    QSETFIELD(o, oGraphYOffset, q(165));
     if (o->oAction == 0) {
         if (o->oTimer == 0)
-            o->oVelY = 70.0f;
+            QSETFIELD(o, oVelY, q(70));
         spawn_sparkle_particles(3, 200, 80, -60);
         spawn_object(o, MODEL_NONE, bhvSparkleSpawn);
         cur_obj_update_floor_and_walls();

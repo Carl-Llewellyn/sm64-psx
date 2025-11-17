@@ -1,5 +1,6 @@
-#ifndef AUDIO_SYNTHESIS_H
-#define AUDIO_SYNTHESIS_H
+#pragma once
+
+#ifndef NO_AUDIO
 
 #include "internal.h"
 
@@ -96,4 +97,4 @@ void note_enable(struct Note *note);
 void note_disable(struct Note *note);
 #endif
 
-#endif // AUDIO_SYNTHESIS_H
+#endif

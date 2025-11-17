@@ -2,22 +2,21 @@
 
 void hexagonal_ring_spawn_flames(void) {
     struct Object *sp1C;
-    f32 size;
     sp1C = spawn_object(o, MODEL_RED_FLAME, bhvVolcanoFlames);
-    sp1C->oPosY += 550.0f;
-    sp1C->oMoveAngleYaw = random_u16() << 0x10 >> 0x10;
-    sp1C->oForwardVel = random_float() * 40.0f + 20.0f;
-    sp1C->oVelY = random_float() * 50.0f + 10.0f;
-    size = random_float() * 6.0 + 3.0;
-    obj_scale_xyz(sp1C, size, size, size);
-    if (random_float() < 0.1)
+    QMODFIELD(sp1C, oPosY, += q(550));
+    sp1C->oMoveAngleYaw = (u32) random_u16() << 16 >> 16;
+    QSETFIELD(sp1C, oForwardVel, random_q32() * 40 + q(20));
+    QSETFIELD(sp1C, oVelY, random_q32() * 50 + q(10));
+    q32 sizeq = random_q32() * 6 + q(3);
+    obj_scale_xyzq(sp1C, sizeq, sizeq, sizeq);
+    if (random_q32() < q(0.1))
         cur_obj_play_sound_2(SOUND_GENERAL_VOLCANO_EXPLOSION);
 }
 
 void bhv_lll_rotating_hexagonal_ring_loop(void) {
     UNUSED s32 unused;
-    o->oCollisionDistance = 4000.0f;
-    o->oDrawingDistance = 8000.0f;
+    QSETFIELD(o, oCollisionDistance, q(4000));
+    QSETFIELD(o, oDrawingDistance, q(8000));
     switch (o->oAction) {
         case 0:
             if (gMarioObject->platform == o)

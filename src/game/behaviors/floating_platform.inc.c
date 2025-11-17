@@ -1,54 +1,60 @@
 // floating_platform.c.inc
 
-f32 floating_platform_find_home_y(void) {
+q32 floating_platform_find_home_yq(void) {
     struct Surface *sp24;
-    f32 sp20;
-    f32 sp1C;
+    q32 sp20q;
+    q32 sp1Cq;
 
-    sp20 = find_water_level(o->oPosX, o->oPosZ);
-    sp1C = find_floor(o->oPosX, o->oPosY, o->oPosZ, &sp24);
-    if (sp20 > sp1C + o->oFloatingPlatformUnkFC) {
+    sp20q = find_water_levelq(QFIELD(o, oPosX), QFIELD(o, oPosZ));
+    sp1Cq = find_floorq(QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ), &sp24);
+    if (sp20q > sp1Cq + QFIELD(o, oFloatingPlatformUnkFC)) {
         o->oFloatingPlatformUnkF4 = 0;
-        return sp20 + o->oFloatingPlatformUnkFC;
+        return sp20q + QFIELD(o, oFloatingPlatformUnkFC);
     } else {
         o->oFloatingPlatformUnkF4 = 1;
-        return sp1C + o->oFloatingPlatformUnkFC;
+        return sp1Cq + QFIELD(o, oFloatingPlatformUnkFC);
     }
 }
 
 void floating_platform_act_0(void) {
-    s16 sp6 = (gMarioObject->header.gfx.pos[0] - o->oPosX) * coss(-1*o->oMoveAngleYaw)
-              + (gMarioObject->header.gfx.pos[2] - o->oPosZ) * sins(-1*o->oMoveAngleYaw);
-    s16 sp4 = (gMarioObject->header.gfx.pos[2] - o->oPosZ) * coss(-1*o->oMoveAngleYaw)
-              - (gMarioObject->header.gfx.pos[0] - o->oPosX) * sins(-1*o->oMoveAngleYaw);
+	s16 sp6 =
+        (s32) (gMarioObject->header.gfx.posi[0] - qtrunc(QFIELD(o, oPosX))) * cosqs(-1*o->oMoveAngleYaw) +
+        (s32) (gMarioObject->header.gfx.posi[2] - qtrunc(QFIELD(o, oPosZ))) * sinqs(-1*o->oMoveAngleYaw);
+    s16 sp4 =
+        (s32) (gMarioObject->header.gfx.posi[2] - qtrunc(QFIELD(o, oPosZ))) * cosqs(-1*o->oMoveAngleYaw) -
+        (s32) (gMarioObject->header.gfx.posi[0] - qtrunc(QFIELD(o, oPosX))) * sinqs(-1*o->oMoveAngleYaw);
 
     if (gMarioObject->platform == o) {
         o->oFaceAnglePitch = sp4 * 2;
         o->oFaceAngleRoll = -sp6 * 2;
-        o->oVelY -= 1.0f;
-        if (o->oVelY < 0.0f)
-            o->oVelY = 0.0f;
+        q32 velyq = QFIELD(o, oVelY) - ONE;
+        if(velyq < 0) {
+            velyq = 0;
+        }
+        QSETFIELD(o, oVelY, velyq);
 
-        o->oFloatingPlatformUnkF8 += o->oVelY;
-        if (o->oFloatingPlatformUnkF8 > 90.0f)
-            o->oFloatingPlatformUnkF8 = 90.0f;
+        q32 unkf8q = QFIELD(o, oFloatingPlatformUnkF8) + velyq;
+        if(unkf8q > q(90)) {
+            unkf8q = q(90);
+        }
+        QSETFIELD(o, oFloatingPlatformUnkF8, unkf8q);
     } else {
         o->oFaceAnglePitch /= 2;
         o->oFaceAngleRoll /= 2;
-        o->oFloatingPlatformUnkF8 -= 5.0;
-        o->oVelY = 10.0f;
-        if (o->oFloatingPlatformUnkF8 < 0.0f)
-            o->oFloatingPlatformUnkF8 = 0.0f;
+        QMODFIELD(o, oFloatingPlatformUnkF8, -= q(5));
+        QSETFIELD(o,  oVelY, q(10));
+        if (QFIELD(o, oFloatingPlatformUnkF8) < 0)
+            QSETFIELD(o,  oFloatingPlatformUnkF8, q(0));
     }
 
-    o->oPosY = o->oHomeY - 64.0f - o->oFloatingPlatformUnkF8 + sins(o->oFloatingPlatformUnk100 * 0x800) * 10.0f;
+    FSETFIELD(o, oPosY, FFIELD(o, oHomeY) - 64.0f - FFIELD(o, oFloatingPlatformUnkF8) + sins(o->oFloatingPlatformUnk100 * 0x800) * 10.0f);
     o->oFloatingPlatformUnk100++;
     if (o->oFloatingPlatformUnk100 == 32)
         o->oFloatingPlatformUnk100 = 0;
 }
 
 void bhv_floating_platform_loop(void) {
-    o->oHomeY = floating_platform_find_home_y();
+    QSETFIELD(o, oHomeY, floating_platform_find_home_yq());
     if (o->oFloatingPlatformUnkF4 == 0)
         o->oAction = 0;
     else
@@ -60,7 +66,7 @@ void bhv_floating_platform_loop(void) {
             break;
 
         case 1:
-            o->oPosY = o->oHomeY;
+            QSETFIELD(o,  oPosY, QFIELD(o,  oHomeY));
             break;
     }
 }

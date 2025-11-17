@@ -85,7 +85,7 @@ void set_yoshi_as_not_dead(void) {
  * of the opacity of an object to something else. Perhaps like, giving a parent object the same
  * opacity?
  */
-Gfx UNUSED *geo_obj_transparency_something(s32 callContext, struct GraphNode *node, UNUSED Mat4 *mtx) {
+Gfx UNUSED *geo_obj_transparency_something(s32 callContext, struct GraphNode *node, UNUSED const ShortMatrix *mtxq) {
     Gfx *gfxHead;
     Gfx *gfx;
     struct Object *heldObject;
@@ -123,7 +123,7 @@ Gfx UNUSED *geo_obj_transparency_something(s32 callContext, struct GraphNode *no
  */
 f32 absf_2(f32 f) {
     if (f < 0) {
-        f *= -1.0f;
+        f = -f;
     }
     return f;
 }
@@ -145,28 +145,25 @@ void turn_obj_away_from_surface(f32 velX, f32 velZ, f32 nX, UNUSED f32 nY, f32 n
  */
 s8 obj_find_wall(f32 objNewX, f32 objY, f32 objNewZ, f32 objVelX, f32 objVelZ) {
     struct WallCollisionData hitbox;
-    f32 wall_nX, wall_nY, wall_nZ, objVelXCopy, objVelZCopy, objYawX, objYawZ;
+    f32 wall_nX, wall_nY, wall_nZ, objYawX, objYawZ;
 
-    hitbox.x = objNewX;
-    hitbox.y = objY;
-    hitbox.z = objNewZ;
-    hitbox.offsetY = o->hitboxHeight / 2;
-    hitbox.radius = o->hitboxRadius;
+    hitbox.xq = q(objNewX);
+    hitbox.yq = q(objY);
+    hitbox.zq = q(objNewZ);
+    hitbox.offsetYq = q(o->hitboxHeight_s16) / 2;
+    hitbox.radiusq = q(o->hitboxRadius_s16);
 
     if (find_wall_collisions(&hitbox) != 0) {
-        o->oPosX = hitbox.x;
-        o->oPosY = hitbox.y;
-        o->oPosZ = hitbox.z;
+        QSETFIELD(o, oPosX, hitbox.xq);
+        QSETFIELD(o, oPosY, hitbox.yq);
+        QSETFIELD(o, oPosZ, hitbox.zq);
 
-        wall_nX = hitbox.walls[0]->normal.x;
-        wall_nY = hitbox.walls[0]->normal.y;
-        wall_nZ = hitbox.walls[0]->normal.z;
-
-        objVelXCopy = objVelX;
-        objVelZCopy = objVelZ;
+        wall_nX = qtof((q32) hitbox.walls[0]->compressed_normal.x * QONE / COMPRESSED_NORMAL_ONE);
+        wall_nY = qtof((q32) hitbox.walls[0]->compressed_normal.y * QONE / COMPRESSED_NORMAL_ONE);
+        wall_nZ = qtof((q32) hitbox.walls[0]->compressed_normal.z * QONE / COMPRESSED_NORMAL_ONE);
 
         // Turns away from the first wall only.
-        turn_obj_away_from_surface(objVelXCopy, objVelZCopy, wall_nX, wall_nY, wall_nZ, &objYawX, &objYawZ);
+        turn_obj_away_from_surface(objVelX, objVelZ, wall_nX, wall_nY, wall_nZ, &objYawX, &objYawZ);
 
         o->oMoveAngleYaw = atan2s(objYawZ, objYawX);
         return FALSE;
@@ -179,7 +176,7 @@ s8 obj_find_wall(f32 objNewX, f32 objY, f32 objNewZ, f32 objVelX, f32 objVelZ) {
  * Turns an object away from steep floors, similarly to walls.
  */
 s8 turn_obj_away_from_steep_floor(struct Surface *objFloor, f32 floorY, f32 objVelX, f32 objVelZ) {
-    f32 floor_nX, floor_nY, floor_nZ, objVelXCopy, objVelZCopy, objYawX, objYawZ;
+    f32 objYawX, objYawZ;
 
     if (objFloor == NULL) {
         //! (OOB Object Crash) TRUNC overflow exception after 36 minutes
@@ -187,15 +184,13 @@ s8 turn_obj_away_from_steep_floor(struct Surface *objFloor, f32 floorY, f32 objV
         return FALSE;
     }
 
-    floor_nX = objFloor->normal.x;
-    floor_nY = objFloor->normal.y;
-    floor_nZ = objFloor->normal.z;
+    q32 floor_nXq = (q32) objFloor->compressed_normal.x * QONE / COMPRESSED_NORMAL_ONE;
+    q32 floor_nYq = (q32) objFloor->compressed_normal.y * QONE / COMPRESSED_NORMAL_ONE;
+    q32 floor_nZq = (q32) objFloor->compressed_normal.z * QONE / COMPRESSED_NORMAL_ONE;
 
     // If the floor is steep and we are below it (i.e. walking into it), turn away from the floor.
-    if (floor_nY < 0.5 && floorY > o->oPosY) {
-        objVelXCopy = objVelX;
-        objVelZCopy = objVelZ;
-        turn_obj_away_from_surface(objVelXCopy, objVelZCopy, floor_nX, floor_nY, floor_nZ, &objYawX,
+    if (floor_nYq < q(0.5) && floorY > FFIELD(o, oPosY)) {
+        turn_obj_away_from_surface(objVelX, objVelZ, qtof(floor_nXq), qtof(floor_nYq), qtof(floor_nZq), &objYawX,
                                &objYawZ);
         o->oMoveAngleYaw = atan2s(objYawZ, objYawX);
         return FALSE;
@@ -208,9 +203,9 @@ s8 turn_obj_away_from_steep_floor(struct Surface *objFloor, f32 floorY, f32 objV
  * Orients an object with the given normals, typically the surface under the object.
  */
 void obj_orient_graph(struct Object *obj, f32 normalX, f32 normalY, f32 normalZ) {
-    Vec3f objVisualPosition, surfaceNormals;
+    Vec3q objVisualPositionq, surfaceNormalsq;
 
-    Mat4 *throwMatrix;
+    ShortMatrix *throwMatrixq;
 
     // Passes on orienting certain objects that shouldn't be oriented, like boulders.
     if (!sOrientObjWithFloor) {
@@ -222,139 +217,140 @@ void obj_orient_graph(struct Object *obj, f32 normalX, f32 normalY, f32 normalZ)
         return;
     }
 
-    throwMatrix = alloc_display_list(sizeof(*throwMatrix));
+    throwMatrixq = alloc_display_list(sizeof(*throwMatrixq));
     // If out of memory, fail to try orienting the object.
-    if (throwMatrix == NULL) {
+    if (throwMatrixq == NULL) {
         return;
     }
 
-    objVisualPosition[0] = obj->oPosX;
-    objVisualPosition[1] = obj->oPosY + obj->oGraphYOffset;
-    objVisualPosition[2] = obj->oPosZ;
+    objVisualPositionq[0] = QFIELD(obj, oPosX);
+    objVisualPositionq[1] = QFIELD(obj, oPosY) + QFIELD(obj, oGraphYOffset);
+    objVisualPositionq[2] = QFIELD(obj, oPosZ);
 
-    surfaceNormals[0] = normalX;
-    surfaceNormals[1] = normalY;
-    surfaceNormals[2] = normalZ;
+    surfaceNormalsq[0] = q(normalX);
+    surfaceNormalsq[1] = q(normalY);
+    surfaceNormalsq[2] = q(normalZ);
 
-    mtxf_align_terrain_normal(*throwMatrix, surfaceNormals, objVisualPosition, obj->oFaceAngleYaw);
-    obj->header.gfx.throwMatrix = throwMatrix;
+    mtx_align_terrain_normal(throwMatrixq, surfaceNormalsq, objVisualPositionq, obj->oFaceAngleYaw);
+	// TODO
+    obj->header.gfx.throwMatrixq = throwMatrixq;
 }
 
 /**
  * Determines an object's forward speed multiplier.
  */
 void calc_obj_friction(f32 *objFriction, f32 floor_nY) {
-    if (floor_nY < 0.2 && o->oFriction < 0.9999) {
+    if (floor_nY < 0.2 && QFIELD(o, oFriction) < q(0.9999)) {
         *objFriction = 0;
     } else {
-        *objFriction = o->oFriction;
+        *objFriction = FFIELD(o, oFriction);
     }
 }
 
 /**
  * Updates an objects speed for gravity and updates Y position.
  */
-void calc_new_obj_vel_and_pos_y(struct Surface *objFloor, f32 objFloorY, f32 objVelX, f32 objVelZ) {
-    f32 floor_nX = objFloor->normal.x;
-    f32 floor_nY = objFloor->normal.y;
-    f32 floor_nZ = objFloor->normal.z;
+void calc_new_obj_vel_and_pos_y(struct Surface *objFloor, f32 objFloorY, f32 objVelXinput, f32 objVelZinput) {
+	q32 objVelXq = q(objVelXinput);
+	q32 objVelZq = q(objVelZinput);
+    q32 floor_nXq = (q32) objFloor->compressed_normal.x * QONE / COMPRESSED_NORMAL_ONE;
+    q32 floor_nYq = (q32) objFloor->compressed_normal.y * QONE / COMPRESSED_NORMAL_ONE;
+    q32 floor_nZq = (q32) objFloor->compressed_normal.z * QONE / COMPRESSED_NORMAL_ONE;
     f32 objFriction;
 
     // Caps vertical speed with a "terminal velocity".
-    o->oVelY -= o->oGravity;
-    if (o->oVelY > 75.0) {
-        o->oVelY = 75.0;
+    QMODFIELD(o, oVelY, -= QFIELD(o,oGravity));
+    if (QFIELD(o, oVelY) > q(75)) {
+        QSETFIELD(o, oVelY, q(75));
     }
-    if (o->oVelY < -75.0) {
-        o->oVelY = -75.0;
+    if (QFIELD(o, oVelY) < q(-75)) {
+        QSETFIELD(o, oVelY, q(-75));
     }
 
-    o->oPosY += o->oVelY;
+    QMODFIELD(o, oPosY, += QFIELD(o, oVelY));
 
     //Snap the object up to the floor.
-    if (o->oPosY < objFloorY) {
-        o->oPosY = objFloorY;
+    if (FFIELD(o, oPosY) < objFloorY) {
+        FSETFIELD(o, oPosY, objFloorY);
 
         // Bounces an object if the ground is hit fast enough.
-        if (o->oVelY < -17.5) {
-            o->oVelY = -(o->oVelY / 2);
+        if (QFIELD(o, oVelY) < q(-17.5)) {
+            QSETFIELD(o, oVelY, -(QFIELD(o, oVelY) / 2));
         } else {
-            o->oVelY = 0;
+            QSETFIELD(o, oVelY, 0);
         }
     }
 
     //! (Obj Position Crash) If you got an object with height past 2^31, the game would crash.
-    if ((s32) o->oPosY >= (s32) objFloorY && (s32) o->oPosY < (s32) objFloorY + 37) {
-        obj_orient_graph(o, floor_nX, floor_nY, floor_nZ);
+    if (IFIELD(o, oPosY) >= (s32) objFloorY && IFIELD(o, oPosY) < (s32) objFloorY + 37) {
+        obj_orient_graph(o, qtof(floor_nXq), qtof(floor_nYq), qtof(floor_nZq));
 
         // Adds horizontal component of gravity for horizontal speed.
-        objVelX += floor_nX * (floor_nX * floor_nX + floor_nZ * floor_nZ)
-                   / (floor_nX * floor_nX + floor_nY * floor_nY + floor_nZ * floor_nZ) * o->oGravity
-                   * 2;
-        objVelZ += floor_nZ * (floor_nX * floor_nX + floor_nZ * floor_nZ)
-                   / (floor_nX * floor_nX + floor_nY * floor_nY + floor_nZ * floor_nZ) * o->oGravity
-                   * 2;
+        objVelXq += qmul((q32) (qdiv(qmul(floor_nXq, (qmul(floor_nXq, floor_nXq) + qmul(floor_nZq, floor_nZq))),
+                   (qmul(floor_nXq, floor_nXq) + qmul(floor_nYq, floor_nYq) + qmul(floor_nZq, floor_nZq))) * 2), QFIELD(o, oGravity));
+        objVelZq += qmul((q32) (qdiv(qmul(floor_nZq, (qmul(floor_nXq, floor_nXq) + qmul(floor_nZq, floor_nZq))),
+                   (qmul(floor_nXq, floor_nXq) + qmul(floor_nYq, floor_nYq) + qmul(floor_nZq, floor_nZq))) * 2), QFIELD(o, oGravity));
 
-        if (objVelX < 0.000001 && objVelX > -0.000001) {
-            objVelX = 0;
-        }
-        if (objVelZ < 0.000001 && objVelZ > -0.000001) {
-            objVelZ = 0;
-        }
+        //if (objVelX < 0.000001 && objVelX > -0.000001) {
+        //    objVelX = 0;
+        //}
+        //if (objVelZ < 0.000001 && objVelZ > -0.000001) {
+        //    objVelZ = 0;
+        //}
 
-        if (objVelX != 0 || objVelZ != 0) {
-            o->oMoveAngleYaw = atan2s(objVelZ, objVelX);
+        if (objVelXq != 0 || objVelZq != 0) {
+            o->oMoveAngleYaw = atan2sq(objVelZq, objVelXq);
         }
 
-        calc_obj_friction(&objFriction, floor_nY);
-        o->oForwardVel = sqrtf(objVelX * objVelX + objVelZ * objVelZ) * objFriction;
+        calc_obj_friction(&objFriction, qtof(floor_nYq));
+        QSETFIELD(o, oForwardVel, qmul(sqrtq(qmul(objVelXq, objVelXq) + qmul(objVelZq, objVelZq)), q(objFriction)));
     }
 }
 
 void calc_new_obj_vel_and_pos_y_underwater(struct Surface *objFloor, f32 floorY, f32 objVelX, f32 objVelZ,
                                     f32 waterY) {
-    f32 floor_nX = objFloor->normal.x;
-    f32 floor_nY = objFloor->normal.y;
-    f32 floor_nZ = objFloor->normal.z;
+    q32 floor_nXq = (q32) objFloor->compressed_normal.x * QONE / COMPRESSED_NORMAL_ONE;
+    q32 floor_nYq = (q32) objFloor->compressed_normal.y * QONE / COMPRESSED_NORMAL_ONE;
+    q32 floor_nZq = (q32) objFloor->compressed_normal.z * QONE / COMPRESSED_NORMAL_ONE;
 
-    f32 netYAccel = (1.0f - o->oBuoyancy) * (-1.0f * o->oGravity);
-    o->oVelY -= netYAccel;
+    q32 netYAccelq = qmul(q(1) - QFIELD(o, oBuoyancy), -QFIELD(o, oGravity));
+    QMODFIELD(o, oVelY, -= netYAccelq);
 
     // Caps vertical speed with a "terminal velocity".
-    if (o->oVelY > 75.0) {
-        o->oVelY = 75.0;
+    if (QFIELD(o, oVelY) > q(75)) {
+        QSETFIELD(o, oVelY, q(75));
     }
-    if (o->oVelY < -75.0) {
-        o->oVelY = -75.0;
+    if (QFIELD(o, oVelY) < q(-75)) {
+        QSETFIELD(o, oVelY, q(-75));
     }
 
-    o->oPosY += o->oVelY;
+    QMODFIELD(o, oPosY, += QFIELD(o, oVelY));
 
     //Snap the object up to the floor.
-    if (o->oPosY < floorY) {
-        o->oPosY = floorY;
+    if (FFIELD(o, oPosY) < floorY) {
+        FSETFIELD(o, oPosY, floorY);
 
         // Bounces an object if the ground is hit fast enough.
-        if (o->oVelY < -17.5) {
-            o->oVelY = -(o->oVelY / 2);
+        if (QFIELD(o, oVelY) < q(-17.5)) {
+            QSETFIELD(o, oVelY, -(QFIELD(o, oVelY) / 2));
         } else {
-            o->oVelY = 0;
+            QSETFIELD(o, oVelY, 0);
         }
     }
 
     // If moving fast near the surface of the water, flip vertical speed? To emulate skipping?
-    if (o->oForwardVel > 12.5 && (waterY + 30.0f) > o->oPosY && (waterY - 30.0f) < o->oPosY) {
-        o->oVelY = -o->oVelY;
+    if (QFIELD(o, oForwardVel) > q(12.5) && (waterY + 30.0f) > FFIELD(o, oPosY) && (waterY - 30.0f) < FFIELD(o, oPosY)) {
+        QSETFIELD(o, oVelY, -QFIELD(o, oVelY));
     }
 
-    if ((s32) o->oPosY >= (s32) floorY && (s32) o->oPosY < (s32) floorY + 37) {
-        obj_orient_graph(o, floor_nX, floor_nY, floor_nZ);
+    if (IFIELD(o, oPosY) >= (s32) floorY && IFIELD(o, oPosY) < (s32) floorY + 37) {
+        obj_orient_graph(o, qtof(floor_nXq), qtof(floor_nYq), qtof(floor_nZq));
 
         // Adds horizontal component of gravity for horizontal speed.
-        objVelX += floor_nX * (floor_nX * floor_nX + floor_nZ * floor_nZ)
-                   / (floor_nX * floor_nX + floor_nY * floor_nY + floor_nZ * floor_nZ) * netYAccel * 2;
-        objVelZ += floor_nZ * (floor_nX * floor_nX + floor_nZ * floor_nZ)
-                   / (floor_nX * floor_nX + floor_nY * floor_nY + floor_nZ * floor_nZ) * netYAccel * 2;
+        objVelX += qmul(qdiv(qmul(floor_nXq, (qmul(floor_nXq, floor_nXq) + qmul(floor_nZq, floor_nZq))),
+                   (qmul(floor_nXq, floor_nXq) + qmul(floor_nYq, floor_nYq) + qmul(floor_nZq, floor_nZq))), netYAccelq) * 2;
+        objVelZ += qmul(qdiv(qmul(floor_nZq, (qmul(floor_nXq, floor_nXq) + qmul(floor_nZq, floor_nZq))),
+                   (qmul(floor_nXq, floor_nXq) + qmul(floor_nYq, floor_nYq) + qmul(floor_nZq, floor_nZq))), netYAccelq) * 2;
     }
 
     if (objVelX < 0.000001 && objVelX > -0.000001) {
@@ -364,8 +360,8 @@ void calc_new_obj_vel_and_pos_y_underwater(struct Surface *objFloor, f32 floorY,
         objVelZ = 0;
     }
 
-    if (o->oVelY < 0.000001 && o->oVelY > -0.000001) {
-        o->oVelY = 0;
+    if (FFIELD(o, oVelY) < 0.000001 && FFIELD(o, oVelY) > -0.000001) {
+        QSETFIELD(o,  oVelY, q(0));
     }
 
     if (objVelX != 0 || objVelZ != 0) {
@@ -374,19 +370,19 @@ void calc_new_obj_vel_and_pos_y_underwater(struct Surface *objFloor, f32 floorY,
 
     // Decreases both vertical velocity and forward velocity. Likely so that skips above
     // don't loop infinitely.
-    o->oForwardVel = sqrtf(objVelX * objVelX + objVelZ * objVelZ) * 0.8;
-    o->oVelY *= 0.8;
+    FSETFIELD(o, oForwardVel, sqrtf(objVelX * objVelX + objVelZ * objVelZ) * 0.8);
+    QSETFIELD(o, oVelY, QFIELD(o, oVelY) * 4 / 5);
 }
 
 /**
  * Updates an objects position from oForwardVel and oMoveAngleYaw.
  */
 void obj_update_pos_vel_xz(void) {
-    f32 xVel = o->oForwardVel * sins(o->oMoveAngleYaw);
-    f32 zVel = o->oForwardVel * coss(o->oMoveAngleYaw);
+    q32 xVel = qmul(QFIELD(o, oForwardVel), sinqs(o->oMoveAngleYaw));
+    q32 zVel = qmul(QFIELD(o, oForwardVel), cosqs(o->oMoveAngleYaw));
 
-    o->oPosX += xVel;
-    o->oPosZ += zVel;
+    QMODFIELD(o, oPosX, += xVel);
+    QMODFIELD(o, oPosZ, += zVel);
 }
 
 /**
@@ -397,10 +393,10 @@ void obj_splash(s32 waterY, s32 objY) {
     u32 globalTimer = gGlobalTimer;
 
     // Spawns waves if near surface of water and plays a noise if entering.
-    if ((f32)(waterY + 30) > o->oPosY && o->oPosY > (f32)(waterY - 30)) {
+    if ((f32)(waterY + 30) > FFIELD(o, oPosY) && FFIELD(o, oPosY) > (f32)(waterY - 30)) {
         spawn_object(o, MODEL_IDLE_WATER_WAVE, bhvObjectWaterWave);
 
-        if (o->oVelY < -20.0f) {
+        if (FFIELD(o, oVelY) < -20.0f) {
             cur_obj_play_sound_2(SOUND_OBJ_DIVING_INTO_WATER);
         }
     }
@@ -416,15 +412,15 @@ void obj_splash(s32 waterY, s32 objY) {
  * Returns flags for certain interactions.
  */
 s16 object_step(void) {
-    f32 objX = o->oPosX;
-    f32 objY = o->oPosY;
-    f32 objZ = o->oPosZ;
+    f32 objX = FFIELD(o, oPosX);
+    f32 objY = FFIELD(o, oPosY);
+    f32 objZ = FFIELD(o, oPosZ);
 
     f32 floorY;
     f32 waterY = FLOOR_LOWER_LIMIT_MISC;
 
-    f32 objVelX = o->oForwardVel * sins(o->oMoveAngleYaw);
-    f32 objVelZ = o->oForwardVel * coss(o->oMoveAngleYaw);
+    f32 objVelX = FFIELD(o, oForwardVel) * sins(o->oMoveAngleYaw);
+    f32 objVelZ = FFIELD(o, oForwardVel) * coss(o->oMoveAngleYaw);
 
     s16 collisionFlags = 0;
 
@@ -449,16 +445,16 @@ s16 object_step(void) {
     }
 
     obj_update_pos_vel_xz();
-    if ((s32) o->oPosY == (s32) floorY) {
+    if ((s32) QFIELD(o, oPosY) == q((s32) floorY)) {
         collisionFlags += OBJ_COL_FLAG_GROUNDED;
     }
 
-    if ((s32) o->oVelY == 0) {
+    if ((s32) QFIELD(o, oVelY) == 0) {
         collisionFlags += OBJ_COL_FLAG_NO_Y_VEL;
     }
 
     // Generate a splash if in water.
-    obj_splash((s32) waterY, (s32) o->oPosY);
+    obj_splash((s32) waterY, IFIELD(o, oPosY));
     return collisionFlags;
 }
 
@@ -483,53 +479,43 @@ s16 object_step_without_floor_orient(void) {
  * position.
  */
 void obj_move_xyz_using_fvel_and_yaw(struct Object *obj) {
-    o->oVelX = obj->oForwardVel * sins(obj->oMoveAngleYaw);
-    o->oVelZ = obj->oForwardVel * coss(obj->oMoveAngleYaw);
+    QSETFIELD(o, oVelX, qmul(QFIELD(obj, oForwardVel), sinqs(obj->oMoveAngleYaw)));
+    QSETFIELD(o, oVelZ, qmul(QFIELD(obj, oForwardVel), cosqs(obj->oMoveAngleYaw)));
 
-    obj->oPosX += o->oVelX;
-    obj->oPosY += obj->oVelY;
-    obj->oPosZ += o->oVelZ;
+    QMODFIELD(obj, oPosX, += QFIELD(o, oVelX));
+    QMODFIELD(obj, oPosY, += QFIELD(obj, oVelY));
+    QMODFIELD(obj, oPosZ, += QFIELD(o, oVelZ));
 }
 
 /**
  * Checks if a point is within distance from Mario's graphical position. Test is exclusive.
  */
-s8 is_point_within_radius_of_mario(f32 x, f32 y, f32 z, s32 dist) {
-    f32 mGfxX = gMarioObject->header.gfx.pos[0];
-    f32 mGfxY = gMarioObject->header.gfx.pos[1];
-    f32 mGfxZ = gMarioObject->header.gfx.pos[2];
+s32 is_point_within_radius_of_mario(s32 x, s32 y, s32 z, s32 dist) {
+    s32 mGfxX = gMarioObject->header.gfx.posi[0];
+    s32 mGfxY = gMarioObject->header.gfx.posi[1];
+    s32 mGfxZ = gMarioObject->header.gfx.posi[2];
 
-    if ((x - mGfxX) * (x - mGfxX) + (y - mGfxY) * (y - mGfxY) + (z - mGfxZ) * (z - mGfxZ)
-        < (f32)(dist * dist)) {
-        return TRUE;
-    }
-
-    return FALSE;
+    return (x - mGfxX) * (x - mGfxX) + (y - mGfxY) * (y - mGfxY) + (z - mGfxZ) * (z - mGfxZ) < dist * dist;
 }
 
 /**
  * Checks whether a point is within distance of a given point. Test is exclusive.
  */
-s8 is_point_close_to_object(struct Object *obj, f32 x, f32 y, f32 z, s32 dist) {
-    f32 objX = obj->oPosX;
-    f32 objY = obj->oPosY;
-    f32 objZ = obj->oPosZ;
+s32 is_point_close_to_object(struct Object *obj, s32 x, s32 y, s32 z, s32 dist) {
+    s32 objX = qtrunc(QFIELD(obj, oPosX));
+    s32 objY = qtrunc(QFIELD(obj, oPosY));
+    s32 objZ = qtrunc(QFIELD(obj, oPosZ));
 
-    if ((x - objX) * (x - objX) + (y - objY) * (y - objY) + (z - objZ) * (z - objZ)
-        < (f32)(dist * dist)) {
-        return TRUE;
-    }
-
-    return FALSE;
+    return (x - objX) * (x - objX) + (y - objY) * (y - objY) + (z - objZ) * (z - objZ) < dist * dist;
 }
 
 /**
  * Sets an object as visible if within a certain distance of Mario's graphical position.
  */
 void set_object_visibility(struct Object *obj, s32 dist) {
-    f32 objX = obj->oPosX;
-    f32 objY = obj->oPosY;
-    f32 objZ = obj->oPosZ;
+    s32 objX = qtrunc(QFIELD(obj, oPosX));
+    s32 objY = qtrunc(QFIELD(obj, oPosY));
+    s32 objZ = qtrunc(QFIELD(obj, oPosZ));
 
     if (is_point_within_radius_of_mario(objX, objY, objZ, dist) == TRUE) {
         obj->header.gfx.node.flags &= ~GRAPH_RENDER_INVISIBLE;
@@ -541,35 +527,33 @@ void set_object_visibility(struct Object *obj, s32 dist) {
 /**
  * Turns an object towards home if Mario is not near to it.
  */
-s8 obj_return_home_if_safe(struct Object *obj, f32 homeX, f32 y, f32 homeZ, s32 dist) {
-    f32 homeDistX = homeX - obj->oPosX;
-    f32 homeDistZ = homeZ - obj->oPosZ;
-    s16 angleTowardsHome = atan2s(homeDistZ, homeDistX);
+s32 obj_return_home_if_safe(struct Object *obj, s32 homeX, s32 y, s32 homeZ, s32 dist) {
+    s32 homeDistX = homeX - IFIELD(obj, oPosX);
+    s32 homeDistZ = homeZ - IFIELD(obj, oPosZ);
+    s16 angleTowardsHome = atan2sq(homeDistZ, homeDistX);
 
-    if (is_point_within_radius_of_mario(homeX, y, homeZ, dist) == TRUE) {
+    if(is_point_within_radius_of_mario(homeX, y, homeZ, dist)) {
         return TRUE;
     } else {
         obj->oMoveAngleYaw = approach_s16_symmetric(obj->oMoveAngleYaw, angleTowardsHome, 320);
+        return FALSE;
     }
-
-    return FALSE;
 }
 
 /**
  * Randomly displaces an objects home if RNG says to, and turns the object towards its home.
  */
-void obj_return_and_displace_home(struct Object *obj, f32 homeX, UNUSED f32 homeY, f32 homeZ, s32 baseDisp) {
+void obj_return_and_displace_home(struct Object *obj, s32 homeX, s32 homeZ, s32 baseDisp) {
     s16 angleToNewHome;
-    f32 homeDistX, homeDistZ;
 
-    if ((s32)(random_float() * 50.0f) == 0) {
-        obj->oHomeX = (f32)(baseDisp * 2) * random_float() - (f32) baseDisp + homeX;
-        obj->oHomeZ = (f32)(baseDisp * 2) * random_float() - (f32) baseDisp + homeZ;
+    if(random_q32() * 50 / ONE == 0) {
+        QSETFIELD(obj, oHomeX, baseDisp * 2 * random_q32() - q(baseDisp) + q(homeX));
+        QSETFIELD(obj, oHomeZ, baseDisp * 2 * random_q32() - q(baseDisp) + q(homeZ));
     }
 
-    homeDistX = obj->oHomeX - obj->oPosX;
-    homeDistZ = obj->oHomeZ - obj->oPosZ;
-    angleToNewHome = atan2s(homeDistZ, homeDistX);
+    q32 homeDistXq = QFIELD(obj, oHomeX) - QFIELD(obj, oPosX);
+    q32 homeDistZq = QFIELD(obj, oHomeZ) - QFIELD(obj, oPosZ);
+    angleToNewHome = atan2sq(homeDistZq, homeDistXq);
     obj->oMoveAngleYaw = approach_s16_symmetric(obj->oMoveAngleYaw, angleToNewHome, 320);
 }
 
@@ -577,38 +561,33 @@ void obj_return_and_displace_home(struct Object *obj, f32 homeX, UNUSED f32 home
  * A series of checks using sin and cos to see if a given angle is facing in the same direction
  * of a given angle, within a certain range.
  */
-s8 obj_check_if_facing_toward_angle(u32 base, u32 goal, s16 range) {
+s32 obj_check_if_facing_toward_angle(u32 base, u32 goal, s16 range) {
     s16 dAngle = (u16) goal - (u16) base;
 
-    if (((f32) sins(-range) < (f32) sins(dAngle)) && ((f32) sins(dAngle) < (f32) sins(range))
-        && (coss(dAngle) > 0)) {
-        return TRUE;
-    }
-
-    return FALSE;
+    return (sinqs(-range) < sinqs(dAngle)) && (sinqs(dAngle) < sinqs(range)) && (cosqs(dAngle) > 0);
 }
 
 /**
  * Finds any wall collisions and returns what the displacement vector would be.
  */
-s8 obj_find_wall_displacement(Vec3f dist, f32 x, f32 y, f32 z, f32 radius) {
+s32 obj_find_wall_displacement(Vec3f dist, f32 x, f32 y, f32 z, f32 radius) {
     struct WallCollisionData hitbox;
-    UNUSED u8 filler[0x20];
-
-    hitbox.x = x;
-    hitbox.y = y;
-    hitbox.z = z;
-    hitbox.offsetY = 10.0f;
-    hitbox.radius = radius;
+	q32 xq = q(x);
+	q32 yq = q(y);
+	q32 zq = q(z);
+    hitbox.xq = xq;
+    hitbox.yq = yq;
+    hitbox.zq = zq;
+    hitbox.offsetYq = q(10);
+    hitbox.radiusq = q(radius);
 
     if (find_wall_collisions(&hitbox) != 0) {
-        dist[0] = hitbox.x - x;
-        dist[1] = hitbox.y - y;
-        dist[2] = hitbox.z - z;
+        dist[0] = qtof(hitbox.xq - xq);
+        dist[1] = qtof(hitbox.yq - yq);
+        dist[2] = qtof(hitbox.zq - zq);
         return TRUE;
-    } else {
-        return FALSE;
     }
+    return FALSE;
 }
 
 /**
@@ -621,8 +600,8 @@ void obj_spawn_yellow_coins(struct Object *obj, s8 nCoins) {
 
     for (count = 0; count < nCoins; count++) {
         coin = spawn_object(obj, MODEL_YELLOW_COIN, bhvMovingYellowCoin);
-        coin->oForwardVel = random_float() * 20;
-        coin->oVelY = random_float() * 40 + 20;
+        QSETFIELD(coin, oForwardVel, random_q32() * 20);
+        QSETFIELD(coin, oVelY, random_q32() * 40 + q(20));
         coin->oMoveAngleYaw = random_u16();
     }
 }
@@ -682,7 +661,7 @@ s8 current_mario_room_check(s16 room) {
 s16 trigger_obj_dialog_when_facing(s32 *inDialog, s16 dialogID, f32 dist, s32 actionArg) {
     s16 dialogueResponse;
 
-    if ((is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, (s32) dist) == TRUE
+    if ((is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), (s32) dist) == TRUE
          && obj_check_if_facing_toward_angle(o->oFaceAngleYaw, gMarioObject->header.gfx.angle[1] + 0x8000, 0x1000) == TRUE
          && obj_check_if_facing_toward_angle(o->oMoveAngleYaw, o->oAngleToMario, 0x1000) == TRUE)
         || (*inDialog == TRUE)) {
@@ -737,16 +716,16 @@ s8 obj_lava_death(void) {
         return TRUE;
     } else {
         // Sinking effect
-        o->oPosY -= 10.0f;
+        QMODFIELD(o, oPosY, -= q(10.0f));
     }
 
     if ((o->oTimer % 8) == 0) {
         cur_obj_play_sound_2(SOUND_OBJ_BULLY_EXPLODE_2);
         deathSmoke = spawn_object(o, MODEL_SMOKE, bhvBobombBullyDeathSmoke);
-        deathSmoke->oPosX += random_float() * 20.0f;
-        deathSmoke->oPosY += random_float() * 20.0f;
-        deathSmoke->oPosZ += random_float() * 20.0f;
-        deathSmoke->oForwardVel = random_float() * 10.0f;
+        QMODFIELD(deathSmoke, oPosX, += random_float() * 20.0f);
+        QMODFIELD(deathSmoke, oPosY, += random_float() * 20.0f);
+        QMODFIELD(deathSmoke, oPosZ, += random_float() * 20.0f);
+        QMODFIELD(deathSmoke, oForwardVel, = random_float() * 10.0f);
     }
 
     return FALSE;
@@ -763,7 +742,7 @@ void spawn_orange_number(s8 behParam, s16 relX, s16 relY, s16 relZ) {
     }
 
     orangeNumber = spawn_object_relative(behParam, relX, relY, relZ, o, MODEL_NUMBER, bhvOrangeNumber);
-    orangeNumber->oPosY += 25.0f;
+    QMODFIELD(orangeNumber, oPosY, += q(25));
 }
 
 /**

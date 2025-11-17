@@ -12,8 +12,8 @@ void bhv_bowser_shock_wave_loop(void) {
     f32 distMin1, distMax1, distMin2, distMax2;
     s16 fadeFrames = 70;
     // Scale shockwave as the timer goes on
-    o->oBowserShockWaveScale = o->oTimer * 10;
-    cur_obj_scale(o->oBowserShockWaveScale);
+    QSETFIELD(o, oBowserShockWaveScale, q(10 * o->oTimer));
+    cur_obj_scaleq(QFIELD(o, oBowserShockWaveScale));
     // Slightly reduce opacity each 3 frames
     if (gGlobalTimer % 3)
         o->oOpacity -= 1;
@@ -26,13 +26,13 @@ void bhv_bowser_shock_wave_loop(void) {
     // If object times is less than 70 frame and Mario is not in the air...
     if (o->oTimer < fadeFrames && mario_is_in_air_action() == 0) {
         // ..define distance values depending of the scale multiplied by hit points
-        distMin1 = o->oBowserShockWaveScale * sBowserShockwaveHitPoints[0];
-        distMax1 = o->oBowserShockWaveScale * sBowserShockwaveHitPoints[1];
-        distMin2 = o->oBowserShockWaveScale * sBowserShockwaveHitPoints[2];
-        distMax2 = o->oBowserShockWaveScale * sBowserShockwaveHitPoints[3];
+        distMin1 = FFIELD(o, oBowserShockWaveScale) * sBowserShockwaveHitPoints[0];
+        distMax1 = FFIELD(o, oBowserShockWaveScale) * sBowserShockwaveHitPoints[1];
+        distMin2 = FFIELD(o, oBowserShockWaveScale) * sBowserShockwaveHitPoints[2];
+        distMax2 = FFIELD(o, oBowserShockWaveScale) * sBowserShockwaveHitPoints[3];
         // If Mario is in between distMin and distMax values, shock him
-        if ((distMin1 < o->oDistanceToMario && o->oDistanceToMario < distMax1)
-            || (distMin2 < o->oDistanceToMario && o->oDistanceToMario < distMax2))
+        if ((distMin1 < FFIELD(o, oDistanceToMario) && FFIELD(o, oDistanceToMario) < distMax1)
+            || (distMin2 < FFIELD(o, oDistanceToMario) && FFIELD(o, oDistanceToMario) < distMax2))
             gMarioObject->oInteractStatus |= INT_STATUS_MARIO_SHOCKWAVE;
     }
 }

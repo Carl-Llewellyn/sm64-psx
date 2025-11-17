@@ -141,9 +141,15 @@ const Gfx title_screen_bg_dl_0A006618[] = {
     gsDPSetRenderMode(G_RM_AA_ZB_OPA_SURF, G_RM_AA_ZB_OPA_SURF2),
     gsSPEndDisplayList(),
 };
+#endif
 
-ALIGNED8 static const u8 title_texture_rumble_pak[] = {
+#if defined(VERSION_SH) || defined(RUMBLE_GRAPHIC)
+ALIGNED8 const u8 title_texture_rumble_pak[] = {
+#ifdef TARGET_PSX
+#include "dualshock_graphic.inc.c"
+#else
 #include "textures/title_screen_bg/title_screen_bg.06648.rgba16.inc.c"
+#endif
 };
 
 const Gfx title_screen_bg_dl_0A007548[] = {
@@ -154,7 +160,8 @@ const Gfx title_screen_bg_dl_0A007548[] = {
     gsDPSetRenderMode(G_RM_NOOP, G_RM_NOOP2),
     gsDPSetScissor(G_SC_NON_INTERLACE, 0, 0, 319, 239),
     gsDPLoadTextureTile(title_texture_rumble_pak, G_IM_FMT_RGBA, G_IM_SIZ_16b, 80, 0, 0, 0, 79, 23, 0, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, 7, 5, G_TX_NOLOD, G_TX_NOLOD),
-    gsSPTextureRectangle(220 << 2, 200 << 2, 299 << 2, 223 << 2, G_TX_RENDERTILE, 0, 0, 4 << 10, 1 << 10),
+    //gsSPTextureRectangle(220 << 2, 200 << 2, 299 << 2, 223 << 2, G_TX_RENDERTILE, 0, 0, 4 << 10, 1 << 10),
+    gsSPTextureRectangle((220 - 16) << 2, 200 << 2, (299 - 16) << 2, 223 << 2, G_TX_RENDERTILE, 0, 0, 4 << 10, 1 << 10),
     gsDPPipeSync(),
     gsDPSetCycleType(G_CYC_1CYCLE),
     gsDPSetTexturePersp(G_TP_PERSP),

@@ -1,36 +1,35 @@
 // lll_rotating_hex_flame.c.inc
 
 void bhv_lll_rotating_hex_flame_loop(void) {
-    f32 sp24 = o->oLllRotatingHexFlameUnkF4;
-    f32 sp20 = o->oLllRotatingHexFlameUnkF8;
-    f32 sp1C = o->oLllRotatingHexFlameUnkFC;
+    f32 sp24 = FFIELD(o, oLllRotatingHexFlameUnkF4);
+    f32 sp20 = FFIELD(o, oLllRotatingHexFlameUnkF8);
+    f32 sp1C = FFIELD(o, oLllRotatingHexFlameUnkFC);
     cur_obj_set_pos_relative(o->parentObj, sp24, sp20, sp1C);
-    o->oPosY = o->parentObj->oPosY + 100.0f;
+    QSETFIELD(o, oPosY, QFIELD(o->parentObj, oPosY) + q(100));
     if (o->parentObj->oAction == 3)
         obj_mark_for_deletion(o);
 }
 
 void fire_bar_spawn_flames(s16 a0) {
     struct Object *sp2C;
-    UNUSED s32 unused;
     s32 i;
     s32 sp20;
-    f32 sp1C = sins(a0) * 200.0f;
-    f32 sp18 = coss(a0) * 200.0f;
+    q32 sp1Cq = sinqs(a0) * 200;
+    q32 sp18q = cosqs(a0) * 200;
     sp20 = (o->oBehParams2ndByte == 0) ? 4 : 3;
     for (i = 0; i < sp20; i++) {
         sp2C = spawn_object(o, MODEL_RED_FLAME, bhvLllRotatingHexFlame);
-        sp2C->oLllRotatingHexFlameUnkF4 += sp1C;
-        sp2C->oLllRotatingHexFlameUnkF8 = o->oPosY - 200.0f;
-        sp2C->oLllRotatingHexFlameUnkFC += sp18;
-        obj_scale_xyz(sp2C, 6.0f, 6.0f, 6.0f);
-        sp1C += sins(a0) * 150.0f;
-        sp18 += coss(a0) * 150.0f;
+        QMODFIELD(sp2C, oLllRotatingHexFlameUnkF4, += sp1Cq);
+        QSETFIELD(sp2C, oLllRotatingHexFlameUnkF8, QFIELD(o, oPosY) - q(200));
+        QMODFIELD(sp2C, oLllRotatingHexFlameUnkFC, += sp18q);
+        obj_scale_xyzq(sp2C, q(6), q(6), q(6));
+        sp1Cq += sinqs(a0) * 150;
+        sp18q += cosqs(a0) * 150;
     }
 }
 
 void fire_bar_act_0(void) {
-    if (o->oDistanceToMario < 3000.0f)
+    if (QFIELD(o, oDistanceToMario) < q(3000.0))
         o->oAction = 1;
 }
 
@@ -45,7 +44,7 @@ void fire_bar_act_1(void) {
 void fire_bar_act_2(void) {
     o->oAngleVelYaw = -0x100;
     o->oMoveAngleYaw += o->oAngleVelYaw;
-    if (o->oDistanceToMario > 3200.0f)
+    if (QFIELD(o, oDistanceToMario) > q(3200.0))
         o->oAction = 3;
 }
 

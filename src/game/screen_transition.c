@@ -12,6 +12,7 @@
 #include "screen_transition.h"
 #include "segment2.h"
 #include "sm64.h"
+#include <port/gfx/gfx.h>
 
 u8 sTransitionColorFadeCount[4] = { 0 };
 u16 sTransitionTextureFadeCount[2] = { 0 };
@@ -30,7 +31,7 @@ s32 set_and_reset_transition_fade_timer(s8 fadeTimer, u8 transTime) {
 }
 
 u8 set_transition_color_fade_alpha(s8 fadeType, s8 fadeTimer, u8 transTime) {
-    u8 time;
+    u8 time = 0;
 
     switch (fadeType) {
         case 0:
@@ -59,18 +60,24 @@ Vtx *vertex_transition_color(struct WarpTransitionData *transData, u8 alpha) {
     return verts;
 }
 
+void create_dl_identity_matrix(void);
+
 s32 dl_transition_color(s8 fadeTimer, u8 transTime, struct WarpTransitionData *transData, u8 alpha) {
+#ifdef RSP_DL
     Vtx *verts = vertex_transition_color(transData, alpha);
 
     if (verts != NULL) {
-        gSPDisplayList(gDisplayListHead++, dl_proj_mtx_fullscreen);
+        //gSPDisplayList(gDisplayListHead++, dl_proj_mtx_fullscreen);
         gDPSetCombineMode(gDisplayListHead++, G_CC_SHADE, G_CC_SHADE);
         gDPSetRenderMode(gDisplayListHead++, G_RM_AA_XLU_SURF, G_RM_AA_XLU_SURF2);
         gSPVertex(gDisplayListHead++, VIRTUAL_TO_PHYSICAL(verts), 4, 0);
         gSPDisplayList(gDisplayListHead++, dl_draw_quad_verts_0123);
         gSPDisplayList(gDisplayListHead++, dl_screen_transition_end);
     }
-    return set_and_reset_transition_fade_timer(fadeTimer, transTime);
+#else
+	gfx_fade_to_color((Color) {.r = transData->red, .g = transData->green, .b = transData->blue}, alpha);
+#endif
+	return set_and_reset_transition_fade_timer(fadeTimer, transTime);
 }
 
 s32 render_fade_transition_from_color(s8 fadeTimer, u8 transTime, struct WarpTransitionData *transData) {
@@ -172,37 +179,28 @@ s32 render_textured_transition(s8 fadeTimer, s8 transTime, struct WarpTransition
     s16 centerTransX = center_tex_transition_x(transData, texTransTime, texTransPos);
     s16 centerTransY = center_tex_transition_y(transData, texTransTime, texTransPos);
     s16 texTransRadius = calc_tex_transition_radius(fadeTimer, transTime, transData);
-    Vtx *verts = alloc_display_list(8 * sizeof(*verts));
 
-    if (verts != NULL) {
-        load_tex_transition_vertex(verts, fadeTimer, transData, centerTransX, centerTransY, texTransRadius, transTexType);
-        gSPDisplayList(gDisplayListHead++, dl_proj_mtx_fullscreen)
-        gDPSetCombineMode(gDisplayListHead++, G_CC_SHADE, G_CC_SHADE);
-        gDPSetRenderMode(gDisplayListHead++, G_RM_AA_OPA_SURF, G_RM_AA_OPA_SURF2);
-        gSPVertex(gDisplayListHead++, VIRTUAL_TO_PHYSICAL(verts), 8, 0);
-        gSPDisplayList(gDisplayListHead++, dl_transition_draw_filled_region);
-        gDPPipeSync(gDisplayListHead++);
-        gDPSetCombineMode(gDisplayListHead++, G_CC_MODULATEIDECALA, G_CC_MODULATEIDECALA);
-        gDPSetRenderMode(gDisplayListHead++, G_RM_AA_XLU_SURF, G_RM_AA_XLU_SURF2);
-        gDPSetTextureFilter(gDisplayListHead++, G_TF_BILERP);
-        switch (transTexType) {
-        case TRANS_TYPE_MIRROR:
-            gDPLoadTextureBlock(gDisplayListHead++, sTextureTransitionID[texID], G_IM_FMT_IA, G_IM_SIZ_8b, 32, 64, 0,
-                G_TX_WRAP | G_TX_MIRROR, G_TX_WRAP | G_TX_MIRROR, 5, 6, G_TX_NOLOD, G_TX_NOLOD);
-            break;
-        case TRANS_TYPE_CLAMP:
-            gDPLoadTextureBlock(gDisplayListHead++, sTextureTransitionID[texID], G_IM_FMT_IA, G_IM_SIZ_8b, 64, 64, 0,
-                G_TX_CLAMP, G_TX_CLAMP, 6, 6, G_TX_NOLOD, G_TX_NOLOD);
-            break;
-        }
-        gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
-        gSPVertex(gDisplayListHead++, VIRTUAL_TO_PHYSICAL(verts), 4, 0);
-        gSPDisplayList(gDisplayListHead++, dl_draw_quad_verts_0123);
-        gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF);
-        gSPDisplayList(gDisplayListHead++, dl_screen_transition_end);
-        sTransitionTextureFadeCount[fadeTimer] += transData->texTimer;
-    } else {
-    }
+    gfx_emit_env_color_alpha_full(0x000000);
+    gfx_emit_tex(segmented_to_virtual(sTextureTransitionID[texID]));
+	if(transTexType == TRANS_TYPE_MIRROR) {
+		gfx_emit_screen_quad(centerTransX, centerTransY - texTransRadius, centerTransX + texTransRadius, centerTransY + texTransRadius);
+		gfx_emit_screen_quad(centerTransX, centerTransY - texTransRadius, centerTransX - texTransRadius, centerTransY + texTransRadius);
+	} else {
+		gfx_emit_screen_quad(centerTransX, centerTransY - texTransRadius, centerTransX + texTransRadius, centerTransY + texTransRadius);
+	}
+	// AAA
+	// B.C
+	// DDD
+    gfx_emit_tex(NULL);
+	if(centerTransX - texTransRadius >= 0) {
+		gfx_emit_screen_quad(0, centerTransY - texTransRadius, centerTransX - texTransRadius + 3, centerTransY + texTransRadius); // B
+		gfx_emit_screen_quad(centerTransX + texTransRadius - 3, centerTransY - texTransRadius, XRES, centerTransY + texTransRadius); // C
+	}
+	if(centerTransY - texTransRadius >= 0) {
+		gfx_emit_screen_quad(0, 0, XRES, centerTransY - texTransRadius + 1); // A
+		gfx_emit_screen_quad(0, centerTransY + texTransRadius - 1, XRES, YRES); // D
+	}
+	sTransitionTextureFadeCount[fadeTimer] += transData->texTimer;
     return set_and_reset_transition_fade_timer(fadeTimer, transTime);
 }
 
@@ -268,7 +266,7 @@ Gfx *render_cannon_circle_base(void) {
         make_vertex(verts, 7, GFX_DIMENSIONS_FROM_LEFT_EDGE(0), SCREEN_HEIGHT, -1, 0, 0, 0, 0, 0, 255);
 #endif
 
-        gSPDisplayList(g++, dl_proj_mtx_fullscreen);
+        //gSPDisplayList(g++, dl_proj_mtx_fullscreen);
         gDPSetCombineMode(g++, G_CC_MODULATEIDECALA, G_CC_MODULATEIDECALA);
         gDPSetTextureFilter(g++, G_TF_BILERP);
         gDPLoadTextureBlock(g++, sTextureTransitionID[TEX_TRANS_CIRCLE], G_IM_FMT_IA, G_IM_SIZ_8b, 32, 64, 0,
@@ -291,7 +289,7 @@ Gfx *render_cannon_circle_base(void) {
     return dlist;
 }
 
-Gfx *geo_cannon_circle_base(s32 callContext, struct GraphNode *node, UNUSED Mat4 mtx) {
+Gfx *geo_cannon_circle_base(s32 callContext, struct GraphNode *node, UNUSED const ShortMatrix* mtxq) {
     struct GraphNodeGenerated *graphNode = (struct GraphNodeGenerated *) node;
     Gfx *dlist = NULL;
 

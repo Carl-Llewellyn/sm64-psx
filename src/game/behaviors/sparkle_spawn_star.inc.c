@@ -33,19 +33,19 @@ void set_sparkle_spawn_star_hitbox(void) {
 void set_home_to_mario(void) {
     f32 sp1C;
     f32 sp18;
-    o->oHomeX = gMarioObject->oPosX;
-    o->oHomeZ = gMarioObject->oPosZ;
-    o->oHomeY = gMarioObject->oPosY;
-    o->oHomeY += 250.0f;
-    o->oPosY = o->oHomeY;
-    sp1C = o->oHomeX - o->oPosX;
-    sp18 = o->oHomeZ - o->oPosZ;
-    o->oForwardVel = sqrtf(sp1C * sp1C + sp18 * sp18) / 23.0f;
+    QSETFIELD(o,  oHomeX, QFIELD(gMarioObject,  oPosX));
+    QSETFIELD(o,  oHomeZ, QFIELD(gMarioObject,  oPosZ));
+    QSETFIELD(o,  oHomeY, QFIELD(gMarioObject,  oPosY));
+    QMODFIELD(o, oHomeY, += q(250.0f));
+    QSETFIELD(o,  oPosY, QFIELD(o,  oHomeY));
+    sp1C = FFIELD(o, oHomeX) - FFIELD(o, oPosX);
+    sp18 = FFIELD(o, oHomeZ) - FFIELD(o, oPosZ);
+    FSETFIELD(o, oForwardVel, sqrtf(sp1C * sp1C + sp18 * sp18) / 23.0f);
 }
 
 void set_y_home_to_pos(void) {
-    o->oForwardVel = 0;
-    o->oHomeY = o->oPosY;
+    QSETFIELD(o,  oForwardVel, q(0));
+    QSETFIELD(o,  oHomeY, QFIELD(o,  oPosY));
 }
 
 void slow_star_rotation(void) {
@@ -65,17 +65,17 @@ void bhv_spawned_star_loop(void) {
             else
                 set_y_home_to_pos();
             o->oMoveAngleYaw = cur_obj_angle_to_home();
-            o->oVelY = 50.0f;
-            o->oGravity = -4.0f;
+            QSETFIELD(o,  oVelY, q(50));
+            QSETFIELD(o, oGravity, q(-4.0f));
             spawn_mist_particles();
         }
         cur_obj_play_sound_1(SOUND_ENV_STAR);
         spawn_object(o, MODEL_NONE, bhvSparkleSpawn);
-        if (o->oVelY < 0 && o->oPosY < o->oHomeY) {
+        if (FFIELD(o, oVelY) < 0 && FFIELD(o, oPosY) < FFIELD(o, oHomeY)) {
             o->oAction++;
-            o->oForwardVel = 0;
-            o->oVelY = 20.0f;
-            o->oGravity = -1.0f;
+            QSETFIELD(o,  oForwardVel, q(0));
+            QSETFIELD(o,  oVelY, q(20));
+            QSETFIELD(o, oGravity, q(-1.0f));
             if (o->oInteractionSubtype & INT_SUBTYPE_NO_EXIT)
 #ifdef VERSION_JP
                 play_power_star_jingle(FALSE);
@@ -86,12 +86,12 @@ void bhv_spawned_star_loop(void) {
                 play_power_star_jingle(TRUE);
         }
     } else if (o->oAction == 1) {
-        if (o->oVelY < -4.0f)
-            o->oVelY = -4.0f;
-        if (o->oVelY < 0 && o->oPosY < o->oHomeY) {
+        if (FFIELD(o, oVelY) < -4.0f)
+            QSETFIELD(o,  oVelY, q(-4));
+        if (FFIELD(o, oVelY) < 0 && FFIELD(o, oPosY) < FFIELD(o, oHomeY)) {
             gObjCutsceneDone = TRUE;
-            o->oVelY = 0;
-            o->oGravity = 0;
+            QSETFIELD(o,  oVelY, q(0));
+            QSETFIELD(o, oGravity, q(0));
             o->oAction++;
         }
         spawn_object(o, MODEL_NONE, bhvSparkleSpawn);

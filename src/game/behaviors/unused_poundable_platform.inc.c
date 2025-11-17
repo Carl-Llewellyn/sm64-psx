@@ -13,7 +13,7 @@
  */
 
 void bhv_unused_poundable_platform(void) {
-    cur_obj_scale(1.02f);
+    cur_obj_scaleq(q(1.02f));
 
     if (o->oAction == 0) {
         if (cur_obj_is_mario_ground_pounding_platform()) {

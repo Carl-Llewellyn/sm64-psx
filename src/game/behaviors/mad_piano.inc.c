@@ -14,7 +14,7 @@ static struct ObjectHitbox sMadPianoHitbox = {
 static void mad_piano_act_wait(void) {
     cur_obj_init_animation_with_sound(0);
 
-    if (o->oDistanceToMario < 500.0f) {
+    if (QFIELD(o, oDistanceToMario) < q(500.0)) {
         if (o->oTimer > 20) {
             if (gMarioStates[0].forwardVel > 10.0f) {
                 o->oAction = MAD_PIANO_ACT_ATTACK;
@@ -25,7 +25,7 @@ static void mad_piano_act_wait(void) {
         o->oTimer = 0;
     }
 
-    cur_obj_push_mario_away_from_cylinder(280.0f, 150.0f);
+    cur_obj_push_mario_away_from_cylinder(280, 150);
 }
 
 static void mad_piano_act_attack(void) {
@@ -33,27 +33,27 @@ static void mad_piano_act_attack(void) {
     cur_obj_init_animation_with_sound(1);
     cur_obj_play_sound_at_anim_range(0, 0, SOUND_OBJ_MAD_PIANO_CHOMPING);
 
-    if (o->oDistanceToMario < 500.0f) {
+    if (QFIELD(o, oDistanceToMario) < q(500.0)) {
         o->oTimer = 0;
     }
 
     if (o->oTimer > 80 && cur_obj_check_if_near_animation_end()) {
         o->oAction = MAD_PIANO_ACT_WAIT;
-        o->oForwardVel = 0.0f;
+        QSETFIELD(o,  oForwardVel, q(0));
         cur_obj_become_intangible();
     } else {
-        f32 dx = o->oPosX - o->oHomeX;
-        f32 dz = o->oPosZ - o->oHomeZ;
+        f32 dx = FFIELD(o, oPosX) - FFIELD(o, oHomeX);
+        f32 dz = FFIELD(o, oPosZ) - FFIELD(o, oHomeZ);
         f32 distToHome = sqrtf(dx * dx + dz * dz);
 
         if (distToHome > 400.0f) {
             distToHome = 400.0f / distToHome;
-            o->oPosX = o->oHomeX + dx * distToHome;
-            o->oPosZ = o->oHomeZ + dz * distToHome;
+            FSETFIELD(o, oPosX, FFIELD(o, oHomeX) + dx * distToHome);
+            FSETFIELD(o, oPosZ, FFIELD(o, oHomeZ) + dz * distToHome);
         }
 
         cur_obj_rotate_yaw_toward(o->oAngleToMario, 400);
-        o->oForwardVel = 5.0f;
+        QSETFIELD(o,  oForwardVel, q(5));
     }
 
     obj_check_attacks(&sMadPianoHitbox, o->oAction);

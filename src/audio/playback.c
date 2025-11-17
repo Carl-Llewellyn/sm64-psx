@@ -1,3 +1,4 @@
+#ifndef NO_AUDIO
 #include <ultra64.h>
 
 #include "heap.h"
@@ -1470,3 +1471,4 @@ void note_init_all(void) {
 #endif
     }
 }
+#endif

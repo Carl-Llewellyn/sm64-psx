@@ -2,46 +2,46 @@
 // TODO: This split seems weird. Investigate further?
 
 void bhv_bobomb_bully_death_smoke_init(void) {
-    o->oPosY -= 300.0f;
+    QMODFIELD(o, oPosY, -= q(300));
 
-    cur_obj_scale(10.0f);
+    cur_obj_scaleq(q(10.0f));
 }
 
 void bhv_bobomb_explosion_bubble_init(void) {
-    obj_scale_xyz(o, 2.0f, 2.0f, 1.0f);
+    obj_scale_xyzq(o, q(2), q(2), q(1));
 
-    o->oBobombExpBubGfxExpRateX = (s32)(random_float() * 2048.0f) + 0x800;
-    o->oBobombExpBubGfxExpRateY = (s32)(random_float() * 2048.0f) + 0x800;
-    o->oTimer = random_float() * 10.0f;
-    o->oVelY = (s32)(random_float() * 4.0f) + 4;
+    o->oBobombExpBubGfxExpRateX = qtrunc(random_q32() * 2048) + 0x800;
+    o->oBobombExpBubGfxExpRateY = qtrunc(random_q32() * 2048) + 0x800;
+    o->oTimer = qtrunc(random_q32() * 10);
+    ISETFIELD(o, oVelY, qtrunc(random_q32() * 4) + 4);
 }
 
 void bhv_bobomb_explosion_bubble_loop(void) {
-    f32 waterY = gMarioStates[0].waterLevel;
+    s32 waterYq = q(gMarioStates[0].waterLevel);
 
-    o->header.gfx.scale[0] = sins(o->oBobombExpBubGfxScaleFacX) * 0.5 + 2.0;
+    o->header.gfx.scaleq[0] = sinqs(o->oBobombExpBubGfxScaleFacX) / 2 + q(2);
     o->oBobombExpBubGfxScaleFacX += o->oBobombExpBubGfxExpRateX;
 
-    o->header.gfx.scale[1] = sins(o->oBobombExpBubGfxScaleFacY) * 0.5 + 2.0;
+    o->header.gfx.scaleq[1] = sinqs(o->oBobombExpBubGfxScaleFacY) / 2 + q(2);
     o->oBobombExpBubGfxScaleFacY += o->oBobombExpBubGfxExpRateY;
 
-    if (o->oPosY > waterY) {
+    if (QFIELD(o, oPosY) > waterYq) {
         o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
-        o->oPosY += 5.0f;
+        QMODFIELD(o, oPosY, += q(5));
         spawn_object(o, MODEL_SMALL_WATER_SPLASH, bhvObjectWaterSplash);
     }
 
     if (o->oTimer >= 61)
         o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
 
-    o->oPosY += o->oVelY;
+    QMODFIELD(o, oPosY, += QFIELD(o, oVelY));
     o->oTimer++;
 }
 
 void bhv_respawner_loop(void) {
     struct Object *spawnedObject;
 
-    if (!is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, o->oRespawnerMinSpawnDist)) {
+    if (!is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), IFIELD(o, oRespawnerMinSpawnDist))) {
         spawnedObject = spawn_object(o, o->oRespawnerModelToRespawn, o->oRespawnerBehaviorToRespawn);
         spawnedObject->oBehParams = o->oBehParams;
         o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
@@ -49,10 +49,9 @@ void bhv_respawner_loop(void) {
 }
 
 void create_respawner(s32 model, const BehaviorScript *behToSpawn, s32 minSpawnDist) {
-    struct Object *respawner = spawn_object_abs_with_rot(o, 0, MODEL_NONE, bhvRespawner, o->oHomeX,
-                                                         o->oHomeY, o->oHomeZ, 0, 0, 0);
+    struct Object *respawner = spawn_object_abs_with_rot(o, 0, MODEL_NONE, bhvRespawner, IFIELD(o, oHomeX), IFIELD(o, oHomeY), IFIELD(o, oHomeZ), 0, 0, 0);
     respawner->oBehParams = o->oBehParams;
     respawner->oRespawnerModelToRespawn = model;
-    respawner->oRespawnerMinSpawnDist = minSpawnDist;
+    ISETFIELD(respawner, oRespawnerMinSpawnDist, minSpawnDist);
     respawner->oRespawnerBehaviorToRespawn = behToSpawn;
 }

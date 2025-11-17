@@ -21,22 +21,22 @@ void bhv_checkerboard_elevator_group_init(void) {
 
         sp2C = spawn_object_relative(i, 0, i * sp3C, sp38, o, MODEL_CHECKERBOARD_PLATFORM,
                                      bhvCheckerboardPlatformSub);
-        sp2C->oCheckerBoardPlatformUnk1AC = D_8032F754[sp34].unk2;
-        vec3f_copy_2(sp2C->header.gfx.scale, D_8032F754[sp34].unk1);
+        FSETFIELD(sp2C, oCheckerBoardPlatformUnk1AC, D_8032F754[sp34].unk2);
+        vec3f_to_vec3q(sp2C->header.gfx.scaleq, D_8032F754[sp34].unk1);
     }
 }
 
 void checkerboard_plat_act_move_y(UNUSED s32 unused, f32 vel, s32 a2) {
     o->oMoveAnglePitch = 0;
     o->oAngleVelPitch = 0;
-    o->oForwardVel = 0.0f;
-    o->oVelY = vel;
+    QSETFIELD(o,  oForwardVel, q(0));
+    FSETFIELD(o, oVelY, vel);
     if (o->oTimer > a2)
         o->oAction++;
 }
 
 void checkerboard_plat_act_rotate(s32 a0, s16 a1) {
-    o->oVelY = 0.0f;
+    QSETFIELD(o,  oVelY, q(0));
     o->oAngleVelPitch = a1;
     if (o->oTimer + 1 == 0x8000 / absi(a1))
         o->oAction = a0;
@@ -48,9 +48,9 @@ void bhv_checkerboard_platform_init(void) {
 }
 
 void bhv_checkerboard_platform_loop(void) {
-    f32 sp24 = o->oCheckerBoardPlatformUnk1AC;
+    f32 sp24 = FFIELD(o, oCheckerBoardPlatformUnk1AC);
     o->oCheckerBoardPlatformUnkF8 = 0;
-    if (o->oDistanceToMario < 1000.0f)
+    if (QFIELD(o, oDistanceToMario) < q(1000.0))
         cur_obj_play_sound_1(SOUND_ENV_ELEVATOR4);
     switch (o->oAction) {
         case 0:
@@ -76,8 +76,8 @@ void bhv_checkerboard_platform_loop(void) {
     o->oFaceAnglePitch += absi(o->oAngleVelPitch);
     o->oFaceAngleYaw = o->oMoveAngleYaw;
     if (o->oMoveAnglePitch != 0) {
-        o->oForwardVel = signum_positive(o->oAngleVelPitch) * sins(o->oMoveAnglePitch) * sp24;
-        o->oVelY = signum_positive(o->oAngleVelPitch) * coss(o->oMoveAnglePitch) * sp24;
+        FSETFIELD(o, oForwardVel, signum_positive(o->oAngleVelPitch) * sins(o->oMoveAnglePitch) * sp24);
+        FSETFIELD(o, oVelY, signum_positive(o->oAngleVelPitch) * coss(o->oMoveAnglePitch) * sp24);
     }
     if (o->oCheckerBoardPlatformUnkF8 == 1) {
         o->oAngleVelPitch = 0;

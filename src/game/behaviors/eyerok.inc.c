@@ -13,7 +13,7 @@ struct ObjectHitbox sEyerokHitbox = {
 s8 D_80331BA4[] = { 0, 1, 3, 2, 1, 0 };
 
 static s32 eyerok_check_mario_relative_z(s32 arg0) {
-    if (gMarioObject->oPosZ - o->oHomeZ < arg0) {
+    if (FFIELD(gMarioObject, oPosZ) - FFIELD(o, oHomeZ) < arg0) {
         return TRUE;
     } else {
         return FALSE;
@@ -33,7 +33,7 @@ static void eyerok_boss_act_sleep(void) {
     if (o->oTimer == 0) {
         eyerok_spawn_hand(-1, MODEL_EYEROK_LEFT_HAND, bhvEyerokHand);
         eyerok_spawn_hand(1, MODEL_EYEROK_RIGHT_HAND, bhvEyerokHand);
-    } else if (o->oDistanceToMario < 500.0f) {
+    } else if (QFIELD(o, oDistanceToMario) < q(500.0)) {
         cur_obj_play_sound_2(SOUND_OBJ_EYEROK_EXPLODE);
         o->oAction = EYEROK_BOSS_ACT_WAKE_UP;
     }
@@ -47,14 +47,14 @@ static void eyerok_boss_act_wake_up(void) {
                 o->oSubAction += 1;
             }
 
-            if (o->oEyerokBossUnk110 == 0.0f && mario_ready_to_speak() != 0) {
+            if (FFIELD(o, oEyerokBossUnk110) == 0.0f && mario_ready_to_speak() != 0) {
                 o->oAction = EYEROK_BOSS_ACT_SHOW_INTRO_TEXT;
             } else if (o->oTimer > 150) {
-                if (approach_f32_ptr(&o->oEyerokBossUnk110, 0.0f, 10.0f)) {
+                if (APPROACH_F32_FIELD(o, oEyerokBossUnk110, 0.0f, 10.0f)) {
                     o->oTimer = 0;
                 }
             } else if (o->oTimer > 90) {
-                approach_f32_ptr(&o->oEyerokBossUnk110, 300.f, 10.0f);
+                APPROACH_F32_FIELD(o, oEyerokBossUnk110, 300.f, 10.0f);
             }
         }
     } else {
@@ -73,7 +73,7 @@ static void eyerok_boss_act_fight(void) {
         o->oAction = EYEROK_BOSS_ACT_DIE;
     } else if (o->oEyerokBossUnk1AC == 0 && o->oEyerokBossActiveHand == 0) {
         if (o->oEyerokBossUnk104 != 0) {
-            if (approach_f32_ptr(&o->oEyerokBossUnk110, 1.0f, 0.02f)) {
+            if (APPROACH_F32_FIELD(o, oEyerokBossUnk110, 1.0f, 0.02f)) {
                 if (o->oEyerokBossUnk104 < 0) {
                     if (eyerok_check_mario_relative_z(400) == 0 && ++o->oEyerokBossUnk104 == 0) {
                         o->oEyerokBossUnk104 = 1;
@@ -94,20 +94,20 @@ static void eyerok_boss_act_fight(void) {
 
             if (eyerok_check_mario_relative_z(400)) {
                 o->oEyerokBossUnk104 = -8;
-                o->oEyerokBossUnk110 = 1.0f;
-                o->oEyerokBossUnk108 = 0.0f;
+                QSETFIELD(o,  oEyerokBossUnk110, q(1));
+                QSETFIELD(o,  oEyerokBossUnk108, q(0));
             } else if (o->oEyerokBossNumHands == 2 && o->oEyerokBossUnkFC % 6 == 0) {
                 o->oEyerokBossUnk104 = 8;
-                o->oEyerokBossUnk110 = 0.0f;
+                QSETFIELD(o,  oEyerokBossUnk110, q(0));
 
                 if ((o->oEyerokBossUnkFC = random_u16() & 0x1) != 0) {
-                    o->oEyerokBossUnk108 = -1.0f;
+                    QSETFIELD(o,  oEyerokBossUnk108, q(-1));
                 } else {
-                    o->oEyerokBossUnk108 = 1.0f;
+                    QSETFIELD(o,  oEyerokBossUnk108, q(1));
                 }
 
-                o->oEyerokBossUnk10C = gMarioObject->oPosZ;
-                clamp_f32(&o->oEyerokBossUnk10C, o->oPosZ + 400.0f, o->oPosZ + 1600.0f);
+                QSETFIELD(o,  oEyerokBossUnk10C, QFIELD(gMarioObject,  oPosZ));
+                CLAMP_F32_FIELD(o, oEyerokBossUnk10C, FFIELD(o, oPosZ) + 400.0f, FFIELD(o, oPosZ) + 1600.0f);
             } else if ((o->oEyerokBossActiveHand = o->oEyerokBossUnkFC & 0x1) == 0) {
                 o->oEyerokBossActiveHand = -1;
             }
@@ -154,17 +154,17 @@ static s32 eyerok_hand_check_attacked(void) {
 
         if (--o->oHealth >= 2) {
             o->oAction = EYEROK_HAND_ACT_ATTACKED;
-            o->oVelY = 30.0f;
+            QSETFIELD(o,  oVelY, q(30));
         } else {
             o->parentObj->oEyerokBossNumHands -= 1;
             o->oAction = EYEROK_HAND_ACT_DIE;
-            o->oVelY = 50.0f;
+            QSETFIELD(o,  oVelY, q(50));
         }
 
-        o->oForwardVel *= 0.2f;
+        QMODFIELD(o, oForwardVel, /= 10);
         o->oMoveAngleYaw = o->oFaceAngleYaw + 0x8000;
         o->oMoveFlags = 0;
-        o->oGravity = -4.0f;
+        QSETFIELD(o, oGravity, q(-4.0f));
         o->oAnimState = 3;
 
         return TRUE;
@@ -175,7 +175,7 @@ static s32 eyerok_hand_check_attacked(void) {
 
 static void eyerok_hand_pound_ground(void) {
     cur_obj_play_sound_2(SOUND_OBJ_POUNDING_LOUD);
-    set_camera_shake_from_point(SHAKE_POS_SMALL, o->oPosX, o->oPosY, o->oPosZ);
+    set_camera_shake_from_pointq(SHAKE_POS_SMALL, QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ));
     spawn_mist_from_global();
 }
 
@@ -187,10 +187,10 @@ static void eyerok_hand_act_sleep(void) {
             o->oAction = EYEROK_HAND_ACT_IDLE;
             o->collisionData = segmented_to_virtual(&ssl_seg7_collision_07028274);
         } else {
-            approach_f32_ptr(&o->oPosX, o->oHomeX, 15.0f);
-            o->oPosY = o->oHomeY
+            APPROACH_F32_FIELD(o, oPosX, FFIELD(o, oHomeX), 15.0f);
+            FSETFIELD(o, oPosY, FFIELD(o, oHomeY)
                        + (200 * o->oBehParams2ndByte + 400)
-                             * sins((s16)(absf(o->oPosX - o->oHomeX) / 724.0f * 0x8000));
+                             * sins((s16)(absf(FFIELD(o, oPosX) - FFIELD(o, oHomeX)) / 724.0f * 0x8000)));
             obj_face_yaw_approach(o->oMoveAngleYaw, 400);
         }
     } else {
@@ -201,7 +201,7 @@ static void eyerok_hand_act_sleep(void) {
         }
 
         cur_obj_reverse_animation();
-        o->oPosX = o->oHomeX + 724.0f * o->oBehParams2ndByte;
+        FSETFIELD(o, oPosX, FFIELD(o, oHomeX) + 724.0f * o->oBehParams2ndByte);
     }
 }
 
@@ -212,31 +212,31 @@ static void eyerok_hand_act_idle(void) {
         if (o->parentObj->oEyerokBossUnk104 != 0) {
             if (o->parentObj->oEyerokBossUnk104 != 1) {
                 o->oAction = EYEROK_HAND_ACT_BEGIN_DOUBLE_POUND;
-                o->oGravity = 0.0f;
+                QSETFIELD(o, oGravity, q(0.0f));
             }
         } else if (o->parentObj->oEyerokBossUnk1AC == 0 && o->parentObj->oEyerokBossActiveHand != 0) {
             if (o->parentObj->oEyerokBossActiveHand == o->oBehParams2ndByte) {
                 if (eyerok_check_mario_relative_z(400) != 0 || random_u16() % 2 != 0) {
                     o->oAction = EYEROK_HAND_ACT_TARGET_MARIO;
                     o->oMoveAngleYaw = o->oAngleToMario;
-                    o->oGravity = 0.0f;
+                    QSETFIELD(o, oGravity, q(0.0f));
                 } else {
                     o->oAction = EYEROK_HAND_ACT_FIST_PUSH;
-                    if (o->parentObj->oPosX - gMarioObject->oPosX < 0.0f) {
+                    if (FFIELD(o->parentObj, oPosX) - FFIELD(gMarioObject, oPosX) < 0.0f) {
                         o->oMoveAngleYaw = -0x800;
                     } else {
                         o->oMoveAngleYaw = 0x800;
                     }
 
                     o->oMoveAngleYaw += o->oAngleToMario;
-                    o->oGravity = -4.0f;
+                    QSETFIELD(o, oGravity, q(-4.0f));
                 }
             } else {
                 o->oAction = EYEROK_HAND_ACT_OPEN;
             }
         }
     } else {
-        o->oPosY = o->oHomeY + o->parentObj->oEyerokBossUnk110;
+        QSETFIELD(o, oPosY, QFIELD(o, oHomeY) + QFIELD(o->parentObj, oEyerokBossUnk110));
     }
 }
 
@@ -254,7 +254,7 @@ static void eyerok_hand_act_open(void) {
             s16 sp1E = o->oAngleToMario;
             clamp_s16(&sp1E, -0x3000, 0x3000);
             o->oMoveAngleYaw = sp1E;
-            o->oForwardVel = 50.0f;
+            QSETFIELD(o,  oForwardVel, q(50));
         } else {
             o->oMoveAngleYaw = 0;
         }
@@ -289,9 +289,9 @@ static void eyerok_hand_act_show_eye(void) {
             if (o->parentObj->oEyerokBossNumHands != 2) {
                 obj_face_yaw_approach(o->oMoveAngleYaw, 0x800);
                 if (o->oTimer > 10
-                    && (o->oPosZ - gMarioObject->oPosZ > 0.0f || (o->oMoveFlags & OBJ_MOVE_HIT_EDGE))) {
+                    && (FFIELD(o, oPosZ) - FFIELD(gMarioObject, oPosZ) > 0.0f || (o->oMoveFlags & OBJ_MOVE_HIT_EDGE))) {
                     o->parentObj->oEyerokBossActiveHand = 0;
-                    o->oForwardVel = 0.0f;
+                    QSETFIELD(o,  oForwardVel, q(0));
                 }
             }
         }
@@ -319,7 +319,7 @@ static void eyerok_hand_act_attacked(void) {
     }
 
     if (o->oMoveFlags & OBJ_MOVE_MASK_ON_GROUND) {
-        o->oForwardVel = 0.0f;
+        QSETFIELD(o,  oForwardVel, q(0));
     }
 }
 
@@ -345,7 +345,7 @@ static void eyerok_hand_act_die(void) {
 
     if (o->oMoveFlags & OBJ_MOVE_MASK_ON_GROUND) {
         cur_obj_play_sound_2(SOUND_OBJ_POUNDING_LOUD);
-        o->oForwardVel = 0.0f;
+        QSETFIELD(o,  oForwardVel, q(0));
     }
 }
 
@@ -357,12 +357,12 @@ static void eyerok_hand_act_retreat(void) {
         distToHome = 0.0f;
     }
 
-    o->oPosX = o->oHomeX - distToHome * sins(angleToHome);
-    o->oPosZ = o->oHomeZ - distToHome * coss(angleToHome);
+    FSETFIELD(o, oPosX, FFIELD(o, oHomeX) - distToHome * sins(angleToHome));
+    FSETFIELD(o, oPosZ, FFIELD(o, oHomeZ) - distToHome * coss(angleToHome));
 
     obj_face_yaw_approach(0, 400);
 
-    if (approach_f32_ptr(&o->oPosY, o->oHomeY, 20.0f) && distToHome == 0.0f && o->oFaceAngleYaw == 0) {
+    if (APPROACH_F32_FIELD(o, oPosY, FFIELD(o, oHomeY), 20.0f) && distToHome == 0.0f && o->oFaceAngleYaw == 0) {
         o->oAction = EYEROK_HAND_ACT_IDLE;
         o->parentObj->oEyerokBossActiveHand -= o->oBehParams2ndByte;
 
@@ -373,16 +373,16 @@ static void eyerok_hand_act_retreat(void) {
 }
 
 static void eyerok_hand_act_target_mario(void) {
-    if (eyerok_check_mario_relative_z(400) != 0 || o->oPosZ - gMarioObject->oPosZ > 0.0f
-        || o->oPosZ - o->parentObj->oPosZ > 1700.0f || absf(o->oPosX - o->parentObj->oPosX) > 900.0f
+    if (eyerok_check_mario_relative_z(400) != 0 || FFIELD(o, oPosZ) - FFIELD(gMarioObject, oPosZ) > 0.0f
+        || FFIELD(o, oPosZ) - FFIELD(o->parentObj, oPosZ) > 1700.0f || absf(FFIELD(o, oPosX) - FFIELD(o->parentObj, oPosX)) > 900.0f
         || (o->oMoveFlags & OBJ_MOVE_HIT_WALL)) {
-        o->oForwardVel = 0.0f;
-        if (approach_f32_ptr(&o->oPosY, o->oHomeY + 300.0f, 20.0f)) {
+        QSETFIELD(o,  oForwardVel, q(0));
+        if (APPROACH_F32_FIELD(o, oPosY, FFIELD(o, oHomeY) + 300.0f, 20.0f)) {
             o->oAction = EYEROK_HAND_ACT_SMASH;
         }
     } else {
-        obj_forward_vel_approach(50.0f, 5.0f);
-        approach_f32_ptr(&o->oPosY, o->oHomeY + 300.0f, 20.0f);
+        obj_forward_vel_approachq(q(50.0f), q(5.0f));
+        APPROACH_Q32_FIELD(o, oPosY, QFIELD(o, oHomeY) + q(300), q(20));
         cur_obj_rotate_yaw_toward(o->oAngleToMario, 4000);
     }
 }
@@ -392,12 +392,12 @@ static void eyerok_hand_act_smash(void) {
 
     if (o->oTimer > 20) {
         if (o->oMoveFlags & OBJ_MOVE_MASK_ON_GROUND) {
-            if (o->oGravity < -4.0f) {
+            if (QFIELD(o, oGravity) < q(-4)) {
                 eyerok_hand_pound_ground();
-                o->oGravity = -4.0f;
+                QSETFIELD(o, oGravity, q(-4));
             } else {
                 sp1E = abs_angle_diff(o->oFaceAngleYaw, o->oAngleToMario);
-                if (o->oDistanceToMario < 300.0f && sp1E > 0x2000 && sp1E < 0x6000) {
+                if (QFIELD(o, oDistanceToMario) < q(300.0) && sp1E > 0x2000 && sp1E < 0x6000) {
                     o->oAction = EYEROK_HAND_ACT_FIST_SWEEP;
                     if ((s16)(o->oFaceAngleYaw - o->oAngleToMario) < 0) {
                         o->oMoveAngleYaw = 0x4000;
@@ -409,52 +409,50 @@ static void eyerok_hand_act_smash(void) {
                 }
             }
         } else {
-            o->oGravity = -20.0f;
+            QSETFIELD(o, oGravity, q(-20));
         }
     }
 }
 
 static void eyerok_hand_act_fist_push(void) {
-    if (o->oTimer > 5 && (o->oPosZ - gMarioObject->oPosZ > 0.0f || (o->oMoveFlags & OBJ_MOVE_HIT_EDGE))) {
+    if (o->oTimer > 5 && (FFIELD(o, oPosZ) - FFIELD(gMarioObject, oPosZ) > 0.0f || (o->oMoveFlags & OBJ_MOVE_HIT_EDGE))) {
         o->oAction = EYEROK_HAND_ACT_FIST_SWEEP;
-        o->oForwardVel = 0.0f;
+        QSETFIELD(o, oForwardVel, 0);
 
-        if (o->oPosX - gMarioObject->oPosX < 0.0f) {
+        if (FFIELD(o, oPosX) - FFIELD(gMarioObject, oPosX) < 0.0f) {
             o->oMoveAngleYaw = 0x4000;
         } else {
             o->oMoveAngleYaw = -0x4000;
         }
     } else {
-        o->oForwardVel = 50.0f;
+        QSETFIELD(o, oForwardVel, q(50));
     }
 }
 
 static void eyerok_hand_act_fist_sweep(void) {
-    if (o->oPosZ - o->parentObj->oPosZ < 1000.0f || (o->oMoveFlags & OBJ_MOVE_HIT_EDGE)) {
+    if (FFIELD(o, oPosZ) - FFIELD(o->parentObj, oPosZ) < 1000.0f || (o->oMoveFlags & OBJ_MOVE_HIT_EDGE)) {
         o->oAction = EYEROK_HAND_ACT_RETREAT;
-        o->oForwardVel = 0.0f;
+        QSETFIELD(o, oForwardVel, 0);
     } else {
-        obj_forward_vel_approach(5.0f, 0.02f);
-        o->oForwardVel *= 1.08f;
+        obj_forward_vel_approachq(q(5.0f), q(0.02f));
+        QSETFIELD(o, oForwardVel, qmul(QFIELD(o, oForwardVel), q(1.08)));
         o->oTimer = 0;
     }
 }
 
 static void eyerok_hand_act_begin_double_pound(void) {
-    f32 sp4;
+    q32 sp4q;
 
     if (o->parentObj->oEyerokBossUnk104 < 0
         || o->parentObj->oEyerokBossActiveHand == o->oBehParams2ndByte) {
         o->oAction = EYEROK_HAND_ACT_DOUBLE_POUND;
-        o->oMoveAngleYaw = (s32)(o->oFaceAngleYaw - 0x4000 * o->parentObj->oEyerokBossUnk108);
+        o->oMoveAngleYaw = (s32)(o->oFaceAngleYaw - 0x4000 * FFIELD(o->parentObj, oEyerokBossUnk108));
     } else {
-        sp4 = o->parentObj->oPosX + 400.0f * o->parentObj->oEyerokBossUnk108
-              - 180.0f * o->oBehParams2ndByte;
+        sp4q = QFIELD(o->parentObj, oPosX) + 400 * QFIELD(o->parentObj, oEyerokBossUnk108) - 180 * o->oBehParams2ndByte;
 
-        o->oPosX = o->oHomeX + (sp4 - o->oHomeX) * o->parentObj->oEyerokBossUnk110;
-        o->oPosY = o->oHomeY + 300.0f * o->parentObj->oEyerokBossUnk110;
-        o->oPosZ =
-            o->oHomeZ + (o->parentObj->oEyerokBossUnk10C - o->oHomeZ) * o->parentObj->oEyerokBossUnk110;
+        QSETFIELD(o, oPosX, QFIELD(o, oHomeX) + qmul(sp4q - QFIELD(o, oHomeX), QFIELD(o->parentObj, oEyerokBossUnk110)));
+        QSETFIELD(o, oPosY, QFIELD(o, oHomeY) + 300 * QFIELD(o->parentObj, oEyerokBossUnk110));
+        QSETFIELD(o, oPosZ, QFIELD(o, oHomeZ) + qmul(QFIELD(o->parentObj, oEyerokBossUnk10C) - QFIELD(o, oHomeZ), QFIELD(o->parentObj, oEyerokBossUnk110)));
     }
 }
 
@@ -468,24 +466,24 @@ static void eyerok_hand_act_double_pound(void) {
         o->parentObj->oEyerokBossUnk1AC = o->oBehParams2ndByte;
     } else if (o->parentObj->oEyerokBossActiveHand == o->oBehParams2ndByte) {
         if (o->oMoveFlags & OBJ_MOVE_MASK_ON_GROUND) {
-            if (o->oGravity < -15.0f) {
+            if (FFIELD(o, oGravity) < -15.0f) {
                 o->parentObj->oEyerokBossActiveHand = 0;
                 eyerok_hand_pound_ground();
-                o->oForwardVel = 0.0f;
-                o->oGravity = -15.0f;
+                QSETFIELD(o,  oForwardVel, q(0));
+                QSETFIELD(o, oGravity, q(-15.0f));
             } else {
-                o->oForwardVel = 30.0f * absf(o->parentObj->oEyerokBossUnk108);
-                o->oVelY = 100.0f;
+                FSETFIELD(o, oForwardVel, 30.0f * absf(FFIELD(o->parentObj, oEyerokBossUnk108)));
+                QSETFIELD(o,  oVelY, q(100));
                 o->oMoveFlags = 0;
             }
-        } else if (o->oVelY <= 0.0f) {
-            o->oGravity = -20.0f;
+        } else if (QFIELD(o, oVelY) <= 0) {
+            QSETFIELD(o, oGravity, q(-20.0f));
         }
     }
 }
 
 void bhv_eyerok_hand_loop(void) {
-    o->header.gfx.scale[0] = 1.5f;
+    o->header.gfx.scaleq[0] = q(1.5);
 
     if (o->oAction == EYEROK_HAND_ACT_SLEEP) {
         eyerok_hand_act_sleep();
@@ -545,5 +543,5 @@ void bhv_eyerok_hand_loop(void) {
     }
 
     load_object_collision_model();
-    o->header.gfx.scale[0] = 1.5f * o->oBehParams2ndByte;
+    o->header.gfx.scaleq[0] = q(1.5) * o->oBehParams2ndByte;
 }

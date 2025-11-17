@@ -12,8 +12,8 @@
  */
 void bhv_piranha_plant_waking_bubbles_loop(void) {
     if (o->oTimer == 0) {
-        o->oVelY = random_float() * 10.0f + 5.0f;
-        o->oForwardVel = random_float() * 10.0f + 5.0f;
+        QSETFIELD(o, oVelY, random_q32() * 10 + q(5));
+        QSETFIELD(o, oForwardVel, random_q32() * 10 + q(5));
         o->oMoveAngleYaw = random_u16();
     }
     cur_obj_move_using_fvel_and_gravity();
@@ -28,12 +28,11 @@ void bhv_piranha_plant_waking_bubbles_loop(void) {
  */
 void bhv_piranha_plant_bubble_loop(void) {
     struct Object *parent = o->parentObj; // the Piranha Plant
-    f32 scale = 0;
+    q32 scaleq = 0;
     s32 i;
     s32 frame = parent->header.gfx.animInfo.animFrame;
     // TODO: rename lastFrame if it is inaccurate
     s32 lastFrame = parent->header.gfx.animInfo.curAnim->loopEnd - 2;
-    s32 UNUSED unused;
     f32 doneShrinkingFrame; // the first frame after shrinking is done
     f32 beginGrowingFrame;  // the frame just before growing begins
 
@@ -42,7 +41,7 @@ void bhv_piranha_plant_bubble_loop(void) {
     switch (o->oAction) {
         case PIRANHA_PLANT_BUBBLE_ACT_IDLE:
             cur_obj_disable_rendering();
-            scale = 0;
+            scaleq = 0;
 
             if (parent->oAction == PIRANHA_PLANT_ACT_SLEEPING) {
                 o->oAction++; // move to PIRANHA_PLANT_BUBBLE_ACT_GROW_SHRINK_LOOP
@@ -50,7 +49,7 @@ void bhv_piranha_plant_bubble_loop(void) {
             break;
 
         case PIRANHA_PLANT_BUBBLE_ACT_GROW_SHRINK_LOOP:
-            if (parent->oDistanceToMario < parent->oDrawingDistance) {
+            if (QFIELD(parent, oDistanceToMario) < QFIELD(parent, oDrawingDistance)) {
                 cur_obj_enable_rendering();
 
                 if (parent->oAction == PIRANHA_PLANT_ACT_SLEEPING) {
@@ -66,18 +65,18 @@ void bhv_piranha_plant_bubble_loop(void) {
                     // Note that the bubble always starts this loop at its largest.
                     if (frame < doneShrinkingFrame) {
                         // Shrink from 5.0f to 1.0f.
-                        scale = coss(frame / doneShrinkingFrame * 0x4000) * 4.0f + 1.0;
+                        scaleq = cosqs(frame / doneShrinkingFrame * 0x4000) * 4 + q(1);
                     } else if (frame > beginGrowingFrame) {
                         // Grow from 1.0f to 5.0f.
-                        scale = sins((
+                        scaleq = sinqs((
                                          // they should have used beginGrowingFrame here:
                                          (frame - (lastFrame / 2.0f + 4.0f)) / beginGrowingFrame)
                                      * 0x4000)
-                                    * 4.0f
-                                + 1.0;
+                                    * 4
+                                + q(1.0);
                     } else {
                         // Stay at 1.0f for a few frames.
-                        scale = 1.0f;
+                        scaleq = q(1);
                     }
                 } else {
                     // Piranha Plant is no longer sleeping.
@@ -90,7 +89,7 @@ void bhv_piranha_plant_bubble_loop(void) {
 
         case PIRANHA_PLANT_BUBBLE_ACT_BURST:
             cur_obj_disable_rendering();
-            scale = 0;
+            scaleq = 0;
 
             // Spawn 15 small bubbles to make it look like this bubble burst.
             for (i = 0; i < 15; i++) {
@@ -98,8 +97,8 @@ void bhv_piranha_plant_bubble_loop(void) {
             }
 
             o->oAction = PIRANHA_PLANT_BUBBLE_ACT_IDLE;
-            scale = 1.0f; // this has no effect; it is set to 0 in the idle state
+            scaleq = q(1); // this has no effect; it is set to 0 in the idle state
             break;
     }
-    cur_obj_scale(scale);
+    cur_obj_scaleq(scaleq);
 }

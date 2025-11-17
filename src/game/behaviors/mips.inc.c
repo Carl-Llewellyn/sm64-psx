@@ -15,7 +15,7 @@ void bhv_mips_init(void) {
         && !(starFlags & SAVE_FLAG_TO_STAR_FLAG(SAVE_FLAG_COLLECTED_MIPS_STAR_1))) {
         o->oBehParams2ndByte = 0;
 #ifndef VERSION_JP
-        o->oMipsForwardVelocity = 40.0f;
+        QSETFIELD(o,  oMipsForwardVelocity, q(40));
 #endif
     }
     // If the player has >= 50 stars and hasn't collected second MIPS star...
@@ -23,7 +23,7 @@ void bhv_mips_init(void) {
              && !(starFlags & SAVE_FLAG_TO_STAR_FLAG(SAVE_FLAG_COLLECTED_MIPS_STAR_2))) {
         o->oBehParams2ndByte = 1;
 #ifndef VERSION_JP
-        o->oMipsForwardVelocity = 45.0f;
+        QSETFIELD(o,  oMipsForwardVelocity, q(45));
 #endif
     } else {
         // No MIPS stars are available, hide MIPS.
@@ -33,12 +33,12 @@ void bhv_mips_init(void) {
     o->oInteractionSubtype = INT_SUBTYPE_HOLDABLE_NPC;
 
 #ifndef VERSION_JP
-    o->oGravity = 15.0f;
+    QSETFIELD(o, oGravity, q(15.0f));
 #else
-    o->oGravity = 2.5f;
+    QSETFIELD(o, oGravity, q(2.5f));
 #endif
-    o->oFriction = 0.89f;
-    o->oBuoyancy = 1.2f;
+    QSETFIELD(o,  oFriction, q(0.89));
+    QSETFIELD(o,  oBuoyancy, q(1.2));
 
     cur_obj_init_animation(0);
 }
@@ -68,8 +68,7 @@ s16 bhv_mips_find_furthest_waypoint_to_mario(void) {
         // Is the waypoint within 800 units of MIPS?
         if (is_point_close_to_object(o, x, y, z, 800)) {
             // Is this further from Mario than the last waypoint?
-            distanceToMario =
-                sqr(x - gMarioObject->header.gfx.pos[0]) + sqr(z - gMarioObject->header.gfx.pos[2]);
+            distanceToMario = sqr(x - gMarioObject->header.gfx.posi[0]) + sqr(z - gMarioObject->header.gfx.posi[2]);
             if (furthestWaypointDistance < distanceToMario) {
                 furthestWaypointIndex = i;
                 furthestWaypointDistance = distanceToMario;
@@ -88,11 +87,11 @@ s16 bhv_mips_find_furthest_waypoint_to_mario(void) {
 void bhv_mips_act_wait_for_nearby_mario(void) {
     UNUSED s16 collisionFlags = 0;
 
-    o->oForwardVel = 0.0f;
+    QSETFIELD(o,  oForwardVel, q(0));
     collisionFlags = object_step();
 
     // If Mario is within 500 units...
-    if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 500)) {
+    if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 500)) {
         // If we fail to find a suitable waypoint...
         if (bhv_mips_find_furthest_waypoint_to_mario() == -1) {
             // Call it quits.
@@ -127,9 +126,9 @@ void bhv_mips_act_follow_path(void) {
 
     // Update velocity and angle and do movement.
 #ifndef VERSION_JP
-    o->oForwardVel = o->oMipsForwardVelocity;
+    QSETFIELD(o,  oForwardVel, QFIELD(o,  oMipsForwardVelocity));
 #else
-    o->oForwardVel = 45.0f;
+    QSETFIELD(o,  oForwardVel, q(45));
 #endif
     o->oMoveAngleYaw = o->oPathedTargetYaw;
     collisionFlags = object_step();
@@ -186,7 +185,7 @@ void bhv_mips_act_fall_down(void) {
 void bhv_mips_act_idle(void) {
     UNUSED s16 collisionFlags = 0;
 
-    o->oForwardVel = 0;
+    QSETFIELD(o,  oForwardVel, q(0));
     collisionFlags = object_step();
 
     // Spawn a star if he was just picked up for the first time.
@@ -263,7 +262,7 @@ void bhv_mips_dropped(void) {
     cur_obj_init_animation(0);
     o->oHeldState = HELD_FREE;
     cur_obj_become_tangible();
-    o->oForwardVel = 3.0f;
+    QSETFIELD(o,  oForwardVel, q(3));
     o->oAction = MIPS_ACT_IDLE;
 }
 
@@ -277,8 +276,8 @@ void bhv_mips_thrown(void) {
     o->oFlags &= ~OBJ_FLAG_SET_FACE_YAW_TO_MOVE_YAW;
     cur_obj_init_animation(2);
     cur_obj_become_tangible();
-    o->oForwardVel = 25.0f;
-    o->oVelY = 20.0f;
+    QSETFIELD(o,  oForwardVel, q(25));
+    QSETFIELD(o,  oVelY, q(20));
     o->oAction = MIPS_ACT_FALL_DOWN;
 }
 

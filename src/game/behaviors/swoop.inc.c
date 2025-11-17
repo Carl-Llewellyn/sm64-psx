@@ -26,11 +26,11 @@ static struct ObjectHitbox sSwoopHitbox = {
 static void swoop_act_idle(void) {
     cur_obj_init_animation_with_sound(1);
 
-    if (approach_f32_ptr(&o->header.gfx.scale[0], 1.0f, 0.05f) && o->oDistanceToMario < 1500.0f) {
+    if (approach_q32_ptr(&o->header.gfx.scaleq[0], QONE, q(0.05)) && QFIELD(o, oDistanceToMario) < q(1500.0)) {
         if (cur_obj_rotate_yaw_toward(o->oAngleToMario, 800)) {
             cur_obj_play_sound_2(SOUND_OBJ2_SWOOP);
             o->oAction = SWOOP_ACT_MOVE;
-            o->oVelY = -12.0f;
+            QSETFIELD(o,  oVelY, q(-12));
         }
     }
 
@@ -47,31 +47,31 @@ static void swoop_act_move(void) {
         cur_obj_play_sound_2(SOUND_OBJ_UNKNOWN6);
     }
 
-    if (o->oForwardVel == 0.0f) {
+    if (QFIELD(o, oForwardVel) == 0) {
         // If we haven't started moving yet, begin swooping
         if (obj_face_roll_approach(0, 2500)) {
-            o->oForwardVel = 10.0f;
-            o->oVelY = -10.0f;
+            QSETFIELD(o, oForwardVel, q(10));
+            QSETFIELD(o, oVelY, q(-10));
         }
     } else if (cur_obj_mario_far_away()) {
         // If mario far away, reset
         o->oAction = SWOOP_ACT_IDLE;
         cur_obj_set_pos_to_home();
-        o->header.gfx.scale[0] = o->oForwardVel = o->oVelY = 0.0f;
+        o->header.gfx.scaleq[0] = QSETFIELD(o, oForwardVel, QSETFIELD(o, oVelY, 0));
         o->oFaceAngleRoll = 0;
     } else {
         if (o->oSwoopBonkCountdown != 0) {
             o->oSwoopBonkCountdown -= 1;
-        } else if (o->oVelY != 0.0f) {
+        } else if (QFIELD(o, oVelY) != 0) {
             // If we're not done swooping, turn toward mario. When between
             // 0 and 200 units above mario, increase speed and stop swooping
             o->oSwoopTargetYaw = o->oAngleToMario;
-            if (o->oPosY < gMarioObject->oPosY + 200.0f) {
-                if (obj_y_vel_approach(0.0f, 0.5f)) {
-                    o->oForwardVel *= 2.0f;
+            if (QFIELD(o, oPosY) < QFIELD(gMarioObject, oPosY) + q(200)) {
+                if (obj_y_vel_approachq(q(0.0f), q(0.5f))) {
+                    QMODFIELD(o, oForwardVel, *= 2);
                 }
             } else {
-                obj_y_vel_approach(-10.0f, 0.5f);
+                obj_y_vel_approachq(q(-10.0f), q(0.5f));
             }
         } else if (o->oMoveFlags & OBJ_MOVE_HIT_WALL) {
             // Bounce off a wall and don't bounce again for 30 frames.
@@ -81,7 +81,7 @@ static void swoop_act_move(void) {
 
         // Tilt upward when approaching mario
         if ((o->oSwoopTargetPitch = obj_get_pitch_from_vel()) == 0) {
-            o->oSwoopTargetPitch += o->oForwardVel * 500;
+            o->oSwoopTargetPitch += FFIELD(o, oForwardVel) * 500;
         }
         obj_move_pitch_approach(o->oSwoopTargetPitch, 140);
 
@@ -114,7 +114,7 @@ void bhv_swoop_update(void) {
                 break;
         }
 
-        cur_obj_scale(o->header.gfx.scale[0]);
+        cur_obj_scaleq(o->header.gfx.scaleq[0]);
         cur_obj_move_standard(78);
 
         obj_check_attacks(&sSwoopHitbox, o->oAction);

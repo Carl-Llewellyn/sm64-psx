@@ -58,6 +58,11 @@
     CMD_PTR(script), \
     CMD_PTR(scriptEnd), \
     CMD_PTR(entry)
+#define EXIT_AND_EXECUTE_DYN(seg, script, scriptEnd, entry) \
+    CMD_BBH(0x3D, 0x10, seg), \
+    CMD_PTR(script), \
+    CMD_PTR(scriptEnd), \
+    CMD_W(entry)
 #endif
 
 #define EXIT() \
@@ -76,6 +81,9 @@
 #define JUMP_LINK(target) \
     CMD_BBH(0x06, 0x08, 0x0000), \
     CMD_PTR(target)
+#define JUMP_LINK_DYN(target) \
+    CMD_BBH(0x06, 0x08, 0x0001), \
+    CMD_W(target)
 
 #define RETURN() \
     CMD_BBH(0x07, 0x04, 0x0000)
@@ -97,6 +105,10 @@
     CMD_BBBB(0x0C, 0x0C, op, 0x00), \
     CMD_W(arg), \
     CMD_PTR(target)
+#define JUMP_IF_DYN(op, arg, target) \
+    CMD_BBBB(0x0C, 0x0C, op, 0x01), \
+    CMD_W(arg), \
+    CMD_W(target)
 
 #define JUMP_LINK_IF(op, arg, target) \
     CMD_BBBB(0x0D, 0x0C, op, 0x00), \
@@ -117,11 +129,17 @@
 #define CALL(arg, func) \
     CMD_BBH(0x11, 0x08, arg), \
     CMD_PTR(func)
+#define CALL_DYN(arg, func) \
+    CMD_BBH(0x3A, 0x08, arg), \
+    CMD_W(func)
 
 // Calls func in a loop until it returns nonzero
 #define CALL_LOOP(arg, func) \
     CMD_BBH(0x12, 0x08, arg), \
     CMD_PTR(func)
+#define CALL_LOOP_DYN(arg, func) \
+    CMD_BBH(0x2D, 0x08, arg), \
+    CMD_W(func)
 
 #define SET_REG(value) \
     CMD_BBH(0x13, 0x04, value)
@@ -208,25 +226,40 @@
     CMD_BBH(0x22, 0x08, model), \
     CMD_PTR(geo)
 
+#define LOAD_MODEL_FROM_GEO_DYN(model, geo) \
+    CMD_BBH(0x23, 0x08, model), \
+    CMD_W(geo)
+
 // unk8 is float, but doesn't really matter since CMD23 is unused
-#define CMD23(model, unk4, unk8) \
+/*#define CMD23(model, unk4, unk8) \
     CMD_BBH(0x22, 0x08, model), \
     CMD_PTR(unk4), \
     CMD_W(unk8)
-
+*/
 #define OBJECT_WITH_ACTS(model, posX, posY, posZ, angleX, angleY, angleZ, behParam, beh, acts) \
     CMD_BBBB(0x24, 0x18, acts, model), \
     CMD_HHHHHH(posX, posY, posZ, angleX, angleY, angleZ), \
     CMD_W(behParam), \
     CMD_PTR(beh)
+#define OBJECT_WITH_ACTS_DYN(model, posX, posY, posZ, angleX, angleY, angleZ, behParam, beh, acts) \
+    CMD_BBBB(0x2C, 0x18, acts, model), \
+    CMD_HHHHHH(posX, posY, posZ, angleX, angleY, angleZ), \
+    CMD_W(behParam), \
+    CMD_W(beh)
 
 #define OBJECT(model, posX, posY, posZ, angleX, angleY, angleZ, behParam, beh) \
     OBJECT_WITH_ACTS(model, posX, posY, posZ, angleX, angleY, angleZ, behParam, beh, 0x1F)
+#define OBJECT_DYN(model, posX, posY, posZ, angleX, angleY, angleZ, behParam, beh) \
+    OBJECT_WITH_ACTS_DYN(model, posX, posY, posZ, angleX, angleY, angleZ, behParam, beh, 0x1F)
 
 #define MARIO(unk3, behArg, beh) \
     CMD_BBBB(0x25, 0x0C, 0x00, unk3), \
     CMD_W(behArg), \
     CMD_PTR(beh)
+#define MARIO_DYN(unk3, behArg, beh) \
+    CMD_BBBB(0x25, 0x0C, 0x01, unk3), \
+    CMD_W(behArg), \
+    CMD_W(beh)
 
 #define WARP_NODE(id, destLevel, destArea, destNode, flags) \
     CMD_BBBB(0x26, 0x08, id, destLevel), \
@@ -252,13 +285,15 @@
     CMD_HH(yaw, posX), \
     CMD_HH(posY, posZ)
 
-// unused
+/* unused
 #define CMD2C() \
     CMD_BBH(0x2C, 0x04, 0x0000)
+*/
 
-// unused
+/* unused
 #define CMD2D() \
     CMD_BBH(0x2D, 0x04, 0x0000)
+*/
 
 #define TERRAIN(terrainData) \
     CMD_BBH(0x2E, 0x08, 0x0000), \
@@ -301,12 +336,12 @@
     CMD_BBH(0x39, 0x08, 0x0000), \
     CMD_PTR(objList)
 
-// unused
+/* unused
 #define CMD3A(unk2, unk4, unk6, unk8, unk10) \
     CMD_BBH(0x3A, 0x0C, unk2), \
     CMD_HH(unk6, unk8), \
     CMD_HH(unk10, 0x0000)
-
+*/
 #define WHIRLPOOL(index, condition, posX, posY, posZ, strength) \
     CMD_BBBB(0x3B, 0x0C, index, condition), \
     CMD_HH(posX, posY), \

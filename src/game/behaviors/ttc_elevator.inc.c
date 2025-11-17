@@ -22,23 +22,23 @@ void bhv_ttc_elevator_init(void) {
     f32 peakOffset =
         ((o->oBehParams >> 16) & 0xFFFF) != 0 ? 100.0f * ((o->oBehParams >> 16) & 0xFFFF) : 500.0f;
 
-    o->oTTCElevatorPeakY = o->oPosY + peakOffset;
+    FSETFIELD(o, oTTCElevatorPeakY, FFIELD(o, oPosY) + peakOffset);
 }
 
 /**
  * Update function for bhvTTCElevator.
  */
 void bhv_ttc_elevator_update(void) {
-    o->oVelY = sTTCElevatorSpeeds[gTTCSpeedSetting] * o->oTTCElevatorDir;
+    FSETFIELD(o, oVelY, sTTCElevatorSpeeds[gTTCSpeedSetting] * FFIELD(o, oTTCElevatorDir));
 
     if (gTTCSpeedSetting == TTC_SPEED_RANDOM) {
         // Occasionally stop for 5 frames then change direction
         if (o->oTimer > o->oTTCElevatorMoveTime) {
-            o->oTTCElevatorDir = random_sign();
+            FSETFIELD(o, oTTCElevatorDir, random_sign());
             o->oTTCElevatorMoveTime = random_mod_offset(30, 30, 6);
             o->oTimer = 0;
         } else if (o->oTimer < 5) {
-            o->oVelY = 0.0f;
+            QSETFIELD(o,  oVelY, q(0));
         }
     }
 
@@ -46,7 +46,7 @@ void bhv_ttc_elevator_update(void) {
     cur_obj_move_using_fvel_and_gravity();
 
     // Flip directions if the elevator tries to run away
-    if (clamp_f32(&o->oPosY, o->oHomeY, o->oTTCElevatorPeakY)) {
-        o->oTTCElevatorDir = -o->oTTCElevatorDir;
+    if (CLAMP_Q32_FIELD(o, oPosY, QFIELD(o, oHomeY), QFIELD(o, oTTCElevatorPeakY))) {
+        QSETFIELD(o, oTTCElevatorDir, -QFIELD(o, oTTCElevatorDir));
     }
 }

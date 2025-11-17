@@ -81,25 +81,25 @@ void bhv_door_loop(void) {
 }
 
 void bhv_door_init(void) {
-    f32 x = o->oPosX;
-    f32 z = o->oPosZ;
+    q32 xq = QFIELD(o, oPosX);
+    q32 zq = QFIELD(o, oPosZ);
     struct Surface *floor;
-    find_floor(x, o->oPosY, z, &floor);
-    if (floor != NULL) {
+    find_floorq(xq, QFIELD(o, oPosY), zq, &floor);
+    if (floor) {
         o->oDoorUnkF8 = floor->room;
     }
 
-    x = o->oPosX + sins(o->oMoveAngleYaw) * 200.0f;
-    z = o->oPosZ + coss(o->oMoveAngleYaw) * 200.0f;
-    find_floor(x, o->oPosY, z, &floor);
-    if (floor != NULL) {
+    xq += sinqs(o->oMoveAngleYaw) * 200;
+    zq += cosqs(o->oMoveAngleYaw) * 200;
+    find_floorq(xq, QFIELD(o, oPosY), zq, &floor);
+    if (floor) {
         o->oDoorUnkFC = floor->room;
     }
 
-    x = o->oPosX + sins(o->oMoveAngleYaw) * -200.0f;
-    z = o->oPosZ + coss(o->oMoveAngleYaw) * -200.0f;
-    find_floor(x, o->oPosY, z, &floor);
-    if (floor != NULL) {
+    xq = QFIELD(o, oPosX) + sinqs(o->oMoveAngleYaw) * -200;
+    zq = QFIELD(o, oPosZ) + cosqs(o->oMoveAngleYaw) * -200;
+    find_floorq(xq, QFIELD(o, oPosY), zq, &floor);
+    if (floor) {
         o->oDoorUnk100 = floor->room;
     }
 

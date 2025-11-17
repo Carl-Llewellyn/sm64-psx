@@ -191,6 +191,7 @@ extern Gfx ssl_dl_pyramid_quicksand_pit_end[];
  * as a whole can have a blend color).
  */
 struct MovtexObject gMovtexNonColored[] = {
+#ifndef BENCH
     // Inside the pyramid there is a sand pathway with the 5 secrets on it.
     // pathway_front is the highest 'sand fall', pathway_floor is the horizontal
     // sand stream and pathway_side is the lower 'sand fall'.
@@ -259,6 +260,7 @@ struct MovtexObject gMovtexNonColored[] = {
     { MOVTEX_TTM_PUDDLE_WATERFALL, TEXTURE_WATER, 8, ttm_movtex_tris_puddle_waterfall,
       dl_waterbox_rgba16_begin, dl_waterbox_end, ttm_dl_puddle_waterfall, 0xff, 0xff, 0xff, 0xb4,
       LAYER_TRANSPARENT_INTER },
+#endif
     { 0x00000000, 0x00000000, 0, NULL, NULL, NULL, NULL, 0x00, 0x00, 0x00, 0x00, 0x00000000 },
 };
 
@@ -266,6 +268,7 @@ struct MovtexObject gMovtexNonColored[] = {
  * MovtexObjects that have color attributes per vertex.
  */
 struct MovtexObject gMovtexColored[] = {
+#ifndef BENCH
     { MOVTEX_SSL_PYRAMID_SIDE, TEX_QUICKSAND_SSL, 12, ssl_movtex_tris_pyramid_quicksand,
       ssl_dl_quicksand_begin, ssl_dl_quicksand_end, ssl_dl_pyramid_quicksand, 0xff, 0xff, 0xff, 0xff,
       LAYER_OPAQUE },
@@ -281,6 +284,7 @@ struct MovtexObject gMovtexColored[] = {
     { MOVTEX_TREADMILL_SMALL, TEX_YELLOW_TRI_TTC, 12, ttc_movtex_tris_small_surface_treadmill,
       ttc_dl_surface_treadmill_begin, ttc_dl_surface_treadmill_end, ttc_dl_surface_treadmill, 0xff,
       0xff, 0xff, 0xff, LAYER_OPAQUE },
+#endif
     { 0x00000000, 0x00000000, 0, NULL, NULL, NULL, NULL, 0x00, 0x00, 0x00, 0x00, 0x00000000 },
 };
 
@@ -288,12 +292,14 @@ struct MovtexObject gMovtexColored[] = {
  * Treated identically to gMovtexColored.
  */
 struct MovtexObject gMovtexColored2[] = {
+#ifndef BENCH
     { MOVTEX_SSL_SAND_PIT_OUTSIDE, TEX_QUICKSAND_SSL, 8, ssl_movtex_tris_quicksand_pit,
       ssl_dl_quicksand_pit_begin, ssl_dl_quicksand_pit_end, ssl_dl_quicksand_pit, 0xff, 0xff, 0xff,
       0xff, LAYER_OPAQUE },
     { MOVTEX_SSL_SAND_PIT_PYRAMID, TEX_PYRAMID_SAND_SSL, 8, ssl_movtex_tris_pyramid_quicksand_pit,
       ssl_dl_pyramid_quicksand_pit_begin, ssl_dl_pyramid_quicksand_pit_end, ssl_dl_quicksand_pit, 0xff,
       0xff, 0xff, 0xff, LAYER_OPAQUE },
+#endif
     { 0x00000000, 0x00000000, 0, NULL, NULL, NULL, NULL, 0x00, 0x00, 0x00, 0x00, 0x00000000 },
 };
 
@@ -301,7 +307,7 @@ struct MovtexObject gMovtexColored2[] = {
  * Sets the initial water level in Wet-Dry World based on how high Mario
  * jumped into the painting.
  */
-Gfx *geo_wdw_set_initial_water_level(s32 callContext, UNUSED struct GraphNode *node, UNUSED Mat4 mtx) {
+Gfx *geo_wdw_set_initial_water_level(s32 callContext, UNUSED struct GraphNode *node, UNUSED const ShortMatrix* mtxq) {
     s32 i;
     UNUSED u8 unused[] = { 1, 0, 4, 0, 7, 0, 10, 0 };
     s16 wdwWaterHeight;
@@ -331,7 +337,7 @@ Gfx *geo_wdw_set_initial_water_level(s32 callContext, UNUSED struct GraphNode *n
  * Textures update when gMovtexCounterPrev != gMovtexCounter.
  * This ensures water / sand flow stops when the game pauses.
  */
-Gfx *geo_movtex_pause_control(s32 callContext, UNUSED struct GraphNode *node, UNUSED Mat4 mtx) {
+Gfx *geo_movtex_pause_control(s32 callContext, UNUSED struct GraphNode *node, UNUSED const ShortMatrix* mtxq) {
     if (callContext != GEO_CONTEXT_RENDER) {
         gMovtexCounterPrev = gAreaUpdateCounter - 1;
         gMovtexCounter = gAreaUpdateCounter;
@@ -619,7 +625,7 @@ void movtex_change_texture_format(u32 quadCollectionId, Gfx **gfx) {
  * of the corresponding water region. The node's parameter determines which quad
  * collection is drawn, see moving_texture.h.
  */
-Gfx *geo_movtex_draw_water_regions(s32 callContext, struct GraphNode *node, UNUSED Mat4 mtx) {
+Gfx *geo_movtex_draw_water_regions(s32 callContext, struct GraphNode *node, UNUSED const ShortMatrix* mtxq) {
     Gfx *gfxHead = NULL;
     Gfx *gfx = NULL;
     Gfx *subList;
@@ -644,7 +650,7 @@ Gfx *geo_movtex_draw_water_regions(s32 callContext, struct GraphNode *node, UNUS
         }
         asGenerated = (struct GraphNodeGenerated *) node;
         if (asGenerated->parameter == JRB_MOVTEX_INTIAL_MIST) {
-            if (gLakituState.goalPos[1] < 1024.0) { // if camera under water
+            if (gLakituState.goalPosq[1] < q(1024)) { // if camera under water
                 return NULL;
             }
             if (save_file_get_star_flags(gCurrSaveFileNum - 1, COURSE_JRB - 1) & 1) { // first star in JRB complete
@@ -829,7 +835,7 @@ Gfx *movtex_gen_list(s16 *movtexVerts, struct MovtexObject *movtexList, s8 attrL
 /**
  * Function for a geo node that draws a MovtexObject in the gMovtexNonColored list.
  */
-Gfx *geo_movtex_draw_nocolor(s32 callContext, struct GraphNode *node, UNUSED Mat4 mtx) {
+Gfx *geo_movtex_draw_nocolor(s32 callContext, struct GraphNode *node, UNUSED const ShortMatrix* mtxq) {
     s32 i;
     s16 *movtexVerts;
     struct GraphNodeGenerated *asGenerated;
@@ -857,7 +863,7 @@ Gfx *geo_movtex_draw_nocolor(s32 callContext, struct GraphNode *node, UNUSED Mat
 /**
  * Function for a geo node that draws a MovtexObject in the gMovtexColored list.
  */
-Gfx *geo_movtex_draw_colored(s32 callContext, struct GraphNode *node, UNUSED Mat4 mtx) {
+Gfx *geo_movtex_draw_colored(s32 callContext, struct GraphNode *node, UNUSED const ShortMatrix* mtxq) {
     s32 i;
     s16 *movtexVerts;
     struct GraphNodeGenerated *asGenerated;
@@ -888,7 +894,7 @@ Gfx *geo_movtex_draw_colored(s32 callContext, struct GraphNode *node, UNUSED Mat
  * instances (like TTC treadmills) so you don't want the animation speed to
  * increase the more instances there are.
  */
-Gfx *geo_movtex_draw_colored_no_update(s32 callContext, struct GraphNode *node, UNUSED Mat4 mtx) {
+Gfx *geo_movtex_draw_colored_no_update(s32 callContext, struct GraphNode *node, UNUSED const ShortMatrix* mtxq) {
     s32 i;
     s16 *movtexVerts;
     struct GraphNodeGenerated *asGenerated;
@@ -915,7 +921,7 @@ Gfx *geo_movtex_draw_colored_no_update(s32 callContext, struct GraphNode *node, 
  * Exact copy of geo_movtex_draw_colored_no_update, but now using the gMovtexColored2 array.
  * Used for the sand pits in SSL, both outside and inside the pyramid.
  */
-Gfx *geo_movtex_draw_colored_2_no_update(s32 callContext, struct GraphNode *node, UNUSED Mat4 mtx) {
+Gfx *geo_movtex_draw_colored_2_no_update(s32 callContext, struct GraphNode *node, UNUSED const ShortMatrix* mtxq) {
     s32 i;
     s16 *movtexVerts;
     struct GraphNodeGenerated *asGenerated;
@@ -950,7 +956,7 @@ Gfx *geo_movtex_draw_colored_2_no_update(s32 callContext, struct GraphNode *node
  * model to update multiple times.
  * Note that the final TTC only has one big treadmill though.
  */
-Gfx *geo_movtex_update_horizontal(s32 callContext, struct GraphNode *node, UNUSED Mat4 mtx) {
+Gfx *geo_movtex_update_horizontal(s32 callContext, struct GraphNode *node, UNUSED const ShortMatrix* mtxq) {
     void *movtexVerts;
 
     if (callContext == GEO_CONTEXT_RENDER) {
@@ -969,6 +975,7 @@ Gfx *geo_movtex_update_horizontal(s32 callContext, struct GraphNode *node, UNUSE
             case MOVTEX_TREADMILL_SMALL:
                 movtexVerts = segmented_to_virtual(ttc_movtex_tris_small_surface_treadmill);
                 break;
+            default: unreachable();
         }
         update_moving_texture_offset(movtexVerts, MOVTEX_ATTR_COLORED_S);
     }

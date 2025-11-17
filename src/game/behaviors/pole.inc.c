@@ -17,7 +17,7 @@ void bhv_pole_init(void) {
      * `spawn_objects_from_info`.
      */
     s32 tenthHitboxHeight = o->oBehParams >> 0x10 & 0xFF;
-    o->hitboxHeight = tenthHitboxHeight * 10;
+    o->hitboxHeight_s16 = tenthHitboxHeight * 10;
 }
 
 /**
@@ -29,7 +29,7 @@ void bhv_giant_pole_loop(void) {
     struct Object *topBall;
     if (o->oTimer == 0) {
         topBall = spawn_object(o, MODEL_YELLOW_SPHERE, bhvYellowBall);
-        topBall->oPosY += o->hitboxHeight + 50.0f;
+        QMODFIELD(topBall, oPosY, += q(o->hitboxHeight_s16 + 50));
     }
     bhv_pole_base_loop();
 }

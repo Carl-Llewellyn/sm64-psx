@@ -30,6 +30,7 @@ typedef struct
        IMG_FORMAT_IA,
        IMG_FORMAT_I,
        IMG_FORMAT_CI,
+	   IMG_FORMAT_PSX,
     } format;
     int depth;
 } img_format;
@@ -232,6 +233,27 @@ int rgba2raw(uint8_t *raw, const rgba *img, int width, int height, int depth)
    }
 
    return size;
+}
+
+int rgba2psx(uint8_t *raw, const rgba *img, int width, int height)
+{
+	int size = width * height * 2;
+	INFO("Converting RGBA %dx%d to 16-bit PSX format\n", width, height);
+	for(int i = 0; i < width * height; i++) {
+		uint16_t r, g, b;
+		r = SCALE_8_5(img[i].red);
+		g = SCALE_8_5(img[i].green);
+		b = SCALE_8_5(img[i].blue);
+		if(img[i].alpha) {
+			uint16_t col16 = r | g << 5 | b << 10 | 0x8000;
+			raw[i * 2] = col16 & 0xFF;
+			raw[i * 2 + 1] = col16 >> 8;
+		} else {
+			raw[i * 2] = 0;
+			raw[i * 2 + 1] = 0;
+		}
+	}
+	return size;
 }
 
 int ia2raw(uint8_t *raw, const ia *img, int width, int height, int depth)
@@ -629,6 +651,7 @@ typedef struct
 
 static const format_entry format_table[] =
 {
+   {"psx", {IMG_FORMAT_PSX, 16}},
    {"rgba16", {IMG_FORMAT_RGBA, 16}},
    {"rgba32", {IMG_FORMAT_RGBA, 32}},
    {"ia1",    {IMG_FORMAT_IA,    1}},
@@ -874,6 +897,15 @@ int main(int argc, char *argv[])
                ERROR("Error allocating %u bytes\n", raw_size);
             }
             length = rgba2raw(raw, imgr, config.width, config.height, config.format.depth);
+            break;
+         case IMG_FORMAT_PSX:
+            imgr = png2rgba(config.img_filename, &config.width, &config.height);
+            raw_size = config.width * config.height * 2;
+            raw = malloc(raw_size);
+            if (!raw) {
+               ERROR("Error allocating %u bytes\n", raw_size);
+            }
+            length = rgba2psx(raw, imgr, config.width, config.height);
             break;
          case IMG_FORMAT_IA:
             imgi = png2ia(config.img_filename, &config.width, &config.height);

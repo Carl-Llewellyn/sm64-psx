@@ -1,6 +1,8 @@
 #ifndef AUDIO_DATA_H
 #define AUDIO_DATA_H
 
+#ifndef NO_AUDIO
+
 #include <PR/ultratypes.h>
 
 #include "internal.h"
@@ -149,6 +151,8 @@ extern u32 D_SH_80315EF0;
 extern u16 D_SH_80315EF4;
 extern u16 D_SH_80315EF8;
 extern u16 D_SH_80315EFC;
+#endif
+
 #endif
 
 #endif // AUDIO_DATA_H

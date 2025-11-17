@@ -5,27 +5,27 @@ void spawn_child_obj_relative(struct Object *parent, s16 xOffset, s16 yOffset, s
                    s32 model, const BehaviorScript *behavior) {
     struct Object *sp1C = spawn_object(parent, model, behavior);
 
-    sp1C->header.gfx.animInfo.animFrame = random_float() * 6.f;
-    sp1C->oEndBirdUnk104 = sCutsceneVars[9].point[0];
-    sCutsceneVars[9].point[0] += 1.f;
-    sp1C->oPosX += xOffset;
-    sp1C->oPosY += yOffset;
+    sp1C->header.gfx.animInfo.animFrame = random_u16() % 6; //random_float() * 6.f;
+    QSETFIELD(sp1C, oEndBirdUnk104, sCutsceneVars[9].pointq[0]);
+    sCutsceneVars[9].pointq[0] += QONE;
+    QMODFIELD(sp1C, oPosX, += q(xOffset));
+    QMODFIELD(sp1C, oPosY, += q(yOffset));
     if (gCutsceneTimer > 700)
-        sp1C->oPosY += -150.f;
-    sp1C->oPosZ += zOffset;
+        QMODFIELD(sp1C, oPosY, += q(-150));
+    QMODFIELD(sp1C, oPosZ, += q(zOffset));
     sp1C->oMoveAnglePitch += pitchOffset;
     sp1C->oMoveAngleYaw += yawOffset;
     sp1C->oMoveAngleRoll += rollOffset;
-    sp1C->oForwardVel = forwardVel;
+    QSETFIELD(sp1C, oForwardVel, q(forwardVel));
 }
 
 void bhv_intro_scene_loop(void) {
     UNUSED struct Object *sp34;
 
     if (gCutsceneObjSpawn != 0) {
-        gCurrentObject->oPosX = gCamera->pos[0];
-        gCurrentObject->oPosY = gCamera->pos[1];
-        gCurrentObject->oPosZ = gCamera->pos[2];
+        QSETFIELD(gCurrentObject, oPosX, gCamera->posq[0]);
+        QSETFIELD(gCurrentObject, oPosY, gCamera->posq[1]);
+        QSETFIELD(gCurrentObject, oPosZ, gCamera->posq[2]);
         gCurrentObject->oMoveAnglePitch = 0;
         gCurrentObject->oMoveAngleYaw = 0;
 

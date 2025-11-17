@@ -1,3 +1,5 @@
+#ifndef NO_AUDIO
+
 #include <ultra64.h>
 
 #include "data.h"
@@ -959,3 +961,5 @@ OSMesgQueue *D_SH_80350FA8;
 #endif
 
 u64 gAudioGlobalsEndMarker;
+
+#endif

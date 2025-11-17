@@ -13,9 +13,9 @@ static struct ObjectHitbox sBobombHitbox = {
 };
 
 void bhv_bobomb_init(void) {
-    o->oGravity = 2.5;
-    o->oFriction = 0.8;
-    o->oBuoyancy = 1.3;
+    QSETFIELD(o, oGravity, q(2.5));
+    QSETFIELD(o,  oFriction, q(0.8));
+    QSETFIELD(o,  oBuoyancy, q(1.3));
     o->oInteractionSubtype = INT_SUBTYPE_KICKABLE;
 }
 
@@ -30,10 +30,10 @@ void bobomb_spawn_coin(void) {
 void bobomb_act_explode(void) {
     struct Object *explosion;
     if (o->oTimer < 5)
-        cur_obj_scale(1.0 + (f32) o->oTimer / 5.0);
+        cur_obj_scaleq(q(1.0) + q(o->oTimer) / 5);
     else {
         explosion = spawn_object(o, MODEL_EXPLOSION, bhvExplosion);
-        explosion->oGraphYOffset += 100.0f;
+        QMODFIELD(explosion, oGraphYOffset, += q(100.0f));
 
         bobomb_spawn_coin();
         create_respawner(MODEL_BLACK_BOBOMB, bhvBobomb, 3000);
@@ -49,8 +49,8 @@ void bobomb_check_interactions(void) {
         if ((o->oInteractStatus & INT_STATUS_MARIO_KNOCKBACK_DMG) != 0)
         {
             o->oMoveAngleYaw = gMarioObject->header.gfx.angle[1];
-            o->oForwardVel = 25.0;
-            o->oVelY = 30.0;
+            QSETFIELD(o, oForwardVel, q(25));
+            QSETFIELD(o, oVelY, q(30));
             o->oAction = BOBOMB_ACT_LAUNCHED;
         }
 
@@ -70,10 +70,10 @@ void bobomb_act_patrol(void) {
     s16 collisionFlags;
 
     sp22 = o->header.gfx.animInfo.animFrame;
-    o->oForwardVel = 5.0;
+    QSETFIELD(o,  oForwardVel, q(5));
 
     collisionFlags = object_step();
-    if ((obj_return_home_if_safe(o, o->oHomeX, o->oHomeY, o->oHomeZ, 400) == 1)
+    if ((obj_return_home_if_safe(o, IFIELD(o, oHomeX), IFIELD(o, oHomeY), IFIELD(o, oHomeZ), 400) == 1)
         && (obj_check_if_facing_toward_angle(o->oMoveAngleYaw, o->oAngleToMario, 0x2000) == TRUE)) {
         o->oBobombFuseLit = 1;
         o->oAction = BOBOMB_ACT_CHASE_MARIO;
@@ -86,7 +86,7 @@ void bobomb_act_chase_mario(void) {
     s16 sp1a, collisionFlags;
 
     sp1a = ++o->header.gfx.animInfo.animFrame;
-    o->oForwardVel = 20.0;
+    QSETFIELD(o,  oForwardVel, q(20));
 
     collisionFlags = object_step();
 
@@ -204,8 +204,8 @@ void bobomb_thrown_loop(void) {
     o->header.gfx.node.flags &= ~GRAPH_RENDER_INVISIBLE;
     o->oHeldState = 0;
     o->oFlags &= ~0x8; /* bit 3 */
-    o->oForwardVel = 25.0;
-    o->oVelY = 20.0;
+    QSETFIELD(o,  oForwardVel, q(25));
+    QSETFIELD(o,  oVelY, q(20));
     o->oAction = BOBOMB_ACT_LAUNCHED;
 }
 
@@ -232,7 +232,7 @@ void curr_obj_random_blink(s32 *blinkTimer) {
 
 void bhv_bobomb_loop(void) {
     s8 dustPeriodMinus1;
-    if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 4000) != 0) {
+    if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 4000)) {
         switch (o->oHeldState) {
             case HELD_FREE:
                 bobomb_free_loop();
@@ -271,16 +271,16 @@ void bhv_bobomb_loop(void) {
 }
 
 void bhv_bobomb_fuse_smoke_init(void) {
-    o->oPosX += (s32)(random_float() * 80.0f) - 40;
-    o->oPosY += (s32)(random_float() * 80.0f) + 60;
-    o->oPosZ += (s32)(random_float() * 80.0f) - 40;
-    cur_obj_scale(1.2f);
+    FMODFIELD(o, oPosX,  += (s32)(random_float() * 80.0f) - 40);
+    FMODFIELD(o, oPosY,  += (s32)(random_float() * 80.0f) + 60);
+    FMODFIELD(o, oPosZ,  += (s32)(random_float() * 80.0f) - 40);
+    cur_obj_scaleq(q(1.2f));
 }
 
 void bhv_bobomb_buddy_init(void) {
-    o->oGravity = 2.5;
-    o->oFriction = 0.8;
-    o->oBuoyancy = 1.3;
+    QSETFIELD(o, oGravity, q(2.5));
+    QSETFIELD(o,  oFriction, q(0.8));
+    QSETFIELD(o,  oBuoyancy, q(1.3));
     o->oInteractionSubtype = INT_SUBTYPE_NPC;
 }
 
@@ -289,16 +289,16 @@ void bobomb_buddy_act_idle(void) {
     s16 sp1a = o->header.gfx.animInfo.animFrame;
     UNUSED s16 collisionFlags = 0;
 
-    o->oBobombBuddyPosXCopy = o->oPosX;
-    o->oBobombBuddyPosYCopy = o->oPosY;
-    o->oBobombBuddyPosZCopy = o->oPosZ;
+    QSETFIELD(o,  oBobombBuddyPosXCopy, QFIELD(o,  oPosX));
+    QSETFIELD(o,  oBobombBuddyPosYCopy, QFIELD(o,  oPosY));
+    QSETFIELD(o,  oBobombBuddyPosZCopy, QFIELD(o,  oPosZ));
 
     collisionFlags = object_step();
 
     if ((sp1a == 5) || (sp1a == 16))
         cur_obj_play_sound_2(SOUND_OBJ_BOBOMB_WALK);
 
-    if (o->oDistanceToMario < 1000.0f)
+    if (QFIELD(o, oDistanceToMario) < q(1000.0))
         o->oMoveAngleYaw = approach_s16_symmetric(o->oMoveAngleYaw, o->oAngleToMario, 0x140);
 
     if (o->oInteractStatus == INT_STATUS_INTERACTED)

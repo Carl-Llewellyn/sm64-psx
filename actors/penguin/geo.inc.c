@@ -28,7 +28,7 @@ const GeoLayout penguin_geo[] = {
                 GEO_CLOSE_NODE(),
                 GEO_ANIMATED_PART(LAYER_OPAQUE, 0, 111, -19, NULL),
                 GEO_OPEN_NODE(),
-                   GEO_SWITCH_CASE(5, geo_switch_tuxie_mother_eyes),
+                   GEO_SWITCH_CASE_DYN(5, DYN_geo_switch_tuxie_mother_eyes),
                    GEO_OPEN_NODE(),
                       GEO_ANIMATED_PART(LAYER_OPAQUE, 0, 0, 0, penguin_seg5_dl_05006428),
                       GEO_ANIMATED_PART(LAYER_OPAQUE, 0, 0, 0, penguin_seg5_dl_05006458),

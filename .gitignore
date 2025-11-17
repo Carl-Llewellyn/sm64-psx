@@ -39,12 +39,14 @@
 
 # Text editor remnants
 *.swp
-.vscode/*
+/.vscode
+.ropeproject
+/.cache
 
 # General project-specific ignores
-__pycache__/*
+/__pycache__
 doxygen/doxygen/*
-build/*
+/build
 *.dump
 *.mio0
 *.z64
@@ -52,6 +54,9 @@ build/*
 .assets-local.txt
 sm64_save_file.bin
 sm64config.txt
+*.processed.c
+/.venv
+/.local
 
 # Assets. Generally ignored, but ones with "custom" in the name are fine.
 /levels/**/*.png
@@ -72,3 +77,9 @@ sm64config.txt
 !/sound/**/*custom*/**/*.aiff
 !/assets/**/*custom*.bin
 !/assets/**/*custom*/**/*.bin
+
+.stfolder
+
+LICENSEA.DAT
+LICENSEE.DAT
+LICENSEJ.DAT

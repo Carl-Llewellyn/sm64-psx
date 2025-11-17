@@ -21,9 +21,9 @@ static struct ObjectHitbox sFallingPillarHitbox = {
  * Initiates various physics params for the pillar.
  */
 void bhv_falling_pillar_init(void) {
-    o->oGravity = 0.5f;
-    o->oFriction = 0.91f;
-    o->oBuoyancy = 1.3f;
+    QSETFIELD(o, oGravity, q(0.5f));
+    QSETFIELD(o,  oFriction, q(0.91));
+    QSETFIELD(o,  oBuoyancy, q(1.3));
 }
 
 /**
@@ -42,16 +42,16 @@ void bhv_falling_pillar_spawn_hitboxes(void) {
  * Mario.
  */
 s16 bhv_falling_pillar_calculate_angle_in_front_of_mario(void) {
-    f32 targetX;
-    f32 targetZ;
+    s32 targetX;
+    s32 targetZ;
 
     // Calculate target to be 500 units in front of Mario in
     // the direction he is facing (angle[1] is yaw).
-    targetX = sins(gMarioObject->header.gfx.angle[1]) * 500.0f + gMarioObject->header.gfx.pos[0];
-    targetZ = coss(gMarioObject->header.gfx.angle[1]) * 500.0f + gMarioObject->header.gfx.pos[2];
+    targetX = gMarioObject->header.gfx.posi[0] + sinqs(gMarioObject->header.gfx.angle[1]) * 500 / ONE;
+    targetZ = gMarioObject->header.gfx.posi[2] + cosqs(gMarioObject->header.gfx.angle[1]) * 500 / ONE;
 
     // Calculate the angle to the target from the pillar's current location.
-    return atan2s(targetZ - o->oPosZ, targetX - o->oPosX);
+    return atan2sq(targetZ - IFIELD(o, oPosZ), targetX - IFIELD(o, oPosX));
 }
 
 /**
@@ -62,10 +62,10 @@ void bhv_falling_pillar_loop(void) {
     switch (o->oAction) {
         case FALLING_PILLAR_ACT_IDLE:
             // When Mario is within 1300 units of distance...
-            if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 1300)) {
+            if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 1300)) {
                 // Begin slightly moving towards Mario.
                 o->oMoveAngleYaw = o->oAngleToMario;
-                o->oForwardVel = 1.0f;
+                QSETFIELD(o,  oForwardVel, q(1));
 
                 // Spawn the invisible hitboxes.
                 bhv_falling_pillar_spawn_hitboxes();
@@ -94,18 +94,18 @@ void bhv_falling_pillar_loop(void) {
             object_step_without_floor_orient();
 
             // Start falling slowly, with increasing acceleration each frame.
-            o->oFallingPillarPitchAcceleration += 4.0f;
-            o->oAngleVelPitch += o->oFallingPillarPitchAcceleration;
+            QMODFIELD(o, oFallingPillarPitchAcceleration, += q(4.0f));
+            o->oAngleVelPitch += FFIELD(o, oFallingPillarPitchAcceleration);
             o->oFaceAnglePitch += o->oAngleVelPitch;
 
             // Once the pillar has turned nearly 90 degrees (after ~22 frames),
             if (o->oFaceAnglePitch > 0x3900) {
                 // Move 500 units in the direction of falling.
-                o->oPosX += sins(o->oFaceAngleYaw) * 500.0f;
-                o->oPosZ += coss(o->oFaceAngleYaw) * 500.0f;
+                FMODFIELD(o, oPosX,  += sins(o->oFaceAngleYaw) * 500.0f);
+                FMODFIELD(o, oPosZ,  += coss(o->oFaceAngleYaw) * 500.0f);
 
                 // Make the camera shake and spawn dust clouds.
-                set_camera_shake_from_point(SHAKE_POS_MEDIUM, o->oPosX, o->oPosY, o->oPosZ);
+                set_camera_shake_from_pointq(SHAKE_POS_MEDIUM, QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ));
                 spawn_mist_particles_variable(0, 0, 92.0f);
 
                 // Go invisible.
@@ -125,15 +125,15 @@ void bhv_falling_pillar_hitbox_loop(void) {
     // Get the state of the pillar.
     s32 pitch = o->parentObj->oFaceAnglePitch;
     s32 yaw = o->parentObj->oFaceAngleYaw;
-    f32 x = o->parentObj->oPosX;
-    f32 y = o->parentObj->oPosY;
-    f32 z = o->parentObj->oPosZ;
+    f32 x = FFIELD(o->parentObj, oPosX);
+    f32 y = FFIELD(o->parentObj, oPosY);
+    f32 z = FFIELD(o->parentObj, oPosZ);
     f32 yOffset = o->oBehParams2ndByte * 400 + 300;
 
     // Update position of hitboxes so they fall with the pillar.
-    o->oPosX = sins(pitch) * sins(yaw) * yOffset + x;
-    o->oPosY = coss(pitch) * yOffset + y;
-    o->oPosZ = sins(pitch) * coss(yaw) * yOffset + z;
+    FSETFIELD(o, oPosX, sins(pitch) * sins(yaw) * yOffset + x);
+    FSETFIELD(o, oPosY, coss(pitch) * yOffset + y);
+    FSETFIELD(o, oPosZ, sins(pitch) * coss(yaw) * yOffset + z);
 
     // Give these a hitbox so they can collide with Mario.
     obj_set_hitbox(o, &sFallingPillarHitbox);

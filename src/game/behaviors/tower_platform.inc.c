@@ -16,7 +16,7 @@ void bhv_wf_elevator_tower_platform_loop(void) {
             if (o->oTimer > 140)
                 o->oAction++;
             else
-                o->oPosY += 5.0f;
+                QMODFIELD(o, oPosY, += q(5));
             break;
         case 2:
             if (o->oTimer > 60)
@@ -27,7 +27,7 @@ void bhv_wf_elevator_tower_platform_loop(void) {
             if (o->oTimer > 140)
                 o->oAction = 0;
             else
-                o->oPosY -= 5.0f;
+                QMODFIELD(o, oPosY, -= q(5));
             break;
     }
     if (o->parentObj->oAction == 3)
@@ -35,22 +35,22 @@ void bhv_wf_elevator_tower_platform_loop(void) {
 }
 
 void bhv_wf_sliding_tower_platform_loop(void) {
-    s32 sp24 = o->oPlatformUnk110 / o->oPlatformUnk10C;
+    s32 sp24 = FFIELD(o, oPlatformUnk110) / FFIELD(o, oPlatformUnk10C);
     switch (o->oAction) {
         case 0:
             if (o->oTimer > sp24)
                 o->oAction++;
-            o->oForwardVel = -o->oPlatformUnk10C;
+            QSETFIELD(o, oForwardVel, -QFIELD(o, oPlatformUnk10C));
             break;
         case 1:
             if (o->oTimer > sp24)
                 o->oAction = 0;
-            o->oForwardVel = o->oPlatformUnk10C;
+            QSETFIELD(o, oForwardVel, QFIELD(o, oPlatformUnk10C));
             break;
     }
     cur_obj_compute_vel_xz();
-    o->oPosX += o->oVelX;
-    o->oPosZ += o->oVelZ;
+    QMODFIELD(o, oPosX, += QFIELD(o, oVelX));
+    QMODFIELD(o, oPosZ, += QFIELD(o, oVelZ));
     if (o->parentObj->oAction == 3)
         obj_mark_for_deletion(o);
 }
@@ -60,11 +60,11 @@ void spawn_and_init_wf_platforms(s16 a, const BehaviorScript *bhv) {
     struct Object *platform = spawn_object(o, a, bhv);
     yaw = o->oPlatformSpawnerUnkF4 * o->oPlatformSpawnerUnkFC + o->oPlatformSpawnerUnkF8;
     platform->oMoveAngleYaw = yaw;
-    platform->oPosX += o->oPlatformSpawnerUnk100 * sins(yaw);
-    platform->oPosY += 100 * o->oPlatformSpawnerUnkF4;
-    platform->oPosZ += o->oPlatformSpawnerUnk100 * coss(yaw);
-    platform->oPlatformUnk110 = o->oPlatformSpawnerUnk104;
-    platform->oPlatformUnk10C = o->oPlatformSpawnerUnk108;
+    QMODFIELD(platform, oPosX, += qmul(QFIELD(o, oPlatformSpawnerUnk100), sinqs(yaw)));
+    QMODFIELD(platform, oPosY, += q(o->oPlatformSpawnerUnkF4 * 100));
+    QMODFIELD(platform, oPosZ, += qmul(QFIELD(o, oPlatformSpawnerUnk100), cosqs(yaw)));
+    QSETFIELD(platform, oPlatformUnk110, QFIELD(o, oPlatformSpawnerUnk104));
+    QSETFIELD(platform, oPlatformUnk10C, QFIELD(o, oPlatformSpawnerUnk108));
     o->oPlatformSpawnerUnkF4++;
 }
 
@@ -73,9 +73,9 @@ void spawn_wf_platform_group(void) {
     o->oPlatformSpawnerUnkF4 = 0;
     o->oPlatformSpawnerUnkF8 = 0;
     o->oPlatformSpawnerUnkFC = 0x2000;
-    o->oPlatformSpawnerUnk100 = 704.0f;
-    o->oPlatformSpawnerUnk104 = 380.0f;
-    o->oPlatformSpawnerUnk108 = 3.0f;
+    QSETFIELD(o, oPlatformSpawnerUnk100, q(704));
+    QSETFIELD(o, oPlatformSpawnerUnk104, q(380));
+    QSETFIELD(o, oPlatformSpawnerUnk108, q(3));
     spawn_and_init_wf_platforms(MODEL_WF_TOWER_SQUARE_PLATORM, bhvWfSolidTowerPlatform);
     spawn_and_init_wf_platforms(MODEL_WF_TOWER_SQUARE_PLATORM, bhvWfSlidingTowerPlatform);
     spawn_and_init_wf_platforms(MODEL_WF_TOWER_SQUARE_PLATORM, bhvWfSolidTowerPlatform);
@@ -87,11 +87,11 @@ void spawn_wf_platform_group(void) {
 }
 
 void bhv_tower_platform_group_loop(void) {
-    f32 marioY = gMarioObject->oPosY;
-    o->oDistanceToMario = dist_between_objects(o, gMarioObject);
+    q32 marioYq = QFIELD(gMarioObject, oPosY);
+    QSETFIELD(o, oDistanceToMario, dist_between_objectsq(o, gMarioObject));
     switch (o->oAction) {
         case 0:
-            if (marioY > o->oHomeY - 1000.0f)
+            if (marioYq > QFIELD(o, oHomeY) - q(1000))
                 o->oAction++;
             break;
         case 1:
@@ -99,7 +99,7 @@ void bhv_tower_platform_group_loop(void) {
             o->oAction++;
             break;
         case 2:
-            if (marioY < o->oHomeY - 1000.0f)
+            if (marioYq < QFIELD(o, oHomeY) - q(1000))
                 o->oAction++;
             break;
         case 3:

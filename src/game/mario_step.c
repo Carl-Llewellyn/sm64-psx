@@ -88,7 +88,7 @@ BAD_RETURN(s32) init_bully_collision_data(struct BullyCollisionData *data, f32 p
 
 void mario_bonk_reflection(struct MarioState *m, u32 negateSpeed) {
     if (m->wall != NULL) {
-        s16 wallAngle = atan2s(m->wall->normal.z, m->wall->normal.x);
+        s16 wallAngle = atan2sq((q32) m->wall->compressed_normal.z * QONE / COMPRESSED_NORMAL_ONE, (q32) m->wall->compressed_normal.x * QONE / COMPRESSED_NORMAL_ONE);
         m->faceAngle[1] = wallAngle - (s16)(m->faceAngle[1] - wallAngle);
 
         play_sound((m->flags & MARIO_METAL_CAP) ? SOUND_ACTION_METAL_BONK : SOUND_ACTION_BONK,
@@ -229,7 +229,7 @@ void stop_and_set_height_to_floor(struct MarioState *m) {
     //! This is responsible for some downwarps.
     m->pos[1] = m->floorHeight;
 
-    vec3f_copy(marioObj->header.gfx.pos, m->pos);
+    vec3f_to_vec3s(marioObj->header.gfx.posi, m->pos);
     vec3s_set(marioObj->header.gfx.angle, 0, m->faceAngle[1], 0);
 }
 
@@ -248,13 +248,14 @@ s32 stationary_ground_step(struct MarioState *m) {
         //! This is responsible for several stationary downwarps.
         m->pos[1] = m->floorHeight;
 
-        vec3f_copy(marioObj->header.gfx.pos, m->pos);
+        vec3f_to_vec3s(marioObj->header.gfx.posi, m->pos);
         vec3s_set(marioObj->header.gfx.angle, 0, m->faceAngle[1], 0);
     }
 
     return stepResult;
 }
 
+// TODO: transition this
 static s32 perform_ground_quarter_step(struct MarioState *m, Vec3f nextPos) {
     UNUSED struct Surface *lowerWall;
     struct Surface *upperWall;
@@ -281,7 +282,7 @@ static s32 perform_ground_quarter_step(struct MarioState *m, Vec3f nextPos) {
     if ((m->action & ACT_FLAG_RIDING_SHELL) && floorHeight < waterLevel) {
         floorHeight = waterLevel;
         floor = &gWaterSurfacePseudoFloor;
-        floor->originOffset = floorHeight; //! Wrong origin offset (no effect)
+        floor->originOffsetq = q(floorHeight); //! Wrong origin offset (no effect)
     }
 
     if (nextPos[1] > floorHeight + 100.0f) {
@@ -304,7 +305,7 @@ static s32 perform_ground_quarter_step(struct MarioState *m, Vec3f nextPos) {
     m->floorHeight = floorHeight;
 
     if (upperWall != NULL) {
-        s16 wallDYaw = atan2s(upperWall->normal.z, upperWall->normal.x) - m->faceAngle[1];
+        s16 wallDYaw = atan2sq((q32) upperWall->compressed_normal.z * QONE / COMPRESSED_NORMAL_ONE, (q32) upperWall->compressed_normal.x * QONE / COMPRESSED_NORMAL_ONE) - m->faceAngle[1];
 
         if (wallDYaw >= 0x2AAA && wallDYaw <= 0x5555) {
             return GROUND_STEP_NONE;
@@ -325,8 +326,8 @@ s32 perform_ground_step(struct MarioState *m) {
     Vec3f intendedPos;
 
     for (i = 0; i < 4; i++) {
-        intendedPos[0] = m->pos[0] + m->floor->normal.y * (m->vel[0] / 4.0f);
-        intendedPos[2] = m->pos[2] + m->floor->normal.y * (m->vel[2] / 4.0f);
+        intendedPos[0] = m->pos[0] + qtof(qmul((q32) m->floor->compressed_normal.y * QONE / COMPRESSED_NORMAL_ONE, q(m->vel[0]) / 4));
+        intendedPos[2] = m->pos[2] + qtof(qmul((q32) m->floor->compressed_normal.y * QONE / COMPRESSED_NORMAL_ONE, q(m->vel[2]) / 4));
         intendedPos[1] = m->pos[1];
 
         stepResult = perform_ground_quarter_step(m, intendedPos);
@@ -336,7 +337,7 @@ s32 perform_ground_step(struct MarioState *m) {
     }
 
     m->terrainSoundAddend = mario_get_terrain_sound_addend(m);
-    vec3f_copy(m->marioObj->header.gfx.pos, m->pos);
+    vec3f_to_vec3s(m->marioObj->header.gfx.posi, m->pos);
     vec3s_set(m->marioObj->header.gfx.angle, 0, m->faceAngle[1], 0);
 
     if (stepResult == GROUND_STEP_HIT_WALL_CONTINUE_QSTEPS) {
@@ -366,8 +367,8 @@ u32 check_ledge_grab(struct MarioState *m, struct Surface *wall, Vec3f intendedP
 
     //! Since the search for floors starts at y + 160, we will sometimes grab
     // a higher ledge than expected (glitchy ledge grab)
-    ledgePos[0] = nextPos[0] - wall->normal.x * 60.0f;
-    ledgePos[2] = nextPos[2] - wall->normal.z * 60.0f;
+    ledgePos[0] = nextPos[0] - qtof((q32) wall->compressed_normal.x * QONE / COMPRESSED_NORMAL_ONE * 60);
+    ledgePos[2] = nextPos[2] - qtof((q32) wall->compressed_normal.z * QONE / COMPRESSED_NORMAL_ONE * 60);
     ledgePos[1] = find_floor(ledgePos[0], nextPos[1] + 160.0f, ledgePos[2], &ledgeFloor);
 
     if (ledgePos[1] - nextPos[1] <= 100.0f) {
@@ -378,10 +379,10 @@ u32 check_ledge_grab(struct MarioState *m, struct Surface *wall, Vec3f intendedP
     m->floor = ledgeFloor;
     m->floorHeight = ledgePos[1];
 
-    m->floorAngle = atan2s(ledgeFloor->normal.z, ledgeFloor->normal.x);
+    m->floorAngle = atan2sq((q32) ledgeFloor->compressed_normal.z * QONE / COMPRESSED_NORMAL_ONE, (q32) ledgeFloor->compressed_normal.x * QONE / COMPRESSED_NORMAL_ONE);
 
     m->faceAngle[0] = 0;
-    m->faceAngle[1] = atan2s(wall->normal.z, wall->normal.x) + 0x8000;
+    m->faceAngle[1] = atan2sq((q32) wall->compressed_normal.z * QONE / COMPRESSED_NORMAL_ONE, (q32) wall->compressed_normal.x * QONE / COMPRESSED_NORMAL_ONE) + 0x8000;
     return TRUE;
 }
 
@@ -424,7 +425,7 @@ s32 perform_air_quarter_step(struct MarioState *m, Vec3f intendedPos, u32 stepAr
     if ((m->action & ACT_FLAG_RIDING_SHELL) && floorHeight < waterLevel) {
         floorHeight = waterLevel;
         floor = &gWaterSurfacePseudoFloor;
-        floor->originOffset = floorHeight; //! Incorrect origin offset (no effect)
+        floor->originOffsetq = q(floorHeight); //! Incorrect origin offset (no effect)
     }
 
     //! This check uses f32, but findFloor uses short (overflow jumps)
@@ -485,7 +486,7 @@ s32 perform_air_quarter_step(struct MarioState *m, Vec3f intendedPos, u32 stepAr
 
     if (upperWall != NULL || lowerWall != NULL) {
         m->wall = upperWall != NULL ? upperWall : lowerWall;
-        wallDYaw = atan2s(m->wall->normal.z, m->wall->normal.x) - m->faceAngle[1];
+        wallDYaw = atan2sq((q32) m->wall->compressed_normal.z * QONE / COMPRESSED_NORMAL_ONE, (q32) m->wall->compressed_normal.x * QONE / COMPRESSED_NORMAL_ONE) - m->faceAngle[1];
 
         if (m->wall->type == SURFACE_BURNING) {
             return AIR_STEP_HIT_LAVA_WALL;
@@ -648,7 +649,7 @@ s32 perform_air_step(struct MarioState *m, u32 stepArg) {
     }
     apply_vertical_wind(m);
 
-    vec3f_copy(m->marioObj->header.gfx.pos, m->pos);
+    vec3f_to_vec3s(m->marioObj->header.gfx.posi, m->pos);
     vec3s_set(m->marioObj->header.gfx.angle, 0, m->faceAngle[1], 0);
 
     return stepResult;

@@ -9,9 +9,6 @@
 #include "game/area.h"
 #include "geo_layout.h"
 
-// unused Mtx(s)
-s16 identityMtx[4][4] = { { 1, 0, 0, 0 }, { 0, 1, 0, 0 }, { 0, 0, 1, 0 }, { 0, 0, 0, 1 } };
-s16 zeroMtx[4][4] = { { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 } };
 
 Vec3f gVec3fZero = { 0.0f, 0.0f, 0.0f };
 Vec3s gVec3sZero = { 0, 0, 0 };
@@ -77,9 +74,9 @@ init_graph_node_ortho_projection(struct AllocOnlyPool *pool, struct GraphNodeOrt
 /**
  * Allocates and returns a newly created perspective node
  */
-struct GraphNodePerspective *init_graph_node_perspective(struct AllocOnlyPool *pool,
+struct GraphNodePerspective *init_graph_node_perspectiveq(struct AllocOnlyPool *pool,
                                                          struct GraphNodePerspective *graphNode,
-                                                         f32 fov, s16 near, s16 far,
+                                                         q32 fovq, s16 near, s16 far,
                                                          GraphNodeFunc nodeFunc, s32 unused) {
     if (pool != NULL) {
         graphNode = alloc_only_pool_alloc(pool, sizeof(struct GraphNodePerspective));
@@ -88,7 +85,7 @@ struct GraphNodePerspective *init_graph_node_perspective(struct AllocOnlyPool *p
     if (graphNode != NULL) {
         init_scene_graph_node_links(&graphNode->fnNode.node, GRAPH_NODE_TYPE_PERSPECTIVE);
 
-        graphNode->fov = fov;
+        graphNode->fovq = fovq;
         graphNode->near = near;
         graphNode->far = far;
         graphNode->fnNode.func = nodeFunc;
@@ -186,17 +183,17 @@ struct GraphNodeSwitchCase *init_graph_node_switch_case(struct AllocOnlyPool *po
 /**
  * Allocates and returns a newly created camera node
  */
-struct GraphNodeCamera *init_graph_node_camera(struct AllocOnlyPool *pool,
-                                               struct GraphNodeCamera *graphNode, f32 *pos,
-                                               f32 *focus, GraphNodeFunc func, s32 mode) {
+struct GraphNodeCamera *init_graph_node_cameraq(struct AllocOnlyPool *pool,
+                                               struct GraphNodeCamera *graphNode, q32 *posq,
+                                               q32 *focusq, GraphNodeFunc func, s32 mode) {
     if (pool != NULL) {
         graphNode = alloc_only_pool_alloc(pool, sizeof(struct GraphNodeCamera));
     }
 
     if (graphNode != NULL) {
         init_scene_graph_node_links(&graphNode->fnNode.node, GRAPH_NODE_TYPE_CAMERA);
-        vec3f_copy(graphNode->pos, pos);
-        vec3f_copy(graphNode->focus, focus);
+        vec3q_copy(graphNode->posq, posq);
+        vec3q_copy(graphNode->focusq, focusq);
         graphNode->fnNode.func = func;
         graphNode->config.mode = mode;
         graphNode->roll = 0;
@@ -299,35 +296,20 @@ struct GraphNodeScale *init_graph_node_scale(struct AllocOnlyPool *pool,
 /**
  * Allocates and returns a newly created object node
  */
-struct GraphNodeObject *init_graph_node_object(struct AllocOnlyPool *pool,
-                                               struct GraphNodeObject *graphNode,
-                                               struct GraphNode *sharedChild, Vec3f pos, Vec3s angle,
-                                               Vec3f scale) {
-    if (pool != NULL) {
-        graphNode = alloc_only_pool_alloc(pool, sizeof(struct GraphNodeObject));
-    }
-
-    if (graphNode != NULL) {
-        init_scene_graph_node_links(&graphNode->node, GRAPH_NODE_TYPE_OBJECT);
-        vec3f_copy(graphNode->pos, pos);
-        vec3f_copy(graphNode->scale, scale);
-        vec3s_copy(graphNode->angle, angle);
-#ifdef USE_SYSTEM_MALLOC
-        // To avoid uninitialised memory usage in audio code
-        vec3f_copy(graphNode->cameraToObject, gVec3fZero);
-#endif
-        graphNode->sharedChild = sharedChild;
-        graphNode->throwMatrix = NULL;
-        graphNode->animInfo.animID = 0;
-        graphNode->animInfo.curAnim = NULL;
-        graphNode->animInfo.animFrame = 0;
-        graphNode->animInfo.animFrameAccelAssist = 0;
-        graphNode->animInfo.animAccel = 0x10000;
-        graphNode->animInfo.animTimer = 0;
-        graphNode->node.flags |= GRAPH_RENDER_HAS_ANIMATION;
-    }
-
-    return graphNode;
+void init_graph_node_object(struct GraphNodeObject *graphNode) {
+    init_scene_graph_node_links(&graphNode->node, GRAPH_NODE_TYPE_OBJECT);
+    vec3s_set(graphNode->posi, 0, 0, 0);
+    vec3q_set(graphNode->scaleq, ONE, ONE, ONE);
+    vec3s_set(graphNode->angle, 0, 0, 0);
+    graphNode->sharedChild = NULL;
+    graphNode->throwMatrixq = NULL;
+    graphNode->animInfo.animID = 0;
+    graphNode->animInfo.curAnim = NULL;
+    graphNode->animInfo.animFrame = 0;
+    graphNode->animInfo.animFrameAccelAssist = 0;
+    graphNode->animInfo.animAccel = 0x10000;
+    graphNode->animInfo.animTimer = 0;
+    graphNode->node.flags |= GRAPH_RENDER_HAS_ANIMATION;
 }
 
 /**
@@ -662,6 +644,7 @@ void geo_call_global_function_nodes_helper(struct GraphNode *graphNode, s32 call
     } while ((curNode = curNode->next) != graphNode);
 }
 
+#include <stdio.h>
 /**
  * Call the update functions of geo nodes that are stored in global variables.
  * These variables include gCurGraphNodeMasterList, gCurGraphNodeCamFrustum,
@@ -676,7 +659,6 @@ void geo_call_global_function_nodes(struct GraphNode *graphNode, s32 callContext
         if (graphNode->children != NULL) {
             geo_call_global_function_nodes_helper(graphNode->children, callContext);
         }
-
         gCurGraphNodeRoot = 0;
     }
 }
@@ -685,7 +667,7 @@ void geo_call_global_function_nodes(struct GraphNode *graphNode, s32 callContext
  * When objects are cleared, this is called on all object nodes (loaded or unloaded).
  */
 void geo_reset_object_node(struct GraphNodeObject *graphNode) {
-    init_graph_node_object(NULL, graphNode, 0, gVec3fZero, gVec3sZero, gVec3fOne);
+    init_graph_node_object(graphNode);
 
     geo_add_child(&gObjParentGraphNode, &graphNode->node);
     graphNode->node.flags &= ~GRAPH_RENDER_ACTIVE;
@@ -695,13 +677,13 @@ void geo_reset_object_node(struct GraphNodeObject *graphNode) {
  * Initialize an object node using the given parameters
  */
 void geo_obj_init(struct GraphNodeObject *graphNode, void *sharedChild, Vec3f pos, Vec3s angle) {
-    vec3f_set(graphNode->scale, 1.0f, 1.0f, 1.0f);
-    vec3f_copy(graphNode->pos, pos);
+    vec3q_set(graphNode->scaleq, QONE, QONE, QONE);
+    vec3f_to_vec3s(graphNode->posi, pos);
     vec3s_copy(graphNode->angle, angle);
 
     graphNode->sharedChild = sharedChild;
-    graphNode->unk4C = 0;
-    graphNode->throwMatrix = NULL;
+    //graphNode->unk4C = 0;
+    graphNode->throwMatrixq = NULL;
     graphNode->animInfo.curAnim = NULL;
 
     graphNode->node.flags |= GRAPH_RENDER_ACTIVE;
@@ -714,18 +696,18 @@ void geo_obj_init(struct GraphNodeObject *graphNode, void *sharedChild, Vec3f po
  * Initialize and object node using the given SpawnInfo struct
  */
 void geo_obj_init_spawninfo(struct GraphNodeObject *graphNode, struct SpawnInfo *spawn) {
-    vec3f_set(graphNode->scale, 1.0f, 1.0f, 1.0f);
+    vec3q_set(graphNode->scaleq, QONE, QONE, QONE);
     vec3s_copy(graphNode->angle, spawn->startAngle);
 
-    graphNode->pos[0] = (f32) spawn->startPos[0];
-    graphNode->pos[1] = (f32) spawn->startPos[1];
-    graphNode->pos[2] = (f32) spawn->startPos[2];
+    graphNode->posi[0] = spawn->startPos[0];
+    graphNode->posi[1] = spawn->startPos[1];
+    graphNode->posi[2] = spawn->startPos[2];
 
     graphNode->areaIndex = spawn->areaIndex;
     graphNode->activeAreaIndex = spawn->activeAreaIndex;
     graphNode->sharedChild = spawn->unk18;
-    graphNode->unk4C = spawn;
-    graphNode->throwMatrix = NULL;
+    //graphNode->unk4C = spawn;
+    graphNode->throwMatrixq = NULL;
     graphNode->animInfo.curAnim = 0;
 
     graphNode->node.flags |= GRAPH_RENDER_ACTIVE;
@@ -774,13 +756,21 @@ void geo_obj_init_animation_accel(struct GraphNodeObject *graphNode, struct Anim
  * and the second s16 the actual index. This index can be used to index in the array
  * with actual animation values.
  */
-s32 retrieve_animation_index(s32 frame, u16 **attributes) {
+s32 retrieve_animation_index(s32 frame, u16 **attributes, u32* next_index) {
     s32 result;
 
     if (frame < (*attributes)[0]) {
         result = (*attributes)[1] + frame;
     } else {
         result = (*attributes)[1] + (*attributes)[0] - 1;
+    }
+    if(next_index) {
+        frame++;
+        if (frame < (*attributes)[0]) {
+            *next_index = (*attributes)[1] + frame;
+        } else {
+            *next_index = (*attributes)[1] + (*attributes)[0] - 1;
+        }
     }
 
     *attributes += 2;
@@ -865,9 +855,9 @@ void geo_retreive_animation_translation(struct GraphNodeObject *obj, Vec3f posit
             frame = 0;
         }
 
-        position[0] = (f32) values[retrieve_animation_index(frame, &attribute)];
-        position[1] = (f32) values[retrieve_animation_index(frame, &attribute)];
-        position[2] = (f32) values[retrieve_animation_index(frame, &attribute)];
+        position[0] = (f32) values[retrieve_animation_index(frame, &attribute, NULL)];
+        position[1] = (f32) values[retrieve_animation_index(frame, &attribute, NULL)];
+        position[2] = (f32) values[retrieve_animation_index(frame, &attribute, NULL)];
     } else {
         vec3f_set(position, 0, 0, 0);
     }

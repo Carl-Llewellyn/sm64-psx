@@ -4,16 +4,16 @@
 // plant code later on reuses this function.
 void bhv_piranha_particle_loop(void) {
     if (o->oTimer == 0) {
-        o->oVelY = 20.0f + 20.0f * random_float();
-        o->oForwardVel = 20.0f + 20.0f * random_float();
+        FSETFIELD(o, oVelY, 20.0f + 20.0f * random_float());
+        FSETFIELD(o, oForwardVel, 20.0f + 20.0f * random_float());
         o->oMoveAngleYaw = random_u16();
     }
     cur_obj_move_using_fvel_and_gravity();
 }
 
 void mr_i_piranha_particle_act_0(void) {
-    cur_obj_scale(3.0f);
-    o->oForwardVel = 20.0f;
+    cur_obj_scaleq(q(3.0f));
+    QSETFIELD(o,  oForwardVel, q(20));
     cur_obj_update_floor_and_walls();
     if (0x8000 & o->oInteractStatus)
         o->oAction = 1;
@@ -38,11 +38,11 @@ void bhv_mr_i_particle_loop(void) {
 
 void spawn_mr_i_particle(void) {
     struct Object *particle;
-    f32 sp18 = o->header.gfx.scale[1];
+    q32 sp18q = o->header.gfx.scaleq[1];
     particle = spawn_object(o, MODEL_PURPLE_MARBLE, bhvMrIParticle);
-    particle->oPosY += 50.0f * sp18;
-    particle->oPosX += sins(o->oMoveAngleYaw) * 90.0f * sp18;
-    particle->oPosZ += coss(o->oMoveAngleYaw) * 90.0f * sp18;
+    QMODFIELD(particle, oPosY, += 50 * sp18q);
+    QMODFIELD(particle, oPosX, += qmul(sinqs(o->oMoveAngleYaw) * 90, sp18q));
+    QMODFIELD(particle, oPosZ, += qmul(cosqs(o->oMoveAngleYaw) * 90, sp18q));
     cur_obj_play_sound_2(SOUND_OBJ_MRI_SHOOT);
 }
 
@@ -50,11 +50,11 @@ void bhv_mr_i_body_loop(void) {
     obj_copy_pos_and_angle(o, o->parentObj);
     if (!(o->activeFlags & ACTIVE_FLAG_IN_DIFFERENT_ROOM)) {
         obj_copy_scale(o, o->parentObj);
-        obj_set_parent_relative_pos(o, 0, 0, o->header.gfx.scale[1] * 100.0f);
+        obj_set_parent_relative_pos(o, 0, 0, qtof(o->header.gfx.scaleq[1] * 100));
         obj_build_transform_from_pos_and_angle(o, 44, 15);
         obj_translate_local(o, 6, 44);
         o->oFaceAnglePitch = o->oMoveAnglePitch;
-        o->oGraphYOffset = o->header.gfx.scale[1] * 100.f;
+        QSETFIELD(o, oGraphYOffset, o->header.gfx.scaleq[1] * 100);
     }
     if (o->parentObj->oMrIUnk110 != 1)
         o->oAnimState = -1;
@@ -70,15 +70,15 @@ void bhv_mr_i_body_loop(void) {
 void mr_i_act_3(void) {
     s16 sp36;
     s16 sp34;
-    f32 sp30;
+    q32 sp30q;
     f32 sp2C;
     UNUSED u8 pad[8];
-    f32 sp20;
-    f32 sp1C;
+    q32 sp20q;
+    s32 sp1Ci;
     if (o->oBehParams2ndByte)
-        sp1C = 2.0f;
+        sp1Ci = 2;
     else
-        sp1C = 1.0f;
+        sp1Ci = 1;
     if (o->oMrIUnk100 < 0)
         sp34 = 0x1000;
     else
@@ -90,34 +90,34 @@ void mr_i_act_3(void) {
         if (sp36 < 0 && o->oMoveAngleYaw >= 0)
             cur_obj_play_sound_2(SOUND_OBJ2_MRI_SPINNING);
         o->oMoveAnglePitch = (1.0 - coss(0x4000 * sp2C)) * -0x4000;
-        cur_obj_shake_y(4.0f);
+        cur_obj_shake_yq(q(4.0f));
     } else if (o->oTimer < 96) {
         if (o->oTimer == 64)
             cur_obj_play_sound_2(SOUND_OBJ_MRI_DEATH);
-        sp30 = (f32)(o->oTimer - 63) / 32;
+        sp30q = q(o->oTimer - 63) / 32;
         o->oMoveAngleYaw += sp34 * coss(0x4000 * sp2C);
         o->oMoveAnglePitch = (1.0 - coss(0x4000 * sp2C)) * -0x4000;
-        cur_obj_shake_y((s32)((1.0f - sp30) * 4)); // trucating the f32?
-        sp20 = coss(0x4000 * sp30) * 0.4 + 0.6;
-        cur_obj_scale(sp20 * sp1C);
+        cur_obj_shake_yq(q(ONE - sp30q) * 4);
+        sp20q = cosqs(0x4000 * sp30q / ONE) * 2 / 5 + q(0.6);
+        cur_obj_scaleq(sp20q * sp1Ci);
     } else if (o->oTimer < 104) {
         // do nothing
     } else if (o->oTimer < 168) {
         if (o->oTimer == 104) {
             cur_obj_become_intangible();
             spawn_mist_particles();
-            o->oMrISize = sp1C * 0.6;
+            QSETFIELD(o, oMrISize, q(sp1Ci) * 3 / 5);
             if (o->oBehParams2ndByte) {
-                o->oPosY += 100.0f;
+                QMODFIELD(o, oPosY, += q(100.0f));
                 spawn_default_star(1370, 2000.0f, -320.0f);
                 obj_mark_for_deletion(o);
             } else
                 cur_obj_spawn_loot_blue_coin();
         }
-        o->oMrISize -= 0.2 * sp1C;
-        if (o->oMrISize < 0)
-            o->oMrISize = 0;
-        cur_obj_scale(o->oMrISize);
+        QMODFIELD(o, oMrISize, -= q(sp1Ci) / 5);
+        if (QFIELD(o, oMrISize) < 0)
+            QSETFIELD(o, oMrISize, q(0));
+        cur_obj_scaleq(QFIELD(o, oMrISize));
     } else
         obj_mark_for_deletion(o);
 }
@@ -176,7 +176,7 @@ void mr_i_act_2(void) {
         o->oMrIUnk104 = 0;
         o->oMrIUnk108 = (s32)(random_float() * 50.0f + 50.0f);
     }
-    if (o->oDistanceToMario > 800.0f)
+    if (QFIELD(o, oDistanceToMario) > q(800.0))
         o->oAction = 1;
 }
 
@@ -198,7 +198,7 @@ void mr_i_act_1(void) {
             o->oAngleVelYaw = 256;
     }
     if (sp1C < 1024 && sp1A > 0x4000) {
-        if (o->oDistanceToMario < 700.0f)
+        if (QFIELD(o, oDistanceToMario) < q(700.0))
             o->oAction = 2;
         else
             o->oMrIUnk104++;
@@ -223,10 +223,10 @@ void mr_i_act_0(void) {
     o->oMoveAngleYaw = 0;
     o->oMoveAngleRoll = 0;
 #endif
-    cur_obj_scale(o->oBehParams2ndByte + 1);
+    cur_obj_scaleq(q(o->oBehParams2ndByte + 1));
     if (o->oTimer == 0)
         cur_obj_set_pos_to_home();
-    if (o->oDistanceToMario < 1500.0f)
+    if (QFIELD(o, oDistanceToMario) < q(1500.0))
         o->oAction = 1;
 }
 
@@ -248,7 +248,7 @@ void bhv_mr_i_loop(void) {
     obj_set_hitbox(o, &sMrIHitbox);
     cur_obj_call_action_function(sMrIActions);
     if (o->oAction != 3)
-        if (o->oDistanceToMario > 3000.0f || o->activeFlags & ACTIVE_FLAG_IN_DIFFERENT_ROOM)
+        if (QFIELD(o, oDistanceToMario) > q(3000.0) || o->activeFlags & ACTIVE_FLAG_IN_DIFFERENT_ROOM)
             o->oAction = 0;
     o->oInteractStatus = 0;
 }

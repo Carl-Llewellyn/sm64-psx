@@ -10,35 +10,35 @@ void bhv_bubble_cannon_barrel_loop(void) {
         o->oMoveAnglePitch = o->parentObj->oMoveAnglePitch + 0x4000;
         o->oFaceAnglePitch = o->parentObj->oMoveAnglePitch;
 
-        if ((o->oCannonBarrelBubblesUnkF4 += o->oForwardVel) > 0.0f) {
+        if (QMODFIELD(o, oCannonBarrelBubblesUnkF4, += QFIELD(o, oForwardVel)) > 0) {
             cur_obj_set_pos_via_transform();
-            obj_forward_vel_approach(-5.0f, 18.0f);
+            obj_forward_vel_approachq(q(-5.0f), q(18.0f));
         } else {
-            o->oCannonBarrelBubblesUnkF4 = 0.0f;
+            QSETFIELD(o, oCannonBarrelBubblesUnkF4, 0);
             obj_copy_pos(o, o->parentObj);
 
             // check this
             if (o->parentObj->oWaterCannonUnkF4 != 0) {
-                if (o->oForwardVel == 0.0f) {
-                    o->oForwardVel = 35.0f;
+                if (QFIELD(o, oForwardVel) == 0) {
+                    QSETFIELD(o, oForwardVel, q(35));
 
                     val04 = spawn_object(o, MODEL_WATER_BOMB, bhvWaterBomb);
                     if (val04 != NULL) {
-                        val04->oForwardVel = -100.0f;
-                        val04->header.gfx.scale[1] = 1.7f;
+                        QSETFIELD(val04, oForwardVel, q(-100));
+                        val04->header.gfx.scaleq[1] = q(1.7);
                     }
 
-                    set_camera_shake_from_point(SHAKE_POS_MEDIUM, o->oPosX, o->oPosY, o->oPosZ);
+                    set_camera_shake_from_pointq(SHAKE_POS_MEDIUM, QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ));
                 }
             } else {
-                o->oForwardVel = 0.0f;
+                QSETFIELD(o,  oForwardVel, q(0));
             }
         }
     }
 }
 
 void water_bomb_cannon_act_0(void) {
-    if (o->oDistanceToMario < 2000.0f) {
+    if (QFIELD(o, oDistanceToMario) < q(2000)) {
         spawn_object(o, MODEL_CANNON_BARREL, bhvCannonBarrelBubbles);
         cur_obj_unhide();
 
@@ -48,7 +48,7 @@ void water_bomb_cannon_act_0(void) {
 }
 
 void water_bomb_cannon_act_1(void) {
-    if (o->oDistanceToMario > 2500.0f) {
+    if (QFIELD(o, oDistanceToMario) > q(2500.0)) {
         o->oAction = 2;
     } else if (o->oBehParams2ndByte == 0) {
         if (o->oWaterCannonUnkF4 != 0) {
@@ -78,7 +78,7 @@ void water_bomb_cannon_act_2(void) {
 }
 
 void bhv_water_bomb_cannon_loop(void) {
-    cur_obj_push_mario_away_from_cylinder(220.0f, 300.0f);
+    cur_obj_push_mario_away_from_cylinder(220, 300);
 
     switch (o->oAction) {
         case 0:

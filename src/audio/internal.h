@@ -1,6 +1,8 @@
 #ifndef AUDIO_INTERNAL_H
 #define AUDIO_INTERNAL_H
 
+#ifndef NO_AUDIO
+
 #include <ultra64.h>
 
 #include "types.h"
@@ -881,6 +883,8 @@ struct UnkStruct80343D00 {
 // in external.c
 extern s32 D_SH_80343CF0;
 extern struct UnkStruct80343D00 D_SH_80343D00;
+#endif
+
 #endif
 
 #endif // AUDIO_INTERNAL_H

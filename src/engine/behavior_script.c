@@ -13,6 +13,7 @@
 #include "game/object_list_processor.h"
 #include "graph_node.h"
 #include "surface_collision.h"
+#include <port/psx/scratchpad_call.h>
 
 // Macros for retrieving arguments from behavior scripts.
 #define BHV_CMD_GET_1ST_U8(index)  (u8)((gCurBhvCommand[index] >> 24) & 0xFF) // unused
@@ -31,10 +32,10 @@
 static u16 gRandomSeed16;
 
 // Unused function that directly jumps to a behavior command and resets the object's stack index.
-UNUSED static void goto_behavior_unused(const BehaviorScript *bhvAddr) {
-    gCurBhvCommand = segmented_to_virtual(bhvAddr);
-    gCurrentObject->bhvStackIndex = 0;
-}
+//UNUSED static void goto_behavior_unused(BehaviorScript *bhvAddr) {
+//    gCurBhvCommand = segmented_to_virtual(bhvAddr);
+//    gCurrentObject->bhvStackIndex = 0;
+//}
 
 // Generate a pseudorandom integer from 0 to 65535 from the random seed, and update the seed.
 u16 random_u16(void) {
@@ -71,6 +72,14 @@ f32 random_float(void) {
     return rnd / (double) 0x10000;
 }
 
+q32 random_q32(void) {
+#ifdef USE_FLOATS
+	return random_float() * QONE;
+#else
+    return random_u16() >> (16 - FRACT_BITS);
+#endif
+}
+
 // Return either -1 or 1 with a 50:50 chance.
 s32 random_sign(void) {
     if (random_u16() >= 0x7FFF) {
@@ -82,14 +91,18 @@ s32 random_sign(void) {
 
 // Update an object's graphical position and rotation to match its real position and rotation.
 void obj_update_gfx_pos_and_angle(struct Object *obj) {
-    obj->header.gfx.pos[0] = obj->oPosX;
-    obj->header.gfx.pos[1] = obj->oPosY + obj->oGraphYOffset;
-    obj->header.gfx.pos[2] = obj->oPosZ;
+    obj->header.gfx.posi[0] = IFIELD(obj, oPosX);
+    obj->header.gfx.posi[1] = qtrunc(QFIELD(obj, oPosY) + QFIELD(obj, oGraphYOffset));
+    obj->header.gfx.posi[2] = IFIELD(obj, oPosZ);
 
     obj->header.gfx.angle[0] = obj->oFaceAnglePitch & 0xFFFF;
     obj->header.gfx.angle[1] = obj->oFaceAngleYaw & 0xFFFF;
     obj->header.gfx.angle[2] = obj->oFaceAngleRoll & 0xFFFF;
 }
+
+// check the .map file and ensure the section is smaller than 0x1000 so it actually fits in icache!!!
+#define BHV_CMD_ICACHE_FUNC [[gnu::section(".bhv_cmd")]] [[gnu::noinline]]
+#define BHV_CMD_EXTRA_FUNC [[gnu::noinline]]
 
 // Push the address of a behavior command to the object's behavior stack.
 static void cur_obj_bhv_stack_push(uintptr_t bhvAddr) {
@@ -107,15 +120,9 @@ static uintptr_t cur_obj_bhv_stack_pop(void) {
     return bhvAddr;
 }
 
-UNUSED static void stub_behavior_script_1(void) {
-    for (;;) {
-        ;
-    }
-}
-
 // Command 0x22: Hides the current object.
 // Usage: HIDE()
-static s32 bhv_cmd_hide(void) {
+BHV_CMD_EXTRA_FUNC static s32 bhv_cmd_hide(void) {
     cur_obj_hide();
 
     gCurBhvCommand++;
@@ -124,7 +131,7 @@ static s32 bhv_cmd_hide(void) {
 
 // Command 0x35: Disables rendering for the object.
 // Usage: DISABLE_RENDERING()
-static s32 bhv_cmd_disable_rendering(void) {
+BHV_CMD_EXTRA_FUNC static s32 bhv_cmd_disable_rendering(void) {
     gCurrentObject->header.gfx.node.flags &= ~GRAPH_RENDER_ACTIVE;
 
     gCurBhvCommand++;
@@ -153,7 +160,7 @@ static s32 bhv_cmd_set_model(void) {
 
 // Command 0x1C: Spawns a child object with the specified model and behavior.
 // Usage: SPAWN_CHILD(modelID, behavior)
-static s32 bhv_cmd_spawn_child(void) {
+BHV_CMD_EXTRA_FUNC static s32 bhv_cmd_spawn_child(void) {
     u32 model = BHV_CMD_GET_U32(1);
     const BehaviorScript *behavior = BHV_CMD_GET_VPTR(2);
 
@@ -166,7 +173,7 @@ static s32 bhv_cmd_spawn_child(void) {
 
 // Command 0x2C: Spawns a new object with the specified model and behavior.
 // Usage: SPAWN_OBJ(modelID, behavior)
-static s32 bhv_cmd_spawn_obj(void) {
+BHV_CMD_EXTRA_FUNC static s32 bhv_cmd_spawn_obj(void) {
     u32 model = BHV_CMD_GET_U32(1);
     const BehaviorScript *behavior = BHV_CMD_GET_VPTR(2);
 
@@ -196,7 +203,7 @@ static s32 bhv_cmd_spawn_child_with_param(void) {
 
 // Command 0x1D: Exits the behavior script and despawns the object.
 // Usage: DEACTIVATE()
-static s32 bhv_cmd_deactivate(void) {
+BHV_CMD_EXTRA_FUNC static s32 bhv_cmd_deactivate(void) {
     gCurrentObject->activeFlags = ACTIVE_FLAG_DEACTIVATED;
     return BHV_PROC_BREAK;
 }
@@ -209,9 +216,9 @@ static s32 bhv_cmd_break(void) {
 
 // Command 0x0B: Exits the behavior script, unused.
 // Usage: BREAK_UNUSED()
-static s32 bhv_cmd_break_unused(void) {
-    return BHV_PROC_BREAK;
-}
+//static s32 bhv_cmd_break_unused(void) {
+//    return BHV_PROC_BREAK;
+//}
 
 // Command 0x02: Jumps to a new behavior command and stores the return address in the object's behavior stack.
 // Usage: CALL(addr)
@@ -275,15 +282,15 @@ static s32 bhv_cmd_goto(void) {
 // Command 0x26: Unused. Marks the start of a loop that will repeat a certain number of times.
 // Uses a u8 as the argument, instead of a s16 like the other version does.
 // Usage: BEGIN_REPEAT_UNUSED(count)
-static s32 bhv_cmd_begin_repeat_unused(void) {
-    s32 count = BHV_CMD_GET_2ND_U8(0);
-
-    cur_obj_bhv_stack_push(BHV_CMD_GET_ADDR_OF_CMD(1)); // Store address of the first command of the loop in the stack
-    cur_obj_bhv_stack_push(count); // Store repeat count in the stack too
-
-    gCurBhvCommand++;
-    return BHV_PROC_CONTINUE;
-}
+//static s32 bhv_cmd_begin_repeat_unused(void) {
+//    s32 count = BHV_CMD_GET_2ND_U8(0);
+//
+//    cur_obj_bhv_stack_push(BHV_CMD_GET_ADDR_OF_CMD(1)); // Store address of the first command of the loop in the stack
+//    cur_obj_bhv_stack_push(count); // Store repeat count in the stack too
+//
+//    gCurBhvCommand++;
+//    return BHV_PROC_CONTINUE;
+//}
 
 // Command 0x05: Marks the start of a loop that will repeat a certain number of times.
 // Usage: BEGIN_REPEAT(count)
@@ -367,13 +374,21 @@ static s32 bhv_cmd_call_native(void) {
     return BHV_PROC_CONTINUE;
 }
 
+static s32 bhv_cmd_loop_native(void) {
+    NativeBhvFunc behaviorFunc = BHV_CMD_GET_VPTR(1);
+
+    behaviorFunc();
+
+    return BHV_PROC_BREAK;
+}
+
 // Command 0x0E: Sets the specified field to a float.
 // Usage: SET_FLOAT(field, value)
 static s32 bhv_cmd_set_float(void) {
     u8 field = BHV_CMD_GET_2ND_U8(0);
-    f32 value = BHV_CMD_GET_2ND_S16(0);
+    s32 value = BHV_CMD_GET_2ND_S16(0);
 
-    cur_obj_set_float(field, value);
+    cur_obj_set_q32(field, q(value));
 
     gCurBhvCommand++;
     return BHV_PROC_CONTINUE;
@@ -392,24 +407,24 @@ static s32 bhv_cmd_set_int(void) {
 }
 
 // Command 0x36: Unused. Sets the specified field to an integer. Wastes 4 bytes of space for no reason at all.
-static s32 bhv_cmd_set_int_unused(void) {
-    u8 field = BHV_CMD_GET_2ND_U8(0);
-    s32 value = BHV_CMD_GET_2ND_S16(1); // Taken from 2nd word instead of 1st
-
-    cur_obj_set_int(field, value);
-
-    gCurBhvCommand += 2; // Twice as long
-    return BHV_PROC_CONTINUE;
-}
+//static s32 bhv_cmd_set_int_unused(void) {
+//    u8 field = BHV_CMD_GET_2ND_U8(0);
+//    s32 value = BHV_CMD_GET_2ND_S16(1); // Taken from 2nd word instead of 1st
+//
+//    cur_obj_set_int(field, value);
+//
+//    gCurBhvCommand += 2; // Twice as long
+//    return BHV_PROC_CONTINUE;
+//}
 
 // Command 0x14: Sets the specified field to a random float in the given range.
 // Usage: SET_RANDOM_FLOAT(field, min, range)
 static s32 bhv_cmd_set_random_float(void) {
     u8 field = BHV_CMD_GET_2ND_U8(0);
-    f32 min = BHV_CMD_GET_2ND_S16(0);
-    f32 range = BHV_CMD_GET_1ST_S16(1);
+    s32 min = BHV_CMD_GET_2ND_S16(0);
+    s32 range = BHV_CMD_GET_1ST_S16(1);
 
-    cur_obj_set_float(field, (range * random_float()) + min);
+    cur_obj_set_q32(field, q(min) + range * random_q32());
 
     gCurBhvCommand += 2;
     return BHV_PROC_CONTINUE;
@@ -445,10 +460,10 @@ static s32 bhv_cmd_set_int_rand_rshift(void) {
 // Usage: ADD_RANDOM_FLOAT(field, min, range)
 static s32 bhv_cmd_add_random_float(void) {
     u8 field = BHV_CMD_GET_2ND_U8(0);
-    f32 min = BHV_CMD_GET_2ND_S16(0);
-    f32 range = BHV_CMD_GET_1ST_S16(1);
+    s32 min = BHV_CMD_GET_2ND_S16(0);
+    s32 range = BHV_CMD_GET_1ST_S16(1);
 
-    cur_obj_set_float(field, cur_obj_get_float(field) + min + (range * random_float()));
+    cur_obj_set_q32(field, cur_obj_get_q32(field) + q(min) + range * random_q32());
 
     gCurBhvCommand += 2;
     return BHV_PROC_CONTINUE;
@@ -456,25 +471,25 @@ static s32 bhv_cmd_add_random_float(void) {
 
 // Command 0x17: Gets a random short, right shifts it the specified amount and adds min to it, then adds the value to the specified field. Unused.
 // Usage: ADD_INT_RAND_RSHIFT(field, min, rshift)
-static s32 bhv_cmd_add_int_rand_rshift(void) {
-    u8 field = BHV_CMD_GET_2ND_U8(0);
-    s32 min = BHV_CMD_GET_2ND_S16(0);
-    s32 rshift = BHV_CMD_GET_1ST_S16(1);
-    s32 rnd = random_u16();
-
-    cur_obj_set_int(field, (cur_obj_get_int(field) + min) + (rnd >> rshift));
-
-    gCurBhvCommand += 2;
-    return BHV_PROC_CONTINUE;
-}
+//static s32 bhv_cmd_add_int_rand_rshift(void) {
+//    u8 field = BHV_CMD_GET_2ND_U8(0);
+//    s32 min = BHV_CMD_GET_2ND_S16(0);
+//    s32 rshift = BHV_CMD_GET_1ST_S16(1);
+//    s32 rnd = random_u16();
+//
+//    cur_obj_set_int(field, (cur_obj_get_int(field) + min) + (rnd >> rshift));
+//
+//    gCurBhvCommand += 2;
+//    return BHV_PROC_CONTINUE;
+//}
 
 // Command 0x0D: Adds a float to the specified field.
 // Usage: ADD_FLOAT(field, value)
 static s32 bhv_cmd_add_float(void) {
     u8 field = BHV_CMD_GET_2ND_U8(0);
-    f32 value = BHV_CMD_GET_2ND_S16(0);
+    s32 value = BHV_CMD_GET_2ND_S16(0);
 
-    cur_obj_add_float(field, value);
+    cur_obj_add_q32(field, q(value));
 
     gCurBhvCommand++;
     return BHV_PROC_CONTINUE;
@@ -545,12 +560,12 @@ static s32 bhv_cmd_animate(void) {
 // Command 0x1E: Finds the floor triangle directly under the object and moves the object down to it.
 // Usage: DROP_TO_FLOOR()
 static s32 bhv_cmd_drop_to_floor(void) {
-    f32 x = gCurrentObject->oPosX;
-    f32 y = gCurrentObject->oPosY;
-    f32 z = gCurrentObject->oPosZ;
+    q32 xq = QFIELD(gCurrentObject, oPosX);
+    q32 yq = QFIELD(gCurrentObject, oPosY);
+    q32 zq = QFIELD(gCurrentObject, oPosZ);
 
-    f32 floor = find_floor_height(x, y + 200.0f, z);
-    gCurrentObject->oPosY = floor;
+    q32 floorq = find_floor_heightq(xq, yq + q(200), zq);
+    QSETFIELD(gCurrentObject, oPosY, floorq);
     gCurrentObject->oMoveFlags |= OBJ_MOVE_ON_GROUND;
 
     gCurBhvCommand++;
@@ -559,30 +574,30 @@ static s32 bhv_cmd_drop_to_floor(void) {
 
 // Command 0x18: No operation. Unused.
 // Usage: CMD_NOP_1(field)
-static s32 bhv_cmd_nop_1(void) {
-    UNUSED u8 field = BHV_CMD_GET_2ND_U8(0);
-
-    gCurBhvCommand++;
-    return BHV_PROC_CONTINUE;
-}
+//static s32 bhv_cmd_nop_1(void) {
+//    UNUSED u8 field = BHV_CMD_GET_2ND_U8(0);
+//
+//    gCurBhvCommand++;
+//    return BHV_PROC_CONTINUE;
+//}
 
 // Command 0x1A: No operation. Unused.
 // Usage: CMD_NOP_3(field)
-static s32 bhv_cmd_nop_3(void) {
-    UNUSED u8 field = BHV_CMD_GET_2ND_U8(0);
-
-    gCurBhvCommand++;
-    return BHV_PROC_CONTINUE;
-}
+//static s32 bhv_cmd_nop_3(void) {
+//    UNUSED u8 field = BHV_CMD_GET_2ND_U8(0);
+//
+//    gCurBhvCommand++;
+//    return BHV_PROC_CONTINUE;
+//}
 
 // Command 0x19: No operation. Unused.
 // Usage: CMD_NOP_2(field)
-static s32 bhv_cmd_nop_2(void) {
-    UNUSED u8 field = BHV_CMD_GET_2ND_U8(0);
-
-    gCurBhvCommand++;
-    return BHV_PROC_CONTINUE;
-}
+//static s32 bhv_cmd_nop_2(void) {
+//    UNUSED u8 field = BHV_CMD_GET_2ND_U8(0);
+//
+//    gCurBhvCommand++;
+//    return BHV_PROC_CONTINUE;
+//}
 
 // Command 0x1F: Sets the destination float field to the sum of the values of the given float fields.
 // Usage: SUM_FLOAT(fieldDst, fieldSrc1, fieldSrc2)
@@ -591,7 +606,7 @@ static s32 bhv_cmd_sum_float(void) {
     u32 fieldSrc1 = BHV_CMD_GET_3RD_U8(0);
     u32 fieldSrc2 = BHV_CMD_GET_4TH_U8(0);
 
-    cur_obj_set_float(fieldDst, cur_obj_get_float(fieldSrc1) + cur_obj_get_float(fieldSrc2));
+    cur_obj_set_q32(fieldDst, cur_obj_get_q32(fieldSrc1) + cur_obj_get_q32(fieldSrc2));
 
     gCurBhvCommand++;
     return BHV_PROC_CONTINUE;
@@ -616,8 +631,8 @@ static s32 bhv_cmd_set_hitbox(void) {
     s16 radius = BHV_CMD_GET_1ST_S16(1);
     s16 height = BHV_CMD_GET_2ND_S16(1);
 
-    gCurrentObject->hitboxRadius = radius;
-    gCurrentObject->hitboxHeight = height;
+    gCurrentObject->hitboxRadius_s16 = radius;
+    gCurrentObject->hitboxHeight_s16 = height;
 
     gCurBhvCommand += 2;
     return BHV_PROC_CONTINUE;
@@ -629,8 +644,8 @@ static s32 bhv_cmd_set_hurtbox(void) {
     s16 radius = BHV_CMD_GET_1ST_S16(1);
     s16 height = BHV_CMD_GET_2ND_S16(1);
 
-    gCurrentObject->hurtboxRadius = radius;
-    gCurrentObject->hurtboxHeight = height;
+    gCurrentObject->hurtboxRadius_s16 = radius;
+    gCurrentObject->hurtboxHeight_s16 = height;
 
     gCurBhvCommand += 2;
     return BHV_PROC_CONTINUE;
@@ -643,9 +658,9 @@ static s32 bhv_cmd_set_hitbox_with_offset(void) {
     s16 height = BHV_CMD_GET_2ND_S16(1);
     s16 downOffset = BHV_CMD_GET_1ST_S16(2);
 
-    gCurrentObject->hitboxRadius = radius;
-    gCurrentObject->hitboxHeight = height;
-    gCurrentObject->hitboxDownOffset = downOffset;
+    gCurrentObject->hitboxRadius_s16 = radius;
+    gCurrentObject->hitboxHeight_s16 = height;
+    gCurrentObject->hitboxDownOffset_s16 = downOffset;
 
     gCurBhvCommand += 3;
     return BHV_PROC_CONTINUE;
@@ -653,13 +668,13 @@ static s32 bhv_cmd_set_hitbox_with_offset(void) {
 
 // Command 0x24: No operation. Unused.
 // Usage: CMD_NOP_4(field, value)
-static s32 bhv_cmd_nop_4(void) {
-    UNUSED s16 field = BHV_CMD_GET_2ND_U8(0);
-    UNUSED s16 value = BHV_CMD_GET_2ND_S16(0);
-
-    gCurBhvCommand++;
-    return BHV_PROC_CONTINUE;
-}
+//static s32 bhv_cmd_nop_4(void) {
+//    UNUSED s16 field = BHV_CMD_GET_2ND_U8(0);
+//    UNUSED s16 value = BHV_CMD_GET_2ND_S16(0);
+//
+//    gCurBhvCommand++;
+//    return BHV_PROC_CONTINUE;
+//}
 
 // Command 0x00: Defines the start of the behavior script as well as the object list the object belongs to.
 // Has some special behavior for certain objects.
@@ -677,7 +692,7 @@ static s32 bhv_cmd_begin(void) {
     }
     // Set collision distance if the object is a message panel.
     if (cur_obj_has_behavior(bhvMessagePanel)) {
-        gCurrentObject->oCollisionDistance = 150.0f;
+        QSETFIELD(gCurrentObject, oCollisionDistance, q(150));
     }
     gCurBhvCommand++;
     return BHV_PROC_CONTINUE;
@@ -687,7 +702,7 @@ static s32 bhv_cmd_begin(void) {
 // It cannot be simply re-added to the table, as unlike all other bhv commands it takes a parameter.
 // Theoretically this command would have been of variable size.
 // Included below is a modified/repaired version of this function that would work properly.
-UNUSED static void bhv_cmd_set_int_random_from_table(s32 tableSize) {
+BHV_CMD_ICACHE_FUNC UNUSED static void bhv_cmd_set_int_random_from_table(s32 tableSize) {
     u8 field = BHV_CMD_GET_2ND_U8(0);
     s32 table[16];
     s32 i;
@@ -741,9 +756,9 @@ static s32 bhv_cmd_load_collision_data(void) {
 // Command 0x2D: Sets the home position of the object to its current position.
 // Usage: SET_HOME()
 static s32 bhv_cmd_set_home(void) {
-    gCurrentObject->oHomeX = gCurrentObject->oPosX;
-    gCurrentObject->oHomeY = gCurrentObject->oPosY;
-    gCurrentObject->oHomeZ = gCurrentObject->oPosZ;
+    QSETFIELD(gCurrentObject, oHomeX, QFIELD(gCurrentObject, oPosX));
+    QSETFIELD(gCurrentObject, oHomeY, QFIELD(gCurrentObject, oPosY));
+    QSETFIELD(gCurrentObject, oHomeZ, QFIELD(gCurrentObject, oPosZ));
 
     gCurBhvCommand++;
     return BHV_PROC_CONTINUE;
@@ -773,7 +788,7 @@ static s32 bhv_cmd_scale(void) {
     UNUSED u8 unusedField = BHV_CMD_GET_2ND_U8(0);
     s16 percent = BHV_CMD_GET_2ND_S16(0);
 
-    cur_obj_scale(percent / 100.0f);
+    cur_obj_scaleq(q(percent) / 100);
 
     gCurBhvCommand++;
     return BHV_PROC_CONTINUE;
@@ -783,19 +798,14 @@ static s32 bhv_cmd_scale(void) {
 // Command 0x30: Sets various parameters that the object uses for calculating physics.
 // Usage: SET_OBJ_PHYSICS(wallHitboxRadius, gravity, bounciness, dragStrength, friction, buoyancy, unused1, unused2)
 static s32 bhv_cmd_set_obj_physics(void) {
-    UNUSED f32 unused1, unused2;
+    QSETFIELD(gCurrentObject, oWallHitboxRadius, q(BHV_CMD_GET_1ST_S16(1)));
+    QSETFIELD(gCurrentObject, oGravity, q(BHV_CMD_GET_2ND_S16(1)) / 100);
+    QSETFIELD(gCurrentObject, oBounciness, q(BHV_CMD_GET_1ST_S16(2)) / 100);
+    QSETFIELD(gCurrentObject, oDragStrength, q(BHV_CMD_GET_2ND_S16(2)) / 100);
+    QSETFIELD(gCurrentObject, oFriction, q(BHV_CMD_GET_1ST_S16(3)) / 100);
+    QSETFIELD(gCurrentObject, oBuoyancy, q(BHV_CMD_GET_2ND_S16(3)) / 100);
 
-    gCurrentObject->oWallHitboxRadius = BHV_CMD_GET_1ST_S16(1);
-    gCurrentObject->oGravity = BHV_CMD_GET_2ND_S16(1) / 100.0f;
-    gCurrentObject->oBounciness = BHV_CMD_GET_1ST_S16(2) / 100.0f;
-    gCurrentObject->oDragStrength = BHV_CMD_GET_2ND_S16(2) / 100.0f;
-    gCurrentObject->oFriction = BHV_CMD_GET_1ST_S16(3) / 100.0f;
-    gCurrentObject->oBuoyancy = BHV_CMD_GET_2ND_S16(3) / 100.0f;
-
-    unused1 = BHV_CMD_GET_1ST_S16(4) / 100.0f;
-    unused2 = BHV_CMD_GET_2ND_S16(4) / 100.0f;
-
-    gCurBhvCommand += 5;
+    gCurBhvCommand += 4; //5;
     return BHV_PROC_CONTINUE;
 }
 
@@ -839,84 +849,145 @@ static s32 bhv_cmd_animate_texture(void) {
     return BHV_PROC_CONTINUE;
 }
 
-void stub_behavior_script_2(void) {
-}
+// static int (*bhv_cmd_jump_table[])(void) = {
+// 	[0] = bhv_cmd_begin,
+// 	[1] = bhv_cmd_delay,
+// 	[2] = bhv_cmd_call,
+// 	[3] = bhv_cmd_return,
+// 	[4] = bhv_cmd_goto,
+// 	[5] = bhv_cmd_begin_repeat,
+// 	[6] = bhv_cmd_end_repeat,
+// 	[7] = bhv_cmd_end_repeat_continue,
+// 	[8] = bhv_cmd_begin_loop,
+// 	[9] = bhv_cmd_end_loop,
+// 	[10] = bhv_cmd_break,
+// 	[11] = nullptr, //bhv_cmd_break_unused,
+// 	[12] = bhv_cmd_call_native,
+// 	[13] = bhv_cmd_add_float,
+// 	[14] = bhv_cmd_set_float,
+// 	[15] = bhv_cmd_add_int,
+// 	[16] = bhv_cmd_set_int,
+// 	[17] = bhv_cmd_or_int,
+// 	[18] = bhv_cmd_bit_clear,
+// 	[19] = bhv_cmd_set_int_rand_rshift,
+// 	[20] = bhv_cmd_set_random_float,
+// 	[21] = bhv_cmd_set_random_int,
+// 	[22] = bhv_cmd_add_random_float,
+// 	[23] = nullptr, //bhv_cmd_add_int_rand_rshift,
+// 	[24] = nullptr, //bhv_cmd_nop_1,
+// 	[25] = nullptr, //bhv_cmd_nop_2,
+// 	[26] = nullptr, //bhv_cmd_nop_3,
+// 	[27] = bhv_cmd_set_model,
+// 	[28] = bhv_cmd_spawn_child,
+// 	[29] = bhv_cmd_deactivate,
+// 	[30] = bhv_cmd_drop_to_floor,
+// 	[31] = bhv_cmd_sum_float,
+// 	[32] = bhv_cmd_sum_int,
+// 	[33] = bhv_cmd_billboard,
+// 	[34] = bhv_cmd_hide,
+// 	[35] = bhv_cmd_set_hitbox,
+// 	[36] = nullptr, //bhv_cmd_nop_4,
+// 	[37] = bhv_cmd_delay_var,
+// 	[38] = nullptr, //bhv_cmd_begin_repeat_unused,
+// 	[39] = bhv_cmd_load_animations,
+// 	[40] = bhv_cmd_animate,
+// 	[41] = bhv_cmd_spawn_child_with_param,
+// 	[42] = bhv_cmd_load_collision_data,
+// 	[43] = bhv_cmd_set_hitbox_with_offset,
+// 	[44] = bhv_cmd_spawn_obj,
+// 	[45] = bhv_cmd_set_home,
+// 	[46] = bhv_cmd_set_hurtbox,
+// 	[47] = bhv_cmd_set_interact_type,
+// 	[48] = bhv_cmd_set_obj_physics,
+// 	[49] = bhv_cmd_set_interact_subtype,
+// 	[50] = bhv_cmd_scale,
+// 	[51] = bhv_cmd_parent_bit_clear,
+// 	[52] = bhv_cmd_animate_texture,
+// 	[53] = bhv_cmd_disable_rendering,
+// 	[54] = nullptr, //bhv_cmd_set_int_unused,
+// 	[55] = bhv_cmd_spawn_water_droplet,
+// 	[56] = bhv_cmd_loop_native
+// };
 
-typedef s32 (*BhvCommandProc)(void);
-static BhvCommandProc BehaviorCmdTable[] = {
-    bhv_cmd_begin,
-    bhv_cmd_delay,
-    bhv_cmd_call,
-    bhv_cmd_return,
-    bhv_cmd_goto,
-    bhv_cmd_begin_repeat,
-    bhv_cmd_end_repeat,
-    bhv_cmd_end_repeat_continue,
-    bhv_cmd_begin_loop,
-    bhv_cmd_end_loop,
-    bhv_cmd_break,
-    bhv_cmd_break_unused,
-    bhv_cmd_call_native,
-    bhv_cmd_add_float,
-    bhv_cmd_set_float,
-    bhv_cmd_add_int,
-    bhv_cmd_set_int,
-    bhv_cmd_or_int,
-    bhv_cmd_bit_clear,
-    bhv_cmd_set_int_rand_rshift,
-    bhv_cmd_set_random_float,
-    bhv_cmd_set_random_int,
-    bhv_cmd_add_random_float,
-    bhv_cmd_add_int_rand_rshift,
-    bhv_cmd_nop_1,
-    bhv_cmd_nop_2,
-    bhv_cmd_nop_3,
-    bhv_cmd_set_model,
-    bhv_cmd_spawn_child,
-    bhv_cmd_deactivate,
-    bhv_cmd_drop_to_floor,
-    bhv_cmd_sum_float,
-    bhv_cmd_sum_int,
-    bhv_cmd_billboard,
-    bhv_cmd_hide,
-    bhv_cmd_set_hitbox,
-    bhv_cmd_nop_4,
-    bhv_cmd_delay_var,
-    bhv_cmd_begin_repeat_unused,
-    bhv_cmd_load_animations,
-    bhv_cmd_animate,
-    bhv_cmd_spawn_child_with_param,
-    bhv_cmd_load_collision_data,
-    bhv_cmd_set_hitbox_with_offset,
-    bhv_cmd_spawn_obj,
-    bhv_cmd_set_home,
-    bhv_cmd_set_hurtbox,
-    bhv_cmd_set_interact_type,
-    bhv_cmd_set_obj_physics,
-    bhv_cmd_set_interact_subtype,
-    bhv_cmd_scale,
-    bhv_cmd_parent_bit_clear,
-    bhv_cmd_animate_texture,
-    bhv_cmd_disable_rendering,
-    bhv_cmd_set_int_unused,
-    bhv_cmd_spawn_water_droplet,
-};
+BHV_CMD_ICACHE_FUNC static void run_bhv() {
+    s32 bhvProcResult;
+    gCurBhvCommand = gCurrentObject->curBhvCommand;
+    do {
+        //bhvProcResult = (bhv_cmd_jump_table[*gCurBhvCommand >> 24])();
+        switch(*gCurBhvCommand >> 24) {
+			case 0: bhvProcResult = bhv_cmd_begin(); break;
+			case 1: bhvProcResult = bhv_cmd_delay(); break;
+			case 2: bhvProcResult = bhv_cmd_call(); break;
+			case 3: bhvProcResult = bhv_cmd_return(); break;
+			case 4: bhvProcResult = bhv_cmd_goto(); break;
+			case 5: bhvProcResult = bhv_cmd_begin_repeat(); break;
+			case 6: bhvProcResult = bhv_cmd_end_repeat(); break;
+			case 7: bhvProcResult = bhv_cmd_end_repeat_continue(); break;
+			case 8: bhvProcResult = bhv_cmd_begin_loop(); break;
+			case 9: bhvProcResult = bhv_cmd_end_loop(); break;
+			case 10: bhvProcResult = bhv_cmd_break(); break;
+			//case 11: bhvProcResult = nullptr(); break;
+			case 12: bhvProcResult = bhv_cmd_call_native(); break;
+			case 13: bhvProcResult = bhv_cmd_add_float(); break;
+			case 14: bhvProcResult = bhv_cmd_set_float(); break;
+			case 15: bhvProcResult = bhv_cmd_add_int(); break;
+			case 16: bhvProcResult = bhv_cmd_set_int(); break;
+			case 17: bhvProcResult = bhv_cmd_or_int(); break;
+			case 18: bhvProcResult = bhv_cmd_bit_clear(); break;
+			case 19: bhvProcResult = bhv_cmd_set_int_rand_rshift(); break;
+			case 20: bhvProcResult = bhv_cmd_set_random_float(); break;
+			case 21: bhvProcResult = bhv_cmd_set_random_int(); break;
+			case 22: bhvProcResult = bhv_cmd_add_random_float(); break;
+			//case 23: bhvProcResult = nullptr(); break;
+			//case 24: bhvProcResult = nullptr(); break;
+			//case 25: bhvProcResult = nullptr(); break;
+			//case 26: bhvProcResult = nullptr(); break;
+			case 27: bhvProcResult = bhv_cmd_set_model(); break;
+			case 28: bhvProcResult = bhv_cmd_spawn_child(); break;
+			case 29: bhvProcResult = bhv_cmd_deactivate(); break;
+			case 30: bhvProcResult = bhv_cmd_drop_to_floor(); break;
+			case 31: bhvProcResult = bhv_cmd_sum_float(); break;
+			case 32: bhvProcResult = bhv_cmd_sum_int(); break;
+			case 33: bhvProcResult = bhv_cmd_billboard(); break;
+			case 34: bhvProcResult = bhv_cmd_hide(); break;
+			case 35: bhvProcResult = bhv_cmd_set_hitbox(); break;
+			//case 36: bhvProcResult = nullptr(); break;
+			case 37: bhvProcResult = bhv_cmd_delay_var(); break;
+			//case 38: bhvProcResult = nullptr(); break;
+			case 39: bhvProcResult = bhv_cmd_load_animations(); break;
+			case 40: bhvProcResult = bhv_cmd_animate(); break;
+			case 41: bhvProcResult = bhv_cmd_spawn_child_with_param(); break;
+			case 42: bhvProcResult = bhv_cmd_load_collision_data(); break;
+			case 43: bhvProcResult = bhv_cmd_set_hitbox_with_offset(); break;
+			case 44: bhvProcResult = bhv_cmd_spawn_obj(); break;
+			case 45: bhvProcResult = bhv_cmd_set_home(); break;
+			case 46: bhvProcResult = bhv_cmd_set_hurtbox(); break;
+			case 47: bhvProcResult = bhv_cmd_set_interact_type(); break;
+			case 48: bhvProcResult = bhv_cmd_set_obj_physics(); break;
+			case 49: bhvProcResult = bhv_cmd_set_interact_subtype(); break;
+			case 50: bhvProcResult = bhv_cmd_scale(); break;
+			case 51: bhvProcResult = bhv_cmd_parent_bit_clear(); break;
+			case 52: bhvProcResult = bhv_cmd_animate_texture(); break;
+			case 53: bhvProcResult = bhv_cmd_disable_rendering(); break;
+			//case 54: bhvProcResult = nullptr(); break;
+			case 55: bhvProcResult = bhv_cmd_spawn_water_droplet(); break;
+			case 56: bhvProcResult = bhv_cmd_loop_native(); break;
+        }
+    } while(bhvProcResult == BHV_PROC_CONTINUE);
+    gCurrentObject->curBhvCommand = gCurBhvCommand;
+}
 
 // Execute the behavior script of the current object, process the object flags, and other miscellaneous code for updating objects.
 void cur_obj_update(void) {
-    UNUSED u32 unused;
-
     s16 objFlags = gCurrentObject->oFlags;
-    f32 distanceFromMario;
-    BhvCommandProc bhvCmdProc;
-    s32 bhvProcResult;
+    q32 distanceFromMarioq;
 
     // Calculate the distance from the object to Mario.
     if (objFlags & OBJ_FLAG_COMPUTE_DIST_TO_MARIO) {
-        gCurrentObject->oDistanceToMario = dist_between_objects(gCurrentObject, gMarioObject);
-        distanceFromMario = gCurrentObject->oDistanceToMario;
+        QSETFIELD(gCurrentObject, oDistanceToMario, dist_between_objectsq(gCurrentObject, gMarioObject));
+        distanceFromMarioq = QFIELD(gCurrentObject, oDistanceToMario);
     } else {
-        distanceFromMario = 0.0f;
+        distanceFromMarioq = 0;
     }
 
     // Calculate the angle from the object to Mario.
@@ -931,14 +1002,7 @@ void cur_obj_update(void) {
     }
 
     // Execute the behavior script.
-    gCurBhvCommand = gCurrentObject->curBhvCommand;
-
-    do {
-        bhvCmdProc = BehaviorCmdTable[*gCurBhvCommand >> 24];
-        bhvProcResult = bhvCmdProc();
-    } while (bhvProcResult == BHV_PROC_CONTINUE);
-
-    gCurrentObject->curBhvCommand = gCurBhvCommand;
+    run_bhv();
 
     // Increment the object's timer.
     if (gCurrentObject->oTimer < 0x3FFFFFFF) {
@@ -989,7 +1053,7 @@ void cur_obj_update(void) {
     } else if ((objFlags & OBJ_FLAG_COMPUTE_DIST_TO_MARIO) && gCurrentObject->collisionData == NULL) {
         if (!(objFlags & OBJ_FLAG_ACTIVE_FROM_AFAR)) {
             // If the object has a render distance, check if it should be shown.
-            if (distanceFromMario > gCurrentObject->oDrawingDistance) {
+            if (distanceFromMarioq > QFIELD(gCurrentObject, oDrawingDistance)) {
                 // Out of render distance, hide the object.
                 gCurrentObject->header.gfx.node.flags &= ~GRAPH_RENDER_ACTIVE;
                 gCurrentObject->activeFlags |= ACTIVE_FLAG_FAR_AWAY;

@@ -78,7 +78,7 @@ void bhv_goomba_triplet_spawner_update(void) {
     // If mario is close enough and the goombas aren't currently loaded, then
     // spawn them
     if (o->oAction == GOOMBA_TRIPLET_SPAWNER_ACT_UNLOADED) {
-        if (o->oDistanceToMario < 3000.0f) {
+        if (QFIELD(o, oDistanceToMario) < q(3000.0)) {
             // The spawner is capable of spawning more than 3 goombas, but this
             // is not used in the game
             dAngle =
@@ -99,7 +99,7 @@ void bhv_goomba_triplet_spawner_update(void) {
 
             o->oAction += 1;
         }
-    } else if (o->oDistanceToMario > 4000.0f) {
+    } else if (QFIELD(o, oDistanceToMario) > q(4000.0)) {
         // If mario is too far away, enter the unloaded action. The goombas
         // will detect this and unload themselves
         o->oAction = GOOMBA_TRIPLET_SPAWNER_ACT_UNLOADED;
@@ -112,15 +112,15 @@ void bhv_goomba_triplet_spawner_update(void) {
 void bhv_goomba_init(void) {
     o->oGoombaSize = o->oBehParams2ndByte & GOOMBA_BP_SIZE_MASK;
 
-    o->oGoombaScale = sGoombaProperties[o->oGoombaSize].scale;
+    FSETFIELD(o, oGoombaScale, sGoombaProperties[o->oGoombaSize].scale);
     o->oDeathSound = sGoombaProperties[o->oGoombaSize].deathSound;
 
     obj_set_hitbox(o, &sGoombaHitbox);
 
-    o->oDrawingDistance = sGoombaProperties[o->oGoombaSize].drawDistance;
+    FSETFIELD(o, oDrawingDistance, sGoombaProperties[o->oGoombaSize].drawDistance);
     o->oDamageOrCoinValue = sGoombaProperties[o->oGoombaSize].damage;
 
-    o->oGravity = -8.0f / 3.0f * o->oGoombaScale;
+    QSETFIELD(o, oGravity, q(-8.0f / 3.0f * FFIELD(o, oGoombaScale)));
 }
 
 /**
@@ -129,8 +129,8 @@ void bhv_goomba_init(void) {
 static void goomba_begin_jump(void) {
     cur_obj_play_sound_2(SOUND_OBJ_GOOMBA_ALERT);
     o->oAction = GOOMBA_ACT_JUMP;
-    o->oForwardVel = 0.0f;
-    o->oVelY = 50.0f / 3.0f * o->oGoombaScale;
+    QSETFIELD(o,  oForwardVel, q(0));
+    FSETFIELD(o, oVelY, 50.0f / 3.0f * FFIELD(o, oGoombaScale));
 }
 
 /**
@@ -153,12 +153,12 @@ static void mark_goomba_as_dead(void) {
  * chase him.
  */
 static void goomba_act_walk(void) {
-    treat_far_home_as_mario(1000.0f);
+    treat_far_home_as_marioq(q(1000.0f));
 
-    obj_forward_vel_approach(o->oGoombaRelativeSpeed * o->oGoombaScale, 0.4f);
+    obj_forward_vel_approachq(qmul(QFIELD(o, oGoombaRelativeSpeed), QFIELD(o, oGoombaScale)), q(0.4f));
 
     // If walking fast enough, play footstep sounds
-    if (o->oGoombaRelativeSpeed > 4.0f / 3.0f) {
+    if (FFIELD(o, oGoombaRelativeSpeed) > 4.0f / 3.0f) {
         cur_obj_play_sound_at_anim_range(2, 17, SOUND_OBJ_GOOMBA_WALK);
     }
 
@@ -173,28 +173,28 @@ static void goomba_act_walk(void) {
         o->oGoombaTurningAwayFromWall = obj_resolve_collisions_and_turn(o->oGoombaTargetYaw, 0x200);
     } else {
         // If far from home, walk toward home.
-        if (o->oDistanceToMario >= 25000.0f) {
+        if (QFIELD(o, oDistanceToMario) >= q(25000)) {
             o->oGoombaTargetYaw = o->oAngleToMario;
             o->oGoombaWalkTimer = random_linear_offset(20, 30);
         }
 
         if (!(o->oGoombaTurningAwayFromWall =
                   obj_bounce_off_walls_edges_objects(&o->oGoombaTargetYaw))) {
-            if (o->oDistanceToMario < 500.0f) {
+            if (QFIELD(o, oDistanceToMario) < q(500.0)) {
                 // If close to mario, begin chasing him. If not already chasing
                 // him, jump first
 
-                if (o->oGoombaRelativeSpeed <= 2.0f) {
+                if (QFIELD(o, oGoombaRelativeSpeed) <= q(2.0f)) {
                     goomba_begin_jump();
                 }
 
                 o->oGoombaTargetYaw = o->oAngleToMario;
-                o->oGoombaRelativeSpeed = 20.0f;
+                QSETFIELD(o,  oGoombaRelativeSpeed, q(20));
             } else {
                 // If mario is far away, walk at a normal pace, turning randomly
                 // and occasionally jumping
 
-                o->oGoombaRelativeSpeed = 4.0f / 3.0f;
+                FSETFIELD(o, oGoombaRelativeSpeed, 4.0f / 3.0f);
                 if (o->oGoombaWalkTimer != 0) {
                     o->oGoombaWalkTimer -= 1;
                 } else {
@@ -269,7 +269,7 @@ void bhv_goomba_update(void) {
 
     f32 animSpeed;
 
-    if (obj_update_standard_actions(o->oGoombaScale)) {
+    if (obj_update_standard_actions(FFIELD(o, oGoombaScale))) {
         // If this goomba has a spawner and mario moved away from the spawner,
         // unload
         if (o->parentObj != o) {
@@ -278,11 +278,11 @@ void bhv_goomba_update(void) {
             }
         }
 
-        cur_obj_scale(o->oGoombaScale);
+        cur_obj_scaleq(QFIELD(o, oGoombaScale));
         obj_update_blinking(&o->oGoombaBlinkTimer, 30, 50, 5);
         cur_obj_update_floor_and_walls();
 
-        if ((animSpeed = o->oForwardVel / o->oGoombaScale * 0.4f) < 1.0f) {
+        if ((animSpeed = FFIELD(o, oForwardVel) / FFIELD(o, oGoombaScale) * 0.4f) < 1.0f) {
             animSpeed = 1.0f;
         }
         cur_obj_init_animation_with_accel_and_sound(0, animSpeed);

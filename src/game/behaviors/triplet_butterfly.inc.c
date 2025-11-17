@@ -26,7 +26,7 @@ static void triplet_butterfly_act_init(void) {
     s32 i;
 
     butterflyNum = o->oBehParams2ndByte & TRIPLET_BUTTERFLY_BP_BUTTERFLY_NUM;
-    if (butterflyNum != 0 || o->oDistanceToMario < 200.0f) {
+    if (butterflyNum != 0 || QFIELD(o, oDistanceToMario) < q(200)) {
         if (butterflyNum == 0) {
             for (i = 1; i <= 2; i++) {
                 spawn_object_relative(i, 0, 0, 0, o, MODEL_BUTTERFLY, bhvTripletButterfly);
@@ -45,36 +45,36 @@ static void triplet_butterfly_act_init(void) {
 
         o->oAction = TRIPLET_BUTTERFLY_ACT_WANDER;
 
-        o->oTripletButterflyBaseYaw = o->oBehParams2ndByte * (0x10000 / 3);
-        o->oMoveAngleYaw = (s32)(o->oTripletButterflyBaseYaw + random_linear_offset(0, 0x5555));
-        o->oTripletButterflySpeed = random_linear_offset(15, 15);
+        FSETFIELD(o, oTripletButterflyBaseYaw, o->oBehParams2ndByte * (0x10000 / 3));
+        o->oMoveAngleYaw = (s32)(FFIELD(o, oTripletButterflyBaseYaw) + random_linear_offset(0, 0x5555));
+        FSETFIELD(o, oTripletButterflySpeed, random_linear_offset(15, 15));
 
         cur_obj_unhide();
     }
 }
 
 static void triplet_butterfly_act_wander(void) {
-    if (o->oDistanceToMario > 1500.0f) {
+    if (QFIELD(o, oDistanceToMario) > q(1500.0)) {
         obj_mark_for_deletion(o);
     } else {
-        approach_f32_ptr(&o->oTripletButterflySpeed, 8.0f, 0.5f);
+        APPROACH_F32_FIELD(o, oTripletButterflySpeed, 8.0f, 0.5f);
         if (o->oTimer < 60) {
             o->oTripletButterflyTargetYaw = cur_obj_angle_to_home();
         } else {
-            o->oTripletButterflyTargetYaw = (s32) o->oTripletButterflyBaseYaw;
+            o->oTripletButterflyTargetYaw = IFIELD(o, oTripletButterflyBaseYaw);
 
-            if (o->oTimer > 110 && o->oDistanceToMario < 200.0f
+            if (o->oTimer > 110 && QFIELD(o, oDistanceToMario) < q(200)
                 && o->oTripletButterflyType > TRIPLET_BUTTERFLY_TYPE_NORMAL) {
                 o->oAction = TRIPLET_BUTTERFLY_ACT_ACTIVATE;
-                o->oTripletButterflySpeed = 0.0f;
+                QSETFIELD(o,  oTripletButterflySpeed, q(0));
             }
         }
 
-        if (o->oHomeY < o->oFloorHeight) {
-            o->oHomeY = o->oFloorHeight;
+        if (QFIELD(o, oHomeY) < QFIELD(o, oFloorHeight)) {
+            QSETFIELD(o,  oHomeY, QFIELD(o,  oFloorHeight));
         }
 
-        if (o->oPosY < o->oHomeY + random_linear_offset(50, 50)) {
+        if (FFIELD(o, oPosY) < FFIELD(o, oHomeY) + random_linear_offset(50, 50)) {
             o->oTripletButterflyTargetPitch = -0x2000;
         } else {
             o->oTripletButterflyTargetPitch = 0x2000;
@@ -92,9 +92,9 @@ static void triplet_butterfly_act_activate(void) {
             o->oTripletButterflyModel = sTripletButterflyActivationData[o->oTripletButterflyType].model;
             cur_obj_set_model(o->oTripletButterflyModel);
             obj_set_billboard(o);
-            o->oTripletButterflyScale = 0.0f;
-            o->oHomeY = o->oPosY;
-        } else if (o->oTripletButterflyScale
+            QSETFIELD(o,  oTripletButterflyScale, q(0));
+            QSETFIELD(o,  oHomeY, QFIELD(o,  oPosY));
+        } else if (FFIELD(o, oTripletButterflyScale)
                    >= sTripletButterflyActivationData[o->oTripletButterflyType].scale) {
             if (o->oTripletButterflyType != TRIPLET_BUTTERFLY_TYPE_EXPLODES) {
                 spawn_object(o, o->oTripletButterflyModel,
@@ -102,15 +102,15 @@ static void triplet_butterfly_act_activate(void) {
                 obj_mark_for_deletion(o);
             } else {
                 o->oAction = TRIPLET_BUTTERFLY_ACT_EXPLODE;
-                o->oWallHitboxRadius = 100.0f;
+                QSETFIELD(o, oWallHitboxRadius, q(100));
             }
         }
 
-        o->oTripletButterflyScale +=
-            sTripletButterflyActivationData[o->oTripletButterflyType].scale / 30.0f;
+        FMODFIELD(o, oTripletButterflyScale, +=
+            sTripletButterflyActivationData[o->oTripletButterflyType].scale / 30.0f);
         if (o->oTripletButterflyType == TRIPLET_BUTTERFLY_TYPE_EXPLODES) {
-            o->oGraphYOffset = 250.0f * o->oTripletButterflyScale;
-            o->oPosY = o->oHomeY - o->oGraphYOffset;
+            FSETFIELD(o, oGraphYOffset, 250.0f * FFIELD(o, oTripletButterflyScale));
+            QSETFIELD(o, oPosY, QFIELD(o, oHomeY) - QFIELD(o, oGraphYOffset));
         }
     }
 }
@@ -121,7 +121,7 @@ static void triplet_butterfly_act_explode(void) {
     obj_check_attacks(&sTripletButterflyExplodeHitbox, -1);
 
     if (o->oAction == -1 || (o->oMoveFlags & OBJ_MOVE_HIT_WALL) || o->oTimer >= 158) {
-        o->oPosY += o->oGraphYOffset;
+        QMODFIELD(o, oPosY, += QFIELD(o, oGraphYOffset));
         spawn_object(o, MODEL_EXPLOSION, bhvExplosion);
         obj_mark_for_deletion(o);
     } else {
@@ -134,10 +134,12 @@ static void triplet_butterfly_act_explode(void) {
                 o->oTripletButterflyScalePhase += 4000;
             }
 
-            o->oTripletButterflyScale += scaleIncrease;
+            FMODFIELD(o, oTripletButterflyScale, += scaleIncrease);
         }
 
-        approach_f32_ptr(&o->oTripletButterflySpeed, 20.0f, 1.0f);
+		q32 tripletButterflySpeed = QFIELD(o, oTripletButterflySpeed);
+        approach_q32_ptr(&tripletButterflySpeed, q(20), QONE);
+		QSETFIELD(o, oTripletButterflySpeed, tripletButterflySpeed);
         cur_obj_rotate_yaw_toward(o->oAngleToMario, 800);
         obj_turn_pitch_toward_mario(-100.0f, 800);
     }
@@ -161,7 +163,7 @@ void bhv_triplet_butterfly_update(void) {
             break;
     }
 
-    cur_obj_scale(o->oTripletButterflyScale);
-    obj_compute_vel_from_move_pitch(o->oTripletButterflySpeed);
+    cur_obj_scaleq(QFIELD(o, oTripletButterflyScale));
+    obj_compute_vel_from_move_pitchq(QFIELD(o, oTripletButterflySpeed));
     cur_obj_move_standard(78);
 }

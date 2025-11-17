@@ -8,8 +8,8 @@
 // a removed object associated with this flame.
 
 void bhv_beta_moving_flames_spawn_loop(void) {
-    o->oDistanceToMario = lateral_dist_between_objects(o, gMarioObject);
-    o->oPosY -= 100.0f;
+    QSETFIELD(o, oDistanceToMario, lateral_dist_between_objectsq(o, gMarioObject));
+    QMODFIELD(o, oPosY, -= q(100));
     switch (o->oAction) {
         case 0:
         case 1:
@@ -31,7 +31,7 @@ void bhv_beta_moving_flames_spawn_loop(void) {
 }
 
 void bhv_beta_moving_flames_loop(void) {
-    cur_obj_scale(5.0f);
-    o->oForwardVel = sins(o->oMovingFlameTimer) * 70.0f;
+    cur_obj_scaleq(q(5.0f));
+    QSETFIELD(o, oForwardVel, sinqs(o->oMovingFlameTimer) * 70);
     o->oMovingFlameTimer += 0x800;
 }

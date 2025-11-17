@@ -8,6 +8,78 @@
 #include "macros.h"
 #include "config.h"
 
+#define IS(x, ty) __builtin_types_compatible_p(typeof(x), ty)
+#define IF(cond, then_expr, else_expr) __builtin_choose_expr(cond, then_expr, else_expr)
+#define IS_CONST(x) __builtin_constant_p(x)
+
+#ifndef QONE
+#define FRACT_BITS 12 // this can be adjusted to adjust precision (has to be an even number)
+#define QONE ((q32) (1 << FRACT_BITS))
+#define ONE ((q32) (1 << FRACT_BITS))
+#endif
+
+typedef s16 q16;
+typedef s32 q32;
+typedef s64 q64;
+
+typedef union {
+	struct {
+		u32 low;
+		u32 high;
+	};
+	s64 full;
+	u64 ufull;
+} Halves;
+
+// optimized float -> q32 conversion
+[[gnu::const]] q32 ftoq(f32 x);
+// optimized q32 -> float conversion
+[[gnu::const]] f32 qtof(q32 xq);
+// optimized float reciprocal
+[[gnu::const]] f32 recipf(f32 x);
+// optimized q32 reciprocal
+[[gnu::const]] q32 recipq(q32 xq);
+
+// convert any number to a q32
+#define q(x) IF(IS_CONST(x) || !IS(x, float),\
+	(q32) ((x) * QONE), /* for constants or for non-floats, just multiply by one */ \
+	ftoq(x) /* use the more efficient ftoq only for non-const float, because ftoq can't be constant */ \
+)
+// convert q32 to s32, error if not passing a q32
+#define qtrunc(x) IF(IS(x, q32), (q32) ((x) >> FRACT_BITS), (void) 0)
+// multiplication, error if not passing q32s
+//#define qmul(x, y) IF(IS(x, q32) && IS(y, q32), (q32) ((q64) (x) * (q64) (y) / (q64) QONE), (void) 0)
+#define qmul(x, y) IF(IS(x, q32) && IS(y, q32), (q32) ((q64) (x) * (y) >> FRACT_BITS), (void) 0)
+// division, error if not passing q32s
+//#define qdiv(x, y) IF(IS(x, q32) && IS(y, q32), (q32) ((q64) (x) * (q64) QONE / (q64) (y)), (void) 0)
+#define qdiv(x, y) IF(IS(x, q32) && IS(y, q32), (q32) (((q64) (x) << FRACT_BITS) / (y)), (void) 0)
+// just a cleaner nested multiply
+#define qmul3(x, y, z) qmul(qmul(x, y), z)
+
+// only for debugging my fixed point math replacements
+//#define USE_FLOATS
+
+#ifdef USE_FLOATS
+#warning float usage is enabled!!
+#endif
+
+typedef ALIGNED4 struct {
+	union {
+		s16 m[3][3];
+		u32 m32[5];
+	};
+	ALIGNED4 s16 t[3];
+} ShortMatrix;
+
+typedef ALIGNED4 union {
+	struct {
+		s16 vx, vy, vz, _pad;
+	};
+	struct {
+		s32 vx_vy, vz_pad;
+	};
+	s16 elems[4];
+} ShortVec;
 
 // Certain functions are marked as having return values, but do not
 // actually return a value. This causes undefined behavior, which we'd rather
@@ -19,7 +91,6 @@
     #define BAD_RETURN(cmd) cmd
 #endif
 
-
 struct Controller
 {
   /*0x00*/ s16 rawStickX;       //
@@ -27,9 +98,13 @@ struct Controller
   /*0x04*/ float stickX;        // [-64, 64] positive is right
   /*0x08*/ float stickY;        // [-64, 64] positive is up
   /*0x0C*/ float stickMag;      // distance from center [0, 64]
+  s16 rawRightStickX;
+  s16 rawRightStickY;
+  float rightStickX;            // [-64, 64] positive is right
+  float rightStickY;            // [-64, 64] positive is up
+  float rightStickMag;      // distance from center [0, 64]
   /*0x10*/ u16 buttonDown;
   /*0x12*/ u16 buttonPressed;
-  /*0x14*/ OSContStatus *statusData;
   /*0x18*/ OSContPad *controllerData;
 #if ENABLE_RUMBLE
   /*0x1C*/ s32 port;
@@ -38,6 +113,7 @@ struct Controller
 
 typedef f32 Vec2f[2];
 typedef f32 Vec3f[3]; // X, Y, Z, where Y is up
+typedef q32 Vec3q[3];
 typedef s16 Vec3s[3];
 typedef s32 Vec3i[3];
 typedef f32 Vec4f[4];
@@ -54,6 +130,11 @@ typedef s16 Trajectory;
 typedef s16 PaintingData;
 typedef uintptr_t BehaviorScript;
 typedef u8 Texture;
+
+struct VramTextureHandle {
+    unsigned int texpage;
+    unsigned short clut;
+};
 
 enum SpTaskState {
     SPTASK_STATE_NOT_STARTED,
@@ -128,11 +209,10 @@ struct GraphNodeObject
     /*0x18*/ s8 areaIndex;
     /*0x19*/ s8 activeAreaIndex;
     /*0x1A*/ Vec3s angle;
-    /*0x20*/ Vec3f pos;
-    /*0x2C*/ Vec3f scale;
+    /*0x20*/ Vec3s posi;
+    /*0x2C*/ Vec3q scaleq;
     /*0x38*/ struct AnimInfo animInfo;
-    /*0x4C*/ struct SpawnInfo *unk4C;
-    /*0x50*/ Mat4 *throwMatrix; // matrix ptr
+    ShortMatrix* throwMatrixq; // matrix ptr
     /*0x54*/ Vec3f cameraToObject;
 };
 
@@ -163,6 +243,7 @@ struct Object
         s32 asS32[0x50];
         s16 asS16[0x50][2];
         f32 asF32[0x50];
+		q32 asQ32[0x50];
 #if !IS_64_BIT
         s16 *asS16P[0x50];
         s32 *asS32P[0x50];
@@ -188,23 +269,21 @@ struct Object
         const void *asConstVoidPtr[0x50];
     } ptrData;
 #endif
-    /*0x1C8*/ u32 unused1;
-    /*0x1CC*/ const BehaviorScript *curBhvCommand;
-    /*0x1D0*/ u32 bhvStackIndex;
-    /*0x1D4*/ uintptr_t bhvStack[8];
-    /*0x1F4*/ s16 bhvDelayTimer;
-    /*0x1F6*/ s16 respawnInfoType;
-    /*0x1F8*/ f32 hitboxRadius;
-    /*0x1FC*/ f32 hitboxHeight;
-    /*0x200*/ f32 hurtboxRadius;
-    /*0x204*/ f32 hurtboxHeight;
-    /*0x208*/ f32 hitboxDownOffset;
-    /*0x20C*/ const BehaviorScript *behavior;
-    /*0x210*/ u32 unused2;
-    /*0x214*/ struct Object *platform;
-    /*0x218*/ void *collisionData;
-    /*0x21C*/ Mat4 transform;
-    /*0x25C*/ void *respawnInfo;
+    const BehaviorScript *curBhvCommand;
+    u32 bhvStackIndex;
+    uintptr_t bhvStack[8];
+    s16 bhvDelayTimer;
+    s16 respawnInfoType;
+    s16 hitboxRadius_s16;
+    s16 hitboxHeight_s16;
+    s16 hurtboxRadius_s16;
+    s16 hurtboxHeight_s16;
+    s16 hitboxDownOffset_s16;
+    const BehaviorScript *behavior;
+    struct Object *platform;
+    void *collisionData;
+    ShortMatrix transformq;
+    void *respawnInfo;
 };
 
 struct ObjectHitbox
@@ -226,24 +305,24 @@ struct Waypoint
     Vec3s pos;
 };
 
+#define COMPRESSED_NORMAL_ONE 120
+
 struct Surface
 {
-    /*0x00*/ s16 type;
-    /*0x02*/ s16 force;
-    /*0x04*/ s8 flags;
-    /*0x05*/ s8 room;
-    /*0x06*/ s16 lowerY;
-    /*0x08*/ s16 upperY;
-    /*0x0A*/ Vec3s vertex1;
-    /*0x10*/ Vec3s vertex2;
-    /*0x16*/ Vec3s vertex3;
-    /*0x1C*/ struct {
-        f32 x;
-        f32 y;
-        f32 z;
-    } normal;
-    /*0x28*/ f32 originOffset;
-    /*0x2C*/ struct Object *object;
+    s16 type;
+    s16 force;
+    s8 flags;
+    s8 room;
+    s16 lowerY;
+    s16 upperY;
+    Vec3s vertex1;
+    Vec3s vertex2;
+    Vec3s vertex3;
+    struct {
+        s8 x, y, z;
+    } compressed_normal;
+	q32 originOffsetq;
+    struct Object *object;
 };
 
 struct MarioBodyState

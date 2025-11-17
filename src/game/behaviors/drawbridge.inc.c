@@ -5,13 +5,13 @@ void bhv_lll_drawbridge_spawner_loop(void) {
 
     drawbridge1 = spawn_object(o, MODEL_LLL_DRAWBRIDGE_PART, bhvLllDrawbridge);
     drawbridge1->oMoveAngleYaw = o->oMoveAngleYaw;
-    drawbridge1->oPosX += coss(o->oMoveAngleYaw) * 640.0f;
-    drawbridge1->oPosZ += sins(o->oMoveAngleYaw) * 640.0f;
+    FMODFIELD(drawbridge1, oPosX, += coss(o->oMoveAngleYaw) * 640.0f);
+    FMODFIELD(drawbridge1, oPosZ, += sins(o->oMoveAngleYaw) * 640.0f);
 
     drawbridge2 = spawn_object(o, MODEL_LLL_DRAWBRIDGE_PART, bhvLllDrawbridge);
     drawbridge2->oMoveAngleYaw = o->oMoveAngleYaw + 0x8000;
-    drawbridge2->oPosX += coss(o->oMoveAngleYaw) * -640.0f;
-    drawbridge2->oPosZ += sins(o->oMoveAngleYaw) * -640.0f;
+    FMODFIELD(drawbridge2, oPosX, += coss(o->oMoveAngleYaw) * -640.0f);
+    FMODFIELD(drawbridge2, oPosZ, += sins(o->oMoveAngleYaw) * -640.0f);
 
     o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
 }

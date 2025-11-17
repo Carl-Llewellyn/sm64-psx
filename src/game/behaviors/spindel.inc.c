@@ -1,7 +1,7 @@
 // spindel.c.inc
 
 void bhv_spindel_init(void) {
-    o->oHomeY = o->oPosY;
+    QSETFIELD(o,  oHomeY, QFIELD(o,  oPosY));
     o->oSpindelUnkF4 = 0;
     o->oSpindelUnkF8 = 0;
 }
@@ -15,7 +15,7 @@ void bhv_spindel_loop(void) {
             o->oSpindelUnkF4 = 0;
             o->oTimer = 0;
         } else {
-            o->oVelZ = 0.0f;
+            QSETFIELD(o,  oVelZ, q(0));
             o->oAngleVelPitch = 0;
             return;
         }
@@ -53,14 +53,14 @@ void bhv_spindel_loop(void) {
 
     if (o->oTimer < sp18 * 8) {
         if (o->oSpindelUnkF8 == 0) {
-            o->oVelZ = 20 / sp18;
+            FSETFIELD(o, oVelZ, 20 / sp18);
             o->oAngleVelPitch = 1024 / sp18;
         } else {
-            o->oVelZ = -20 / sp18;
+            FSETFIELD(o, oVelZ, -20 / sp18);
             o->oAngleVelPitch = -1024 / sp18;
         }
 
-        o->oPosZ += o->oVelZ;
+        QMODFIELD(o, oPosZ, += QFIELD(o, oVelZ));
         o->oMoveAnglePitch += o->oAngleVelPitch;
 
         if (absf_2(o->oMoveAnglePitch & 0x1fff) < 800.0f && o->oAngleVelPitch != 0) {
@@ -71,9 +71,9 @@ void bhv_spindel_loop(void) {
         if (sp1C < 0.0f)
             sp1C *= -1.0f;
 
-        o->oPosY = o->oHomeY + sp1C;
+        FSETFIELD(o, oPosY, FFIELD(o, oHomeY) + sp1C);
 
         if (o->oTimer + 1 == sp18 * 8)
-            set_camera_shake_from_point(SHAKE_POS_SMALL, o->oPosX, o->oPosY, o->oPosZ);
+            set_camera_shake_from_pointq(SHAKE_POS_SMALL, QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ));
     }
 }

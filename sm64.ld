@@ -1103,11 +1103,13 @@ SECTIONS
 
 #define STUB_LEVEL(_0, _1, _2, _3, _4, _5, _6, _7, _8)
 #define DEFINE_LEVEL(_0, _1, _2, folder, _4, _5, _6, _7, _8, _9, _10) STANDARD_LEVEL(folder)
+#define DEFINE_LEVEL_REMOVED(_0, _1, _2, folder, _4, _5, _6, _7, _8, _9, _10)
 
    #include "levels/level_defines.h"
 
 #undef STUB_LEVEL
 #undef DEFINE_LEVEL
+#undef DEFINE_LEVEL_REMOVED
 
    /* 4E9FA0-? [?] */
    BEGIN_SEG(assets, __romPos)

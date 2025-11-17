@@ -1,3 +1,4 @@
+#ifndef NO_AUDIO
 #include <ultra64.h>
 
 #include "effects.h"
@@ -541,3 +542,4 @@ s32 adsr_update(struct AdsrState *adsr) {
     return 0;
 #endif
 }
+#endif

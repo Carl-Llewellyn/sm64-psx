@@ -56,22 +56,26 @@ void falling_bowser_plat_act_fall(void) {
     }
     if (o->oTimer < 22) {
         set_environmental_camera_shake(SHAKE_ENV_FALLING_BITS_PLAT);
-        o->oVelY = 8.0f;
-        o->oGravity = 0.0f;
+        QSETFIELD(o,  oVelY, q(8));
+        QSETFIELD(o, oGravity, q(0.0f));
     } else
-        o->oGravity = -4.0f;
+        QSETFIELD(o, oGravity, q(-4.0f));
     if ((o->oTimer & 1) == 0 && o->oTimer < 14) {
         angle = sBowserFallingPlatform[o->oBehParams2ndByte].angle + (gDebugInfo[4][1] << 8);
         val = -(o->oTimer / 2) * 290 + 1740;
-        vec3f_copy_2(pos, &o->oPosX);
-        o->oPosX = sBowserFallingPlatform[o->oBehParams2ndByte].posX + sins(angle + 0x14B0) * val;
-        o->oPosZ = sBowserFallingPlatform[o->oBehParams2ndByte].posZ + coss(angle + 0x14B0) * val;
-        o->oPosY = 307.0f;
+        pos[0] = FFIELD(o, oPosX);
+		pos[1] = FFIELD(o, oPosY);
+		pos[2] = FFIELD(o, oPosZ);
+        FSETFIELD(o, oPosX, sBowserFallingPlatform[o->oBehParams2ndByte].posX + sins(angle + 0x14B0) * val);
+        FSETFIELD(o, oPosZ, sBowserFallingPlatform[o->oBehParams2ndByte].posZ + coss(angle + 0x14B0) * val);
+        QSETFIELD(o,  oPosY, q(307));
         spawn_mist_particles_variable(4, 0, 100.0f);
-        o->oPosX = sBowserFallingPlatform[o->oBehParams2ndByte].posX + sins(angle - 0x14B0) * val;
-        o->oPosZ = sBowserFallingPlatform[o->oBehParams2ndByte].posZ + coss(angle - 0x14B0) * val;
+        FSETFIELD(o, oPosX, sBowserFallingPlatform[o->oBehParams2ndByte].posX + sins(angle - 0x14B0) * val);
+        FSETFIELD(o, oPosZ, sBowserFallingPlatform[o->oBehParams2ndByte].posZ + coss(angle - 0x14B0) * val);
         spawn_mist_particles_variable(4, 0, 100);
-        vec3f_copy_2(&o->oPosX, pos);
+        FSETFIELD(o, oPosX, pos[0]);
+		FSETFIELD(o, oPosY, pos[1]);
+		FSETFIELD(o, oPosZ, pos[2]);
     }
     cur_obj_move_using_fvel_and_gravity();
     if (o->oTimer > 300) {

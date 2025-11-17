@@ -33,13 +33,15 @@ static void fish_spawner_act_spawn(void) {
         case FISH_SPAWNER_BP_FEW_CYAN:
             model = MODEL_CYAN_FISH; schoolQuantity = 5;  minDistToMario = 1500.0f; fishAnimation = cyan_fish_seg6_anims_0600E264;
             break;
+
+        default: unreachable();
     }
 
 
     // Spawn and animate the schoolQuantity of fish if Mario enters render distance
     // or the stage is Secret Aquarium.
     // Fish moves randomly within a range of 700.0f.
-    if (o->oDistanceToMario < minDistToMario || gCurrLevelNum == LEVEL_SA) {
+    if (FFIELD(o, oDistanceToMario) < minDistToMario || gCurrLevelNum == LEVEL_SA) {
         for (i = 0; i < schoolQuantity; i++) {
             fishObject = spawn_object(o, model, bhvFish);
             fishObject->oBehParams2ndByte = o->oBehParams2ndByte;
@@ -55,7 +57,7 @@ static void fish_spawner_act_spawn(void) {
  * Mario is more than 2000 units higher.
  */
 static void fish_spawner_act_idle(void) {
-    if ((gCurrLevelNum != LEVEL_SA) && (gMarioObject->oPosY - o->oPosY > 2000.0f)) {
+    if ((gCurrLevelNum != LEVEL_SA) && (QFIELD(gMarioObject, oPosY) - QFIELD(o, oPosY) > q(2000))) {
         o->oAction = FISH_SPAWNER_ACT_RESPAWN;
     }
 }
@@ -79,21 +81,21 @@ void bhv_fish_spawner_loop(void) {
  * Allows the fish to swim vertically.
  */
 static void fish_vertical_roam(s32 speed) {
-    f32 parentY = o->parentObj->oPosY;
+    q32 parentYq = QFIELD(o->parentObj, oPosY);
 
-    // If the stage is Secret Aquarium, the fish can 
+    // If the stage is Secret Aquarium, the fish can
     // travel as far vertically as they wish.
     if (gCurrLevelNum == LEVEL_SA) {
-        if (500.0f < absf(o->oPosY - o->oFishGoalY)) {
+        if (q(500) < ABS(QFIELD(o, oPosY) - QFIELD(o, oFishGoalY))) {
             speed = 10;
         }
-        o->oPosY = approach_f32_symmetric(o->oPosY, o->oFishGoalY, speed);
+        QSETFIELD(o, oPosY, approach_q32_symmetric(QFIELD(o, oPosY), QFIELD(o, oFishGoalY), q(speed)));
 
      // Allow the fish to roam vertically if within
      // range of the fish spawner.
-     } else if (parentY - 100.0f - o->oFishDepthDistance < o->oPosY
-               && o->oPosY < parentY + 1000.0f + o->oFishDepthDistance) {
-        o->oPosY = approach_f32_symmetric(o->oPosY, o->oFishGoalY, speed);
+     } else if (parentYq - q(100) - QFIELD(o, oFishDepthDistance) < QFIELD(o, oPosY)
+               && QFIELD(o, oPosY) < parentYq + q(1000) + QFIELD(o, oFishDepthDistance)) {
+        QSETFIELD(o, oPosY, approach_q32_symmetric(QFIELD(o, oPosY), QFIELD(o, oFishGoalY), speed));
     }
 }
 
@@ -101,7 +103,7 @@ static void fish_vertical_roam(s32 speed) {
  * Fish action that randomly roams within a set range.
  */
 static void fish_act_roam(void) {
-    f32 fishY = o->oPosY - gMarioObject->oPosY;
+    q32 fishYq = QFIELD(o, oPosY) - QFIELD(gMarioObject, oPosY);
 
     // Alters speed of animation for natural movement.
     if (o->oTimer < 10) {
@@ -112,25 +114,25 @@ static void fish_act_roam(void) {
 
     // Initializes some variables when the fish first begins roaming.
     if (o->oTimer == 0) {
-        o->oForwardVel = random_float() * 2 + 3.0f;
+        QSETFIELD(o, oForwardVel, random_q32() * 2 + q(3));
         if (gCurrLevelNum == LEVEL_SA) {
-            o->oFishHeightOffset = random_float() * 700.0f;
+            QSETFIELD(o, oFishHeightOffset, random_q32() * 700);
         } else {
-            o->oFishHeightOffset = random_float() * 100.0f;
+            QSETFIELD(o, oFishHeightOffset, random_q32() * 100);
         }
-        o->oFishRoamDistance = random_float() * 500 + 200.0f;
+        QSETFIELD(o, oFishRoamDistance, random_q32() * 500 + q(200));
     }
 
-    o->oFishGoalY = gMarioObject->oPosY + o->oFishHeightOffset;
-    
+    QSETFIELD(o, oFishGoalY, QFIELD(gMarioObject, oPosY) + QFIELD(o, oFishHeightOffset));
+
     // Rotate the fish towards Mario.
     cur_obj_rotate_yaw_toward(o->oAngleToMario, 0x400);
 
-    if (o->oPosY < o->oFishWaterLevel - 50.0f) {
-        if (fishY < 0.0f) {
-            fishY = 0.0f - fishY;
+    if (QFIELD(o, oPosY) < QFIELD(o, oFishWaterLevel) - q(50)) {
+        if (fishYq < 0) {
+            fishYq = -fishYq;
         }
-        if (fishY < 500.0f) {
+        if (fishYq < q(500)) {
             fish_vertical_roam(2);
         } else {
             fish_vertical_roam(4);
@@ -138,14 +140,14 @@ static void fish_act_roam(void) {
 
     // Don't let the fish leave the water vertically.
     } else {
-        o->oPosY = o->oFishWaterLevel - 50.0f;
-        if (fishY > 300.0f) {
-            o->oPosY = o->oPosY - 1.0f;
+        QSETFIELD(o, oPosY, QFIELD(o, oFishWaterLevel) - q(50));
+        if (fishYq > q(300)) {
+            QSETFIELD(o, oPosY, QFIELD(o, oPosY) - QONE);
         }
     }
 
     // Flee from Mario if the fish gets too close.
-    if (o->oDistanceToMario < o->oFishRoamDistance + 150.0f) {
+    if (QFIELD(o, oDistanceToMario) < QFIELD(o, oFishRoamDistance) + q(150)) {
         o->oAction = FISH_ACT_FLEE;
     }
 }
@@ -154,21 +156,14 @@ static void fish_act_roam(void) {
  * Interactively maneuver fish in relation to its distance from other fish and Mario.
  */
 static void fish_act_flee(void) {
-    f32 fishY = o->oPosY - gMarioObject->oPosY;
-    UNUSED s32 distance;
-    o->oFishGoalY = gMarioObject->oPosY + o->oFishHeightOffset;
+    q32 fishYq = QFIELD(o, oPosY) - QFIELD(gMarioObject, oPosY);
+    QSETFIELD(o, oFishGoalY, QFIELD(gMarioObject, oPosY) + QFIELD(o, oFishHeightOffset));
 
     // Initialize some variables when the flee action first starts.
     if (o->oTimer == 0) {
-        o->oFishActiveDistance = random_float() * 300.0f;
+        QSETFIELD(o, oFishActiveDistance, random_q32() * 300);
         o->oFishYawVel = random_float() * 1024.0f + 1024.0f;
-        o->oFishGoalVel = random_float() * 4.0f + 8.0f + 5.0f;
-        if (o->oDistanceToMario < 600.0f) {
-            distance = 1;
-        } else {
-            distance = (s32)(1.0 / (o->oDistanceToMario / 600.0));
-        }
-        distance *= 127;
+        QSETFIELD(o, oFishGoalVel, random_q32() * 4 + q(13));
         cur_obj_play_sound_2(SOUND_GENERAL_MOVING_WATER);
     }
 
@@ -180,35 +175,35 @@ static void fish_act_flee(void) {
     }
 
     // Accelerate over time.
-    if (o->oForwardVel < o->oFishGoalVel) {
-        o->oForwardVel = o->oForwardVel + 0.5;
+    if (QFIELD(o, oForwardVel) < QFIELD(o, oFishGoalVel)) {
+        QSETFIELD(o, oForwardVel, QFIELD(o, oForwardVel) + q(0.5));
     }
-    o->oFishGoalY = gMarioObject->oPosY + o->oFishHeightOffset;
+    QSETFIELD(o, oFishGoalY, QFIELD(gMarioObject, oPosY) + QFIELD(o, oFishHeightOffset));
 
     // Rotate fish away from Mario.
     cur_obj_rotate_yaw_toward(o->oAngleToMario + 0x8000, o->oFishYawVel);
 
-    if (o->oPosY < o->oFishWaterLevel - 50.0f) {
-        if (fishY < 0.0f) {
-            fishY = 0.0f - fishY;
+    if (QFIELD(o, oPosY) < QFIELD(o, oFishWaterLevel) - q(50)) {
+        if (fishYq < 0) {
+            fishYq = -fishYq;
         }
 
-        if (fishY < 500.0f) {
+        if (fishYq < q(500)) {
             fish_vertical_roam(2);
         } else {
             fish_vertical_roam(4);
         }
-        
+
     // Don't let the fish leave the water vertically.
     } else {
-        o->oPosY = o->oFishWaterLevel - 50.0f;
-        if (fishY > 300.0f) {
-            o->oPosY -= 1.0f;
+        QSETFIELD(o, oPosY, QFIELD(o, oFishWaterLevel) - q(50));
+        if (fishYq > q(300)) {
+            QMODFIELD(o, oPosY, -= QONE);
         }
     }
 
     // If distance to Mario is too great, then set fish to active.
-    if (o->oDistanceToMario > o->oFishActiveDistance + 500.0f) {
+    if (QFIELD(o, oDistanceToMario) > QFIELD(o, oFishActiveDistance) + q(500)) {
         o->oAction = FISH_ACT_ROAM;
     }
 }
@@ -218,9 +213,9 @@ static void fish_act_flee(void) {
  */
 static void fish_act_init(void) {
     cur_obj_init_animation_with_accel_and_sound(0, 1.0f);
-    o->header.gfx.animInfo.animFrame = (s16)(random_float() * 28.0f);
-    o->oFishDepthDistance = random_float() * 300.0f;
-    cur_obj_scale(random_float() * 0.4 + 0.8);
+    o->header.gfx.animInfo.animFrame = qtrunc(random_q32() * 28);
+    QSETFIELD(o, oFishDepthDistance, random_q32() * 300);
+    cur_obj_scaleq(random_q32() * 2 / 5 + q(0.8));
     o->oAction = FISH_ACT_ROAM;
 }
 
@@ -233,30 +228,30 @@ static void (*sFishActions[])(void) = {
  */
 void bhv_fish_loop(void)
 {
-    UNUSED s32 unused[4];
-    cur_obj_scale(1.0f);
+    cur_obj_scaleq(q(1.0f));
 
     // oFishWaterLevel tracks if a fish has roamed out of water.
     // This can't happen in Secret Aquarium, so set it to 0.
-    o->oFishWaterLevel = find_water_level(o->oPosX, o->oPosZ);
     if (gCurrLevelNum == LEVEL_SA) {
-        o->oFishWaterLevel = 0.0f;
-    }
+        QSETFIELD(o, oFishWaterLevel, 0);
+    } else {
+		QSETFIELD(o, oFishWaterLevel, find_water_levelq(QFIELD(o, oPosX), QFIELD(o, oPosZ)));
+	}
 
     // Apply hitbox and resolve wall collisions
-    o->oWallHitboxRadius = 30.0f;
+    QSETFIELD(o, oWallHitboxRadius, q(30));
     cur_obj_resolve_wall_collisions();
 
     // Delete fish if it's drifted to an area with no water.
     if (gCurrLevelNum != LEVEL_UNKNOWN_32) {
-        if (o->oFishWaterLevel < FLOOR_LOWER_LIMIT_MISC) {
+        if (QFIELD(o, oFishWaterLevel) < q(FLOOR_LOWER_LIMIT_MISC)) {
             obj_mark_for_deletion(o);
             return;
         }
 
     // Unreachable code, perhaps for debugging or testing.
     } else {
-        o->oFishWaterLevel = 1000.0f;
+        QSETFIELD(o, oFishWaterLevel, q(1000));
     }
 
     // Call fish action methods and apply physics engine.

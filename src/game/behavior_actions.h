@@ -9,7 +9,7 @@ void spawn_triangle_break_particles(s16 numTris, s16 triModel, f32 triSize, s16 
 void spawn_mist_from_global(void);
 void clear_particle_flags(u32 flags);
 void spawn_wind_particles(s16 pitch, s16 yaw);
-s32 check_if_moving_over_floor(f32 a0, f32 a1);
+s32 check_if_moving_over_floorq(q32 a0q, q32 a1q);
 s32 arc_to_goal_pos(Vec3f a0, Vec3f a1, f32 yVel, f32 gravity);
 void vec3f_copy_2(Vec3f dest, Vec3f src);
 void tox_box_move(f32 forwardVel, f32 a1, s16 deltaPitch, s16 deltaRoll);
@@ -552,25 +552,25 @@ void bhv_dust_smoke_loop(void);
 void bhv_yoshi_loop(void);
 void bhv_volcano_trap_loop(void);
 
-Gfx *geo_move_mario_part_from_parent(s32 run, UNUSED struct GraphNode *node, Mat4 mtx);
+Gfx *geo_move_mario_part_from_parent(s32 run, UNUSED struct GraphNode *node, const ShortMatrix* mtx);
 
 // Bowser
 Gfx *geo_bits_bowser_coloring(s32 run, struct GraphNode *node, UNUSED s32 a2);
-Gfx *geo_update_body_rot_from_parent(s32 run, UNUSED struct GraphNode *node, Mat4 mtx);
-Gfx *geo_switch_bowser_eyes(s32 run, struct GraphNode *node, UNUSED Mat4 *mtx);
+Gfx *geo_update_body_rot_from_parent(s32 run, UNUSED struct GraphNode *node, const ShortMatrix* mtxq);
+Gfx *geo_switch_bowser_eyes(s32 run, struct GraphNode *node, UNUSED const ShortMatrix* mtxq);
 
 // Tuxie
-Gfx *geo_switch_tuxie_mother_eyes(s32 run, struct GraphNode *node, UNUSED Mat4 *mtx);
+Gfx *geo_switch_tuxie_mother_eyes(s32 run, struct GraphNode *node, UNUSED const ShortMatrix *mtxq);
 
 // Cap switch
-Gfx *geo_update_held_mario_pos(s32 run, UNUSED struct GraphNode *node, Mat4 mtx);
+Gfx *geo_update_held_mario_pos(s32 run, UNUSED struct GraphNode *node, const ShortMatrix* mtxq);
 
 // Snufit
-Gfx *geo_snufit_move_mask(s32 callContext, struct GraphNode *node, UNUSED Mat4 *c);
-Gfx *geo_snufit_scale_body(s32 callContext, struct GraphNode *node, UNUSED Mat4 *c);
+Gfx *geo_snufit_move_mask(s32 callContext, struct GraphNode *node, UNUSED const ShortMatrix *cq);
+Gfx *geo_snufit_scale_body(s32 callContext, struct GraphNode *node, UNUSED const ShortMatrix *cq);
 
 // Bowser key cutscene
-Gfx *geo_scale_bowser_key(s32 run, struct GraphNode *node, UNUSED f32 mtx[4][4]);
+Gfx *geo_scale_bowser_key(s32 run, struct GraphNode *node, UNUSED const ShortMatrix* mtxq);
 
 // Water splash
 extern struct WaterDropletParams gShallowWaterSplashDropletParams;

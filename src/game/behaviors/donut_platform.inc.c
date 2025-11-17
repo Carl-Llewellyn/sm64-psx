@@ -22,9 +22,9 @@ void bhv_donut_platform_spawner_update(void) {
 
     for (i = 0, platformFlag = 1; i < 31; i++, platformFlag = platformFlag << 1) {
         if (!(o->oDonutPlatformSpawnerSpawnedPlatforms & platformFlag)) {
-            dx = gMarioObject->oPosX - sDonutPlatformPositions[i][0];
-            dy = gMarioObject->oPosY - sDonutPlatformPositions[i][1];
-            dz = gMarioObject->oPosZ - sDonutPlatformPositions[i][2];
+            dx = FFIELD(gMarioObject, oPosX) - sDonutPlatformPositions[i][0];
+            dy = FFIELD(gMarioObject, oPosY) - sDonutPlatformPositions[i][1];
+            dz = FFIELD(gMarioObject, oPosZ) - sDonutPlatformPositions[i][2];
             marioSqDist = dx * dx + dy * dy + dz * dz;
 
             // dist > 1000 and dist < 2000
@@ -41,23 +41,23 @@ void bhv_donut_platform_spawner_update(void) {
 }
 
 void bhv_donut_platform_update(void) {
-    if (o->oTimer != 0 && ((o->oMoveFlags & OBJ_MOVE_MASK_ON_GROUND) || o->oDistanceToMario > 2500.0f)) {
+    if (o->oTimer != 0 && ((o->oMoveFlags & OBJ_MOVE_MASK_ON_GROUND) || QFIELD(o, oDistanceToMario) > q(2500.0))) {
         o->parentObj->oDonutPlatformSpawnerSpawnedPlatforms =
             o->parentObj->oDonutPlatformSpawnerSpawnedPlatforms
             & ((1 << o->oBehParams2ndByte) ^ 0xFFFFFFFF);
 
-        if (o->oDistanceToMario > 2500.0f) {
+        if (QFIELD(o, oDistanceToMario) > q(2500.0)) {
             obj_mark_for_deletion(o);
         } else {
             obj_explode_and_spawn_coins(150.0f, 1);
             create_sound_spawner(SOUND_GENERAL_DONUT_PLATFORM_EXPLOSION);
         }
     } else {
-        if (o->oGravity == 0.0f) {
+        if (QFIELD(o, oGravity) == 0) {
             if (gMarioObject->platform == o) {
-                cur_obj_shake_y(4.0f);
+                cur_obj_shake_yq(q(4.0f));
                 if (o->oTimer > 15) {
-                    o->oGravity = -0.1f;
+                    QSETFIELD(o, oGravity, q(-0.1f));
                 }
             } else {
                 cur_obj_set_pos_to_home();

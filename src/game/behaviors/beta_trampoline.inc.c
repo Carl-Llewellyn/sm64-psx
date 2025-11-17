@@ -16,33 +16,33 @@
  * but it is incomplete.
  */
 void bhv_beta_trampoline_spring_loop(void) {
-    f32 yScale;
-    f32 yDisplacement;
+    q32 yScaleq;
+    q32 yDisplacementq;
 
     // Update to be 75 units under the trampoline top
     obj_copy_pos_and_angle(o, o->parentObj);
     obj_copy_graph_y_offset(o, o->parentObj);
-    o->oPosY -= 75.0f;
+    QMODFIELD(o, oPosY, -= q(75.0f));
 
     // If the trampoline top is above its original position,
     // scale the spring by (the displacement)/10 + 1.
     // For this to work correctly, the arbitrary value of 10
     // must be replaced with 150 (the height of the trampoline).
     // Note that all of the numbers in this if/else block are doubles.
-    if ((yDisplacement = o->oPosY - o->oHomeY) >= 0) {
-        yScale = yDisplacement / 10.0 + 1.0;
+    if ((yDisplacementq = QFIELD(o, oPosY) - QFIELD(o, oHomeY)) >= 0) {
+        yScaleq = ONE + yDisplacementq / 10;
     } else {
         // Otherwise (if the trampoline is compressed),
         // scale by 1 - (the displacement)/500.
         // For this to work correctly, the arbitrary value of 500
         // must be replaced with 150 (the height of the trampoline),
         // as with the above code.
-        yDisplacement = -yDisplacement;
-        yScale = 1.0 - yDisplacement / 500.0;
+        yDisplacementq = -yDisplacementq;
+        yScaleq = ONE - yDisplacementq / 500;
     }
 
     // Scale the spring
-    obj_scale_xyz(o, 1.0f, yScale, 1.0f);
+    obj_scale_xyzq(o, ONE, yScaleq, ONE);
 }
 
 /**
@@ -60,10 +60,10 @@ void bhv_beta_trampoline_top_loop(void) {
         struct Object *trampolinePart;
 
         trampolinePart = spawn_object(o, MODEL_TRAMPOLINE_CENTER, bhvBetaTrampolineSpring);
-        trampolinePart->oPosY -= 75.0f;
+        QMODFIELD(trampolinePart, oPosY, -= q(75));
 
         trampolinePart = spawn_object(o, MODEL_TRAMPOLINE_BASE, bhvStaticObject);
-        trampolinePart->oPosY -= 150.0f;
+        QMODFIELD(trampolinePart, oPosY, -= q(150));
     }
 
     // Update o->oBetaTrampolineMarioOnTrampoline, and reset
@@ -75,7 +75,7 @@ void bhv_beta_trampoline_top_loop(void) {
         o->oBetaTrampolineMarioOnTrampoline = TRUE;
     } else {
         o->oBetaTrampolineMarioOnTrampoline = FALSE;
-        o->oPosY = o->oHomeY;
+        QSETFIELD(o,  oPosY, QFIELD(o,  oHomeY));
     }
 
     // This function is from mario_step.c, and is empty.

@@ -1,5 +1,6 @@
 #include <PR/ultratypes.h>
 
+#include "engine/math_util.h"
 #include "sm64.h"
 #include "area.h"
 #include "engine/graph_node.h"
@@ -616,6 +617,7 @@ void painting_update_ripple_state(struct Painting *painting) {
  * note that posX and posY correspond to a point on the face of the painting, not actual axes
  */
 s16 calculate_ripple_at_point(struct Painting *painting, f32 posX, f32 posY) {
+	// TODO: optimize
     /// Controls the peaks of the ripple.
     f32 rippleMag = painting->currRippleMag;
     /// Controls the ripple's frequency
@@ -642,7 +644,7 @@ s16 calculate_ripple_at_point(struct Painting *painting, f32 posX, f32 posY) {
     } else {
         // use a cosine wave to make the ripple go up and down,
         // scaled by the painting's ripple magnitude
-        f32 rippleZ = rippleMag * cosf(rippleRate * (2 * M_PI) * (rippleTimer - rippleDistance));
+        f32 rippleZ = rippleMag * qtof(cosqs(rippleRate * 65536 * (rippleTimer - rippleDistance)));
 
         // round it to an int and return it
         return round_float(rippleZ);
@@ -906,30 +908,32 @@ Gfx *render_painting(u8 *img, s16 tWidth, s16 tHeight, s16 *textureMap, s16 mapV
 /**
  * Orient the painting mesh for rendering.
  */
-Gfx *painting_model_view_transform(struct Painting *painting) {
-    f32 sizeRatio = painting->size / PAINTING_SIZE;
-    Mtx *rotX = alloc_display_list(sizeof(Mtx));
-    Mtx *rotY = alloc_display_list(sizeof(Mtx));
-    Mtx *translate = alloc_display_list(sizeof(Mtx));
-    Mtx *scale = alloc_display_list(sizeof(Mtx));
-    Gfx *dlist = alloc_display_list(5 * sizeof(Gfx));
-    Gfx *gfx = dlist;
+Gfx *painting_model_view_transform([[gnu::unused]] struct Painting *painting) {
+	return nullptr;
+	// TODO
+    // f32 sizeRatio = painting->size / PAINTING_SIZE;
+    // Mtx *rotX = alloc_display_list(sizeof(Mtx));
+    // Mtx *rotY = alloc_display_list(sizeof(Mtx));
+    // Mtx *translate = alloc_display_list(sizeof(Mtx));
+    // Mtx *scale = alloc_display_list(sizeof(Mtx));
+    // Gfx *dlist = alloc_display_list(5 * sizeof(Gfx));
+    // Gfx *gfx = dlist;
 
-    if (rotX == NULL || rotY == NULL || translate == NULL || dlist == NULL) {
-    }
+    // if (rotX == NULL || rotY == NULL || translate == NULL || dlist == NULL) {
+    // }
 
-    guTranslate(translate, painting->posX, painting->posY, painting->posZ);
-    guRotate(rotX, painting->pitch, 1.0f, 0.0f, 0.0f);
-    guRotate(rotY, painting->yaw, 0.0f, 1.0f, 0.0f);
-    guScale(scale, sizeRatio, sizeRatio, sizeRatio);
+    // guTranslate(translate, painting->posX, painting->posY, painting->posZ);
+    // guRotate(rotX, painting->pitch, 1.0f, 0.0f, 0.0f);
+    // guRotate(rotY, painting->yaw, 0.0f, 1.0f, 0.0f);
+    // guScale(scale, sizeRatio, sizeRatio, sizeRatio);
 
-    gSPMatrix(gfx++, translate, G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_PUSH);
-    gSPMatrix(gfx++, rotX,      G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_NOPUSH);
-    gSPMatrix(gfx++, rotY,      G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_NOPUSH);
-    gSPMatrix(gfx++, scale,     G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_NOPUSH);
-    gSPEndDisplayList(gfx);
+    // gSPMatrix(gfx++, translate, G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_PUSH);
+    // gSPMatrix(gfx++, rotX,      G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_NOPUSH);
+    // gSPMatrix(gfx++, rotY,      G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_NOPUSH);
+    // gSPMatrix(gfx++, scale,     G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_NOPUSH);
+    // gSPEndDisplayList(gfx);
 
-    return dlist;
+    // return dlist;
 }
 
 /**
@@ -1265,7 +1269,7 @@ Gfx *geo_painting_draw(s32 callContext, struct GraphNode *node, UNUSED void *con
 /**
  * Update the painting system's local copy of Mario's current floor and position.
  */
-Gfx *geo_painting_update(s32 callContext, UNUSED struct GraphNode *node, UNUSED Mat4 c) {
+Gfx *geo_painting_update(s32 callContext, UNUSED struct GraphNode *node, UNUSED const ShortMatrix* mtxq) {
     struct Surface *surface;
 
     // Reset the update counter
@@ -1277,11 +1281,11 @@ Gfx *geo_painting_update(s32 callContext, UNUSED struct GraphNode *node, UNUSED 
         gPaintingUpdateCounter = gAreaUpdateCounter;
 
         // Store Mario's floor and position
-        find_floor(gMarioObject->oPosX, gMarioObject->oPosY, gMarioObject->oPosZ, &surface);
+        find_floor(FFIELD(gMarioObject, oPosX), FFIELD(gMarioObject, oPosY), FFIELD(gMarioObject, oPosZ), &surface);
         gPaintingMarioFloorType = surface->type;
-        gPaintingMarioXPos = gMarioObject->oPosX;
-        gPaintingMarioYPos = gMarioObject->oPosY;
-        gPaintingMarioZPos = gMarioObject->oPosZ;
+        gPaintingMarioXPos = FFIELD(gMarioObject, oPosX);
+        gPaintingMarioYPos = FFIELD(gMarioObject, oPosY);
+        gPaintingMarioZPos = FFIELD(gMarioObject, oPosZ);
     }
     return NULL;
 }

@@ -30,9 +30,9 @@ void bhv_yellow_coin_init(void) {
     obj_set_hitbox(o, &sYellowCoinHitbox);
     bhv_init_room();
     cur_obj_update_floor_height();
-    if (500.0f < absf(o->oPosY - o->oFloorHeight))
+    if (500.0f < absf(FFIELD(o, oPosY) - FFIELD(o, oFloorHeight)))
         cur_obj_set_model(MODEL_YELLOW_COIN_NO_SHADOW);
-    if (o->oFloorHeight < FLOOR_LOWER_LIMIT_MISC)
+    if (FFIELD(o, oFloorHeight) < FLOOR_LOWER_LIMIT_MISC)
         obj_mark_for_deletion(o);
 }
 
@@ -49,8 +49,8 @@ void bhv_temp_coin_loop(void) {
 }
 
 void bhv_coin_init(void) {
-    o->oVelY = random_float() * 10.0f + 30 + o->oCoinUnk110;
-    o->oForwardVel = random_float() * 10.0f;
+    FSETFIELD(o, oVelY, random_float() * 10.0f + 30 + FFIELD(o, oCoinUnk110));
+    FSETFIELD(o, oForwardVel, random_float() * 10.0f);
     o->oMoveAngleYaw = random_u16();
     cur_obj_set_behavior(bhvYellowCoin);
     obj_set_hitbox(o, &sYellowCoinHitbox);
@@ -67,9 +67,9 @@ void bhv_coin_loop(void) {
         if (o->oMoveFlags & OBJ_MOVE_ON_GROUND)
             o->oSubAction = 1;
         if (o->oSubAction == 1) {
-            o->oBounciness = 0;
-            if (sp1C->normal.y < 0.9) {
-                sp1A = atan2s(sp1C->normal.z, sp1C->normal.x);
+            QSETFIELD(o,  oBounciness, q(0));
+            if (sp1C->compressed_normal.y < (s8) (0.9 * COMPRESSED_NORMAL_ONE)) {
+                sp1A = atan2sq((q32) sp1C->compressed_normal.z * QONE / COMPRESSED_NORMAL_ONE, (q32) sp1C->compressed_normal.x * QONE / COMPRESSED_NORMAL_ONE);
                 cur_obj_rotate_yaw_toward(sp1A, 0x400);
             }
         }
@@ -82,7 +82,7 @@ void bhv_coin_loop(void) {
 #else
         cur_obj_play_sound_2(SOUND_GENERAL_COIN_SPURT);
 #endif
-    if (o->oVelY < 0)
+    if (QFIELD(o, oVelY) < 0)
         cur_obj_become_tangible();
     if (o->oMoveFlags & OBJ_MOVE_LANDED) {
 #ifndef VERSION_JP
@@ -113,15 +113,15 @@ void bhv_coin_formation_spawn_loop(void) {
         obj_set_hitbox(o, &sYellowCoinHitbox);
         bhv_init_room();
         if (o->oCoinUnkF8) {
-            o->oPosY += 300.0f;
+            QMODFIELD(o, oPosY, += q(300.0f));
             cur_obj_update_floor_height();
-            if (o->oPosY < o->oFloorHeight || o->oFloorHeight < FLOOR_LOWER_LIMIT_MISC)
+            if (FFIELD(o, oPosY) < FFIELD(o, oFloorHeight) || FFIELD(o, oFloorHeight) < FLOOR_LOWER_LIMIT_MISC)
                 obj_mark_for_deletion(o);
             else
-                o->oPosY = o->oFloorHeight;
+                QSETFIELD(o,  oPosY, QFIELD(o,  oFloorHeight));
         } else {
             cur_obj_update_floor_height();
-            if (absf(o->oPosY - o->oFloorHeight) > 250.0f)
+            if (absf(FFIELD(o, oPosY) - FFIELD(o, oFloorHeight)) > 250.0f)
                 cur_obj_set_model(MODEL_YELLOW_COIN_NO_SHADOW);
         }
     } else {
@@ -182,7 +182,7 @@ void bhv_coin_formation_loop(void) {
     s32 bitIndex;
     switch (o->oAction) {
         case 0:
-            if (o->oDistanceToMario < 2000.0f) {
+            if (QFIELD(o, oDistanceToMario) < q(2000)) {
                 for (bitIndex = 0; bitIndex < 8; bitIndex++) {
                     if (!(o->oCoinUnkF4 & (1 << bitIndex)))
                         spawn_coin_in_formation(bitIndex, o->oBehParams2ndByte);
@@ -191,7 +191,7 @@ void bhv_coin_formation_loop(void) {
             }
             break;
         case 1:
-            if (o->oDistanceToMario > 2100.0f)
+            if (QFIELD(o, oDistanceToMario) > q(2100.0))
                 o->oAction++;
             break;
         case 2:
@@ -228,16 +228,16 @@ void coin_inside_boo_act_0(void) {
     cur_obj_become_intangible();
     if (o->oTimer == 0 && gCurrLevelNum == LEVEL_BBH) {
         cur_obj_set_model(MODEL_BLUE_COIN);
-        cur_obj_scale(0.7);
+        cur_obj_scaleq(q(0.7));
     }
     obj_copy_pos(o, parent);
     if (parent->oBooDeathStatus == BOO_DEATH_STATUS_DYING) {
         o->oAction = 1;
         sp26 = gMarioObject->oMoveAngleYaw;
         sp20 = 3.0f;
-        o->oVelX = sins(sp26) * sp20;
-        o->oVelZ = coss(sp26) * sp20;
-        o->oVelY = 35.0f;
+        FSETFIELD(o, oVelX, sins(sp26) * sp20);
+        FSETFIELD(o, oVelZ, coss(sp26) * sp20);
+        QSETFIELD(o,  oVelY, q(35));
     }
 }
 
@@ -248,7 +248,7 @@ void bhv_coin_inside_boo_loop(void) {
 }
 
 void bhv_coin_sparkles_loop(void) {
-    cur_obj_scale(0.6f);
+    cur_obj_scaleq(q(0.6f));
 }
 
 void bhv_golden_coin_sparkles_loop(void) {
@@ -256,6 +256,6 @@ void bhv_golden_coin_sparkles_loop(void) {
     UNUSED s32 unused;
     f32 sp24 = 30.0f;
     sp2C = spawn_object(o, MODEL_SPARKLES, bhvCoinSparkles);
-    sp2C->oPosX += random_float() * sp24 - sp24 / 2;
-    sp2C->oPosZ += random_float() * sp24 - sp24 / 2;
+    FMODFIELD(sp2C, oPosX, += random_float() * sp24 - sp24 / 2);
+    FMODFIELD(sp2C, oPosZ, += random_float() * sp24 - sp24 / 2);
 }

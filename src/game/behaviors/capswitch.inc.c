@@ -4,13 +4,13 @@ UNUSED u8 sCapSwitchText[] = { DIALOG_010, DIALOG_011, DIALOG_012 };
 
 void cap_switch_act_0(void) {
     o->oAnimState = o->oBehParams2ndByte;
-    cur_obj_scale(0.5f);
-    o->oPosY += 71.0f;
+    cur_obj_scaleq(q(0.5f));
+    QMODFIELD(o, oPosY, += q(71.0f));
     spawn_object_relative_with_scale(0, 0, -71, 0, 0.5f, o, MODEL_CAP_SWITCH_BASE, bhvCapSwitchBase);
     if (gCurrLevelNum != LEVEL_UNKNOWN_32) {
         if (save_file_get_flags() & sCapSaveFlags[o->oBehParams2ndByte]) {
             o->oAction = 3;
-            o->header.gfx.scale[1] = 0.1f;
+            o->header.gfx.scaleq[1] = q(0.1);
         } else
             o->oAction = 1;
     } else
@@ -39,9 +39,9 @@ void cap_switch_act_2(void) {
         }
     } else {
         //! Neither of these flags are defined in this function so they do nothing.
-        //  On an extra note, there's a specific check for this cutscene and 
+        //  On an extra note, there's a specific check for this cutscene and
         //  there's no dialog defined since the cutscene itself calls the dialog.
-        sp1C = cur_obj_update_dialog_with_cutscene(MARIO_DIALOG_LOOK_FRONT, 
+        sp1C = cur_obj_update_dialog_with_cutscene(MARIO_DIALOG_LOOK_FRONT,
             (DIALOG_FLAG_TEXT_RESPONSE | DIALOG_FLAG_UNK_CAPSWITCH), CUTSCENE_CAP_SWITCH_PRESS, 0);
         if (sp1C)
             o->oAction = 3;

@@ -1,3 +1,4 @@
+#ifndef NO_AUDIO
 #ifndef VERSION_SH
 #include <ultra64.h>
 
@@ -840,6 +841,7 @@ void load_sequence(u32 player, u32 seqId, s32 loadAsync) {
 }
 
 void load_sequence_internal(u32 player, u32 seqId, s32 loadAsync) {
+#ifndef NO_AUDIO
     void *sequenceData;
     struct SequencePlayer *seqPlayer = &gSequencePlayers[player];
     UNUSED u32 padding[2];
@@ -901,10 +903,12 @@ void load_sequence_internal(u32 player, u32 seqId, s32 loadAsync) {
     seqPlayer->enabled = TRUE;
     seqPlayer->seqData = sequenceData;
     seqPlayer->scriptState.pc = sequenceData;
+#endif
 }
 
 // (void) must be omitted from parameters to fix stack with -framepointer
 void audio_init() {
+#ifndef NO_AUDIO
 #if defined(VERSION_EU)
     UNUSED s8 pad[16];
 #else
@@ -1070,5 +1074,7 @@ void audio_init() {
     eu_stubbed_printf_1(" Seqdrv    :[%6d]\n", 0); // gMusicData
     eu_stubbed_printf_1(" audiodata :[%6d]\n", 0); // gSoundDataRaw
     eu_stubbed_printf_0("---------------------------------------\n");
+#endif
 }
+#endif
 #endif

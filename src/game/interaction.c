@@ -155,8 +155,8 @@ u32 get_mario_cap_flag(struct Object *capObject) {
  * in the angular range given towards Mario.
  */
 u32 object_facing_mario(struct MarioState *m, struct Object *o, s16 angleRange) {
-    f32 dx = m->pos[0] - o->oPosX;
-    f32 dz = m->pos[2] - o->oPosZ;
+    f32 dx = m->pos[0] - FFIELD(o, oPosX);
+    f32 dz = m->pos[2] - FFIELD(o, oPosZ);
 
     s16 angleToMario = atan2s(dz, dx);
     s16 dAngle = angleToMario - o->oMoveAngleYaw;
@@ -169,8 +169,8 @@ u32 object_facing_mario(struct MarioState *m, struct Object *o, s16 angleRange) 
 }
 
 s16 mario_obj_angle_to_object(struct MarioState *m, struct Object *o) {
-    f32 dx = o->oPosX - m->pos[0];
-    f32 dz = o->oPosZ - m->pos[2];
+    f32 dx = FFIELD(o, oPosX) - m->pos[0];
+    f32 dz = FFIELD(o, oPosZ) - m->pos[2];
 
     return atan2s(dz, dx);
 }
@@ -231,11 +231,11 @@ u32 determine_interaction(struct MarioState *m, struct Object *o) {
     // pound into just a bounce.
     if (interaction == 0 && (action & ACT_FLAG_AIR)) {
         if (m->vel[1] < 0.0f) {
-            if (m->pos[1] > o->oPosY) {
+            if (m->pos[1] > FFIELD(o, oPosY)) {
                 interaction = INT_HIT_FROM_ABOVE;
             }
         } else {
-            if (m->pos[1] < o->oPosY) {
+            if (m->pos[1] < FFIELD(o, oPosY)) {
                 interaction = INT_HIT_FROM_BELOW;
             }
         }
@@ -303,9 +303,9 @@ void mario_drop_held_object(struct MarioState *m) {
         // ! When dropping an object instead of throwing it, it will be put at Mario's
         // y-positon instead of the HOLP's y-position. This fact is often exploited when
         // cloning objects.
-        m->heldObj->oPosX = m->marioBodyState->heldObjLastPosition[0];
-        m->heldObj->oPosY = m->pos[1];
-        m->heldObj->oPosZ = m->marioBodyState->heldObjLastPosition[2];
+        FSETFIELD(m->heldObj, oPosX, m->marioBodyState->heldObjLastPosition[0]);
+        FSETFIELD(m->heldObj, oPosY, m->pos[1]);
+        FSETFIELD(m->heldObj, oPosZ, m->marioBodyState->heldObjLastPosition[2]);
 
         m->heldObj->oMoveAngleYaw = m->faceAngle[1];
 
@@ -321,9 +321,9 @@ void mario_throw_held_object(struct MarioState *m) {
 
         obj_set_held_state(m->heldObj, bhvCarrySomething5);
 
-        m->heldObj->oPosX = m->marioBodyState->heldObjLastPosition[0] + 32.0f * sins(m->faceAngle[1]);
-        m->heldObj->oPosY = m->marioBodyState->heldObjLastPosition[1];
-        m->heldObj->oPosZ = m->marioBodyState->heldObjLastPosition[2] + 32.0f * coss(m->faceAngle[1]);
+        FSETFIELD(m->heldObj, oPosX, m->marioBodyState->heldObjLastPosition[0] + 32.0f * sins(m->faceAngle[1]));
+        FSETFIELD(m->heldObj, oPosY, m->marioBodyState->heldObjLastPosition[1]);
+        FSETFIELD(m->heldObj, oPosZ, m->marioBodyState->heldObjLastPosition[2] + 32.0f * coss(m->faceAngle[1]));
 
         m->heldObj->oMoveAngleYaw = m->faceAngle[1];
 
@@ -355,8 +355,8 @@ void mario_blow_off_cap(struct MarioState *m, f32 capSpeed) {
 
         capObject = spawn_object(m->marioObj, MODEL_MARIOS_CAP, bhvNormalCap);
 
-        capObject->oPosY += (m->action & ACT_FLAG_SHORT_HITBOX) ? 120.0f : 180.0f;
-        capObject->oForwardVel = capSpeed;
+        FMODFIELD(capObject, oPosY, += (m->action & ACT_FLAG_SHORT_HITBOX) ? 120.0f : 180.0f);
+        FSETFIELD(capObject, oForwardVel, capSpeed);
         capObject->oMoveAngleYaw = (s16)(m->faceAngle[1] + 0x400);
 
         if (m->forwardVel < 0.0f) {
@@ -461,14 +461,14 @@ u32 bully_knock_back_mario(struct MarioState *mario) {
 
     //! Conversion ratios multiply to more than 1 (could allow unbounded speed
     // with bonk cancel - but this isn't important for regular bully battery)
-    f32 bullyToMarioRatio = bully->hitboxRadius * 3 / 53;
-    f32 marioToBullyRatio = 53.0f / bully->hitboxRadius;
+    f32 bullyToMarioRatio = bully->hitboxRadius_s16 * 3 / 53;
+    f32 marioToBullyRatio = 53.0f / bully->hitboxRadius_s16;
 
     init_bully_collision_data(&marioData, mario->pos[0], mario->pos[2], mario->forwardVel,
                               mario->faceAngle[1], bullyToMarioRatio, 52.0f);
 
-    init_bully_collision_data(&bullyData, bully->oPosX, bully->oPosZ, bully->oForwardVel,
-                              bully->oMoveAngleYaw, marioToBullyRatio, bully->hitboxRadius + 2.0f);
+    init_bully_collision_data(&bullyData, FFIELD(bully, oPosX), FFIELD(bully, oPosZ), FFIELD(bully, oForwardVel),
+                              bully->oMoveAngleYaw, marioToBullyRatio, bully->hitboxRadius_s16 + 2.0f);
 
     if (mario->forwardVel != 0.0f) {
         transfer_bully_speed(&marioData, &bullyData);
@@ -488,9 +488,9 @@ u32 bully_knock_back_mario(struct MarioState *mario) {
     mario->pos[2] = marioData.posZ;
 
     bully->oMoveAngleYaw = newBullyYaw;
-    bully->oForwardVel = sqrtf(bullyData.velX * bullyData.velX + bullyData.velZ * bullyData.velZ);
-    bully->oPosX = bullyData.posX;
-    bully->oPosZ = bullyData.posZ;
+    FSETFIELD(bully, oForwardVel, sqrtf(bullyData.velX * bullyData.velX + bullyData.velZ * bullyData.velZ));
+    FSETFIELD(bully, oPosX, bullyData.posX);
+    FSETFIELD(bully, oPosZ, bullyData.posZ);
 
     if (marioDYaw < -0x4000 || marioDYaw > 0x4000) {
         mario->faceAngle[1] += 0x8000;
@@ -513,7 +513,7 @@ u32 bully_knock_back_mario(struct MarioState *mario) {
 }
 
 void bounce_off_object(struct MarioState *m, struct Object *o, f32 velY) {
-    m->pos[1] = o->oPosY + o->hitboxHeight;
+    m->pos[1] = FFIELD(o, oPosY) + o->hitboxHeight_s16;
     m->vel[1] = velY;
 
     m->flags &= ~MARIO_UNKNOWN_08;
@@ -587,7 +587,7 @@ u32 determine_knockback_action(struct MarioState *m, UNUSED s32 arg) {
             mario_set_forward_vel(m, 28.0f);
         }
 
-        if (m->pos[1] >= m->interactObj->oPosY) {
+        if (m->pos[1] >= FFIELD(m->interactObj, oPosY)) {
             if (m->vel[1] < 20.0f) {
                 m->vel[1] = 20.0f;
             }
@@ -614,35 +614,37 @@ u32 determine_knockback_action(struct MarioState *m, UNUSED s32 arg) {
 }
 
 void push_mario_out_of_object(struct MarioState *m, struct Object *o, f32 padding) {
-    f32 minDistance = o->hitboxRadius + m->marioObj->hitboxRadius + padding;
+    q32 minDistanceq = q(o->hitboxRadius_s16 + m->marioObj->hitboxRadius_s16 + padding);
 
-    f32 offsetX = m->pos[0] - o->oPosX;
-    f32 offsetZ = m->pos[2] - o->oPosZ;
-    f32 distance = sqrtf(offsetX * offsetX + offsetZ * offsetZ);
+    q32 offsetXq = q(m->pos[0]) - QFIELD(o, oPosX);
+    q32 offsetZq = q(m->pos[2]) - QFIELD(o, oPosZ);
+    q32 distanceq = sqrtq(qmul(offsetXq, offsetXq) + qmul(offsetZq, offsetZq));
 
-    if (distance < minDistance) {
+    if (distanceq < minDistanceq) {
         struct Surface *floor;
         s16 pushAngle;
-        f32 newMarioX;
-        f32 newMarioZ;
+        q32 newMarioXq;
+        q32 newMarioZq;
 
-        if (distance == 0.0f) {
+        if (distanceq == 0) {
             pushAngle = m->faceAngle[1];
         } else {
-            pushAngle = atan2s(offsetZ, offsetX);
+            pushAngle = atan2sq(offsetZq, offsetXq);
         }
 
-        newMarioX = o->oPosX + minDistance * sins(pushAngle);
-        newMarioZ = o->oPosZ + minDistance * coss(pushAngle);
+        newMarioXq = QFIELD(o, oPosX) + qmul(minDistanceq, sinqs(pushAngle));
+        newMarioZq = QFIELD(o, oPosZ) + qmul(minDistanceq, cosqs(pushAngle));
 
-        f32_find_wall_collision(&newMarioX, &m->pos[1], &newMarioZ, 60.0f, 50.0f);
+		q32 newMarioYq = q(m->pos[1]);
+        q32_find_wall_collision(&newMarioXq, &newMarioYq, &newMarioZq, 60.0f, 50.0f);
+		m->pos[1] = qtof(newMarioYq);
 
-        find_floor(newMarioX, m->pos[1], newMarioZ, &floor);
+        find_floorq(newMarioXq, newMarioYq, newMarioZq, &floor);
         if (floor != NULL) {
             //! Doesn't update Mario's referenced floor (allows oob death when
             // an object pushes you into a steep slope while in a ground action)
-            m->pos[0] = newMarioX;
-            m->pos[2] = newMarioZ;
+            m->pos[0] = qtof(newMarioXq);
+            m->pos[2] = qtof(newMarioZq);
         }
     }
 }
@@ -669,8 +671,8 @@ void bounce_back_from_attack(struct MarioState *m, u32 interaction) {
 }
 
 u32 should_push_or_pull_door(struct MarioState *m, struct Object *o) {
-    f32 dx = o->oPosX - m->pos[0];
-    f32 dz = o->oPosZ - m->pos[2];
+    f32 dx = FFIELD(o, oPosX) - m->pos[0];
+    f32 dz = FFIELD(o, oPosZ) - m->pos[2];
 
     s16 dYaw = o->oMoveAngleYaw - atan2s(dz, dx);
 
@@ -959,8 +961,8 @@ u32 get_door_save_file_flag(struct Object *door) {
     u32 saveFileFlag = 0;
     s16 requiredNumStars = door->oBehParams >> 24;
 
-    s16 isCcmDoor = door->oPosX < 0.0f;
-    s16 isPssDoor = door->oPosY > 500.0f;
+    s16 isCcmDoor = FFIELD(door, oPosX) < 0.0f;
+    s16 isPssDoor = FFIELD(door, oPosY) > 500.0f;
 
     switch (requiredNumStars) {
         case 1:
@@ -1097,7 +1099,7 @@ u32 interact_tornado(struct MarioState *m, UNUSED u32 interactType, struct Objec
         m->usedObj = o;
 
         marioObj->oMarioTornadoYawVel = 0x400;
-        marioObj->oMarioTornadoPosY = m->pos[1] - o->oPosY;
+        FSETFIELD(marioObj, oMarioTornadoPosY, m->pos[1] - FFIELD(o, oPosY));
 
         play_sound(SOUND_MARIO_WAAAOOOW, m->marioObj->header.gfx.cameraToObject);
 #if ENABLE_RUMBLE
@@ -1120,7 +1122,7 @@ u32 interact_whirlpool(struct MarioState *m, UNUSED u32 interactType, struct Obj
 
         m->forwardVel = 0.0f;
 
-        marioObj->oMarioWhirlpoolPosY = m->pos[1] - o->oPosY;
+        FSETFIELD(marioObj, oMarioWhirlpoolPosY, m->pos[1] - FFIELD(o, oPosY));
 
         play_sound(SOUND_MARIO_WAAAOOOW, m->marioObj->header.gfx.cameraToObject);
 #if ENABLE_RUMBLE
@@ -1245,7 +1247,7 @@ u32 interact_bully(struct MarioState *m, UNUSED u32 interactType, struct Object 
 
         m->forwardVel = -16.0f;
         o->oMoveAngleYaw = m->faceAngle[1];
-        o->oForwardVel = 3392.0f / o->hitboxRadius;
+        FSETFIELD(o, oForwardVel, 3392.0f / o->hitboxRadius_s16);
 
         attack_object(o, interaction);
         bounce_back_from_attack(m, interaction);
@@ -1532,7 +1534,7 @@ u32 interact_pole(struct MarioState *m, UNUSED u32 interactType, struct Object *
 
             marioObj->oMarioPoleUnk108 = 0;
             marioObj->oMarioPoleYawVel = 0;
-            marioObj->oMarioPolePos = m->pos[1] - o->oPosY;
+            FSETFIELD(marioObj, oMarioPolePos, m->pos[1] - FFIELD(o, oPosY));
 
             if (lowSpeed) {
                 return set_mario_action(m, ACT_GRAB_POLE_SLOW, 0);
@@ -1703,12 +1705,12 @@ u32 check_read_sign(struct MarioState *m, struct Object *o) {
     if ((m->input & READ_MASK) && mario_can_talk(m, 0) && object_facing_mario(m, o, SIGN_RANGE)) {
         s16 facingDYaw = (s16)(o->oMoveAngleYaw + 0x8000) - m->faceAngle[1];
         if (facingDYaw >= -SIGN_RANGE && facingDYaw <= SIGN_RANGE) {
-            f32 targetX = o->oPosX + 105.0f * sins(o->oMoveAngleYaw);
-            f32 targetZ = o->oPosZ + 105.0f * coss(o->oMoveAngleYaw);
+            f32 targetX = FFIELD(o, oPosX) + 105.0f * sins(o->oMoveAngleYaw);
+            f32 targetZ = FFIELD(o, oPosZ) + 105.0f * coss(o->oMoveAngleYaw);
 
             m->marioObj->oMarioReadingSignDYaw = facingDYaw;
-            m->marioObj->oMarioReadingSignDPosX = targetX - m->pos[0];
-            m->marioObj->oMarioReadingSignDPosZ = targetZ - m->pos[2];
+            FSETFIELD(m->marioObj, oMarioReadingSignDPosX, targetX - m->pos[0]);
+            FSETFIELD(m->marioObj, oMarioReadingSignDPosZ, targetZ - m->pos[2]);
 
             m->interactObj = o;
             m->usedObj = o;

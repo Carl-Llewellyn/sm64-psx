@@ -25,7 +25,7 @@ static s8 sTTCMovingBarRandomDelays[] = { 1, 12, 55, 100 };
 void bhv_ttc_moving_bar_init(void) {
     // If on still setting, then stick out
     if ((o->oTTCMovingBarDelay = sTTCMovingBarDelays[gTTCSpeedSetting]) == 0) {
-        o->oTTCMovingBarOffset = 250.0f;
+        QSETFIELD(o,  oTTCMovingBarOffset, q(250));
     }
 
     // This causes the first cycle to start at different times for different
@@ -57,7 +57,7 @@ static void ttc_moving_bar_act_wait(void) {
 
             // Begin pulling back
             o->oAction = TTC_MOVING_BAR_ACT_PULL_BACK;
-            o->oTTCMovingBarSpeed = -8.0f;
+            QSETFIELD(o,  oTTCMovingBarSpeed, q(-8));
         }
     }
 }
@@ -67,15 +67,15 @@ static void ttc_moving_bar_act_wait(void) {
  */
 static void ttc_moving_bar_act_pull_back(void) {
     // Started with -8 speed, accelerate back to > 0
-    if ((o->oTTCMovingBarSpeed += 0.73f) > 0.0f) {
+    if (QMODFIELD(o, oTTCMovingBarSpeed, += q(0.73f)) > 0.0f) {
         // Possibly pause after pulling back
         if (o->oTTCMovingBarStoppedTimer != 0) {
             o->oTTCMovingBarStoppedTimer -= 1;
-            o->oTTCMovingBarSpeed = 0.0f;
+            QSETFIELD(o,  oTTCMovingBarSpeed, q(0));
         } else {
             // Begin extending
             o->oAction = TTC_MOVING_BAR_ACT_EXTEND;
-            o->oTTCMovingBarSpeed = 29.0f;
+            QSETFIELD(o,  oTTCMovingBarSpeed, q(29));
         }
     }
 }
@@ -84,7 +84,7 @@ static void ttc_moving_bar_act_pull_back(void) {
  * Reset and enter the wait action.
  */
 static void ttc_moving_bar_reset(void) {
-    o->oTTCMovingBarOffset = o->oTTCMovingBarSpeed = 0.0f;
+    QSETFIELD(o, oTTCMovingBarOffset, QSETFIELD(o, oTTCMovingBarSpeed, 0));
     o->oAction = TTC_MOVING_BAR_ACT_WAIT;
 }
 
@@ -95,33 +95,33 @@ static void ttc_moving_bar_reset(void) {
  */
 static void ttc_moving_bar_act_extend(void) {
     // If we passed the 250 threshold and we have decelerated enough
-    if ((o->oTTCMovingBarOffset == 250.0f
-         || (250.0f - o->oTTCMovingBarOffset) * (250.0f - o->oTTCMovingBarStartOffset) < 0.0f)
-        && o->oTTCMovingBarSpeed > -8.0f && o->oTTCMovingBarSpeed < 8.0f) {
+    if ((FFIELD(o, oTTCMovingBarOffset) == 250.0f
+         || (250.0f - FFIELD(o, oTTCMovingBarOffset)) * (250.0f - FFIELD(o, oTTCMovingBarStartOffset)) < 0.0f)
+        && FFIELD(o, oTTCMovingBarSpeed) > -8.0f && FFIELD(o, oTTCMovingBarSpeed) < 8.0f) {
         // Begin retracting
         o->oAction = TTC_MOVING_BAR_ACT_RETRACT;
-        o->oTTCMovingBarSpeed = 0.0f;
+        QSETFIELD(o,  oTTCMovingBarSpeed, q(0));
     } else {
         f32 accel;
 
         // Accelerate before reaching 250, and decelerate after reaching it
-        if (o->oTTCMovingBarOffset < 250.0f) {
+        if (QFIELD(o, oTTCMovingBarOffset) < q(250.0f)) {
             accel = 6.4f;
         } else {
             accel = -6.4f;
         }
 
         // Strengthen deceleration
-        if (o->oTTCMovingBarSpeed * accel < 0.0f) {
+        if (FFIELD(o, oTTCMovingBarSpeed) * accel < 0.0f) {
             accel *= 2.35f;
         }
 
-        o->oTTCMovingBarSpeed += accel;
+        FMODFIELD(o, oTTCMovingBarSpeed, += accel);
 
         // When we pass neutral on random setting, then stop immediately with
         // 25% probability (fake out)
         if (gTTCSpeedSetting == TTC_SPEED_RANDOM
-            && o->oTTCMovingBarOffset * o->oTTCMovingBarStartOffset < 0.0f && random_u16() % 4 == 0) {
+            && FFIELD(o, oTTCMovingBarOffset) * FFIELD(o, oTTCMovingBarStartOffset) < 0.0f && random_u16() % 4 == 0) {
             ttc_moving_bar_reset();
         }
     }
@@ -134,8 +134,8 @@ static void ttc_moving_bar_act_retract(void) {
     // Wait a second
     if (o->oTimer > 30) {
         // Retract
-        o->oTTCMovingBarSpeed = -5.0f;
-        if (o->oTTCMovingBarOffset < 0.0f) {
+        QSETFIELD(o,  oTTCMovingBarSpeed, q(-5));
+        if (QFIELD(o, oTTCMovingBarOffset) < 0) {
             ttc_moving_bar_reset();
         }
     }
@@ -145,10 +145,10 @@ static void ttc_moving_bar_act_retract(void) {
  * Update function for bhvTTCMovingBar.
  */
 void bhv_ttc_moving_bar_update(void) {
-    o->oTTCMovingBarStartOffset = o->oTTCMovingBarOffset;
+    QSETFIELD(o,  oTTCMovingBarStartOffset, QFIELD(o,  oTTCMovingBarOffset));
     obj_perform_position_op(POS_OP_SAVE_POSITION);
 
-    o->oTTCMovingBarOffset += o->oTTCMovingBarSpeed;
+    QMODFIELD(o, oTTCMovingBarOffset, += QFIELD(o, oTTCMovingBarSpeed));
 
     switch (o->oAction) {
         case TTC_MOVING_BAR_ACT_WAIT:
@@ -165,6 +165,6 @@ void bhv_ttc_moving_bar_update(void) {
             break;
     }
 
-    obj_set_dist_from_home(o->oTTCMovingBarOffset);
+    obj_set_dist_from_homeq(QFIELD(o, oTTCMovingBarOffset));
     obj_perform_position_op(POS_OP_COMPUTE_VELOCITY);
 }

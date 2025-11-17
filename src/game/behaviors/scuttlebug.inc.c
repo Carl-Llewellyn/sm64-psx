@@ -38,14 +38,14 @@ void bhv_scuttlebug_loop(void) {
             if (o->oMoveFlags & OBJ_MOVE_LANDED)
                 cur_obj_play_sound_2(SOUND_OBJ_GOOMBA_ALERT);
             if (o->oMoveFlags & OBJ_MOVE_MASK_ON_GROUND) {
-                o->oHomeX = o->oPosX;
-                o->oHomeY = o->oPosY;
-                o->oHomeZ = o->oPosZ;
+                QSETFIELD(o,  oHomeX, QFIELD(o,  oPosX));
+                QSETFIELD(o,  oHomeY, QFIELD(o,  oPosY));
+                QSETFIELD(o,  oHomeZ, QFIELD(o,  oPosZ));
                 o->oSubAction++;
             }
             break;
         case 1:
-            o->oForwardVel = 5.0f;
+            QSETFIELD(o,  oForwardVel, q(5));
             if (cur_obj_lateral_dist_from_mario_to_home() > 1000.0f)
                 o->oAngleToMario = cur_obj_angle_to_home();
             else {
@@ -54,11 +54,11 @@ void bhv_scuttlebug_loop(void) {
                     o->oAngleToMario = obj_angle_to_object(o, gMarioObject);
                     if (abs_angle_diff(o->oAngleToMario, o->oMoveAngleYaw) < 0x800) {
                         o->oScuttlebugUnkF8 = 1;
-                        o->oVelY = 20.0f;
+                        QSETFIELD(o,  oVelY, q(20));
                         cur_obj_play_sound_2(SOUND_OBJ2_SCUTTLEBUG_ALERT);
                     }
                 } else if (o->oScuttlebugUnkF8 == 1) {
-                    o->oForwardVel = 15.0f;
+                    QSETFIELD(o,  oForwardVel, q(15));
                     o->oScuttlebugUnkFC++;
                     if (o->oScuttlebugUnkFC > 50)
                         o->oScuttlebugUnkF8 = 0;
@@ -69,38 +69,38 @@ void bhv_scuttlebug_loop(void) {
             cur_obj_rotate_yaw_toward(o->oAngleToMario, 0x200);
             break;
         case 2:
-            o->oForwardVel = 5.0f;
+            QSETFIELD(o,  oForwardVel, q(5));
             if ((s16) o->oMoveAngleYaw == (s16) o->oAngleToMario)
                 o->oSubAction = 1;
-            if (o->oPosY - o->oHomeY < -200.0f)
+            if (FFIELD(o, oPosY) - FFIELD(o, oHomeY) < -200.0f)
                 obj_mark_for_deletion(o);
             cur_obj_rotate_yaw_toward(o->oAngleToMario, 0x400);
             break;
         case 3:
             o->oFlags &= ~8;
-            o->oForwardVel = -10.0f;
-            o->oVelY = 30.0f;
+            QSETFIELD(o,  oForwardVel, q(-10));
+            QSETFIELD(o,  oVelY, q(30));
             cur_obj_play_sound_2(SOUND_OBJ2_SCUTTLEBUG_ALERT);
             o->oSubAction++;
             break;
         case 4:
-            o->oForwardVel = -10.0f;
+            QSETFIELD(o,  oForwardVel, q(-10));
             if (o->oMoveFlags & OBJ_MOVE_LANDED) {
                 o->oSubAction++;
-                o->oVelY = 0.0f;
+                QSETFIELD(o,  oVelY, q(0));
                 o->oScuttlebugUnkFC = 0;
                 o->oFlags |= 8;
                 o->oInteractStatus = 0;
             }
             break;
         case 5:
-            o->oForwardVel = 2.0f;
+            QSETFIELD(o,  oForwardVel, q(2));
             o->oScuttlebugUnkFC++;
             if (o->oScuttlebugUnkFC > 30)
                 o->oSubAction = 0;
             break;
     }
-    if (o->oForwardVel < 10.0f)
+    if (QFIELD(o, oForwardVel) < q(10.0f))
         sp18 = 1.0f;
     else
         sp18 = 3.0f;
@@ -119,12 +119,12 @@ void bhv_scuttlebug_loop(void) {
 void bhv_scuttlebug_spawn_loop(void) {
     struct Object *scuttlebug;
     if (o->oAction == 0) {
-        if (o->oTimer > 30 && 500.0f < o->oDistanceToMario && o->oDistanceToMario < 1500.0f) {
+        if (o->oTimer > 30 && q(500) < QFIELD(o, oDistanceToMario) && QFIELD(o, oDistanceToMario) < q(1500)) {
             cur_obj_play_sound_2(SOUND_OBJ2_SCUTTLEBUG_ALERT);
             scuttlebug = spawn_object(o, MODEL_SCUTTLEBUG, bhvScuttlebug);
             scuttlebug->oScuttlebugUnkF4 = o->oScuttlebugSpawnerUnkF4;
-            scuttlebug->oForwardVel = 30.0f;
-            scuttlebug->oVelY = 80.0f;
+            QSETFIELD(scuttlebug, oForwardVel, q(30.0f));
+            QSETFIELD(scuttlebug, oVelY, q(80.0f));
             o->oAction++;
             o->oScuttlebugUnkF4 = 1;
         }

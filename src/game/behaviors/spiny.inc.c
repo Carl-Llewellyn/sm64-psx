@@ -38,7 +38,7 @@ static u8 sSpinyWalkAttackHandlers[] = {
  */
 static s32 spiny_check_active(void) {
     if (o->parentObj != o) {
-        if (o->oDistanceToMario > 2500.0f) {
+        if (QFIELD(o, oDistanceToMario) > q(2500.0)) {
             //! It's possible for the lakitu to despawn while the spiny still
             //  references it. This line allows us to decrement the 0x1B field
             //  in an object that loads into the lakitu's former slot.
@@ -62,19 +62,19 @@ static void spiny_act_walk(void) {
     if (spiny_check_active()) {
         cur_obj_update_floor_and_walls();
 
-        o->oGraphYOffset = -17.0f;
+        QSETFIELD(o,  oGraphYOffset, q(-17));
         cur_obj_init_animation_with_sound(0);
 
         if (o->oMoveFlags & OBJ_MOVE_MASK_ON_GROUND) {
             // After touching the ground for the first time, stop. From now on,
             // ensure that face angle and move angle agree
             if (!(o->oFlags & OBJ_FLAG_SET_FACE_YAW_TO_MOVE_YAW)) {
-                if (obj_forward_vel_approach(0.0f, 1.0f)) {
+                if (obj_forward_vel_approachq(q(0.0f), q(1.0f))) {
                     o->oFlags |= OBJ_FLAG_SET_FACE_YAW_TO_MOVE_YAW;
                     o->oMoveAngleYaw = o->oFaceAngleYaw;
                 }
             } else {
-                obj_forward_vel_approach(1.0f, 0.2f);
+                obj_forward_vel_approachq(q(1.0f), q(0.2f));
             }
 
             if (o->oSpinyTurningAwayFromWall) {
@@ -105,9 +105,8 @@ static void spiny_act_walk(void) {
         if (obj_handle_attacks(&sSpinyHitbox, SPINY_ACT_ATTACKED_MARIO, sSpinyWalkAttackHandlers)) {
             // When attacked by mario, lessen the knockback
             o->oAction = SPINY_ACT_WALK;
-            o->oForwardVel *= 0.1f;
-            o->oVelY *= 0.7f;
-
+            QMODFIELD(o, oForwardVel, /= 10);
+            QSETFIELD(o, oVelY, QFIELD(o, oVelY) * 7 / 10);
             o->oMoveFlags = 0; // weird flex but okay
 
             // Don't allow mario to punch the spiny two frames in a row?
@@ -123,21 +122,21 @@ static void spiny_act_walk(void) {
  * after being spawned by a lakitu.
  */
 static void spiny_act_held_by_lakitu(void) {
-    o->oGraphYOffset = 15.0f;
+    QSETFIELD(o,  oGraphYOffset, q(15));
     cur_obj_init_animation_with_sound(0);
 
-    o->oParentRelativePosX = -50.0f;
-    o->oParentRelativePosY = 35.0f;
-    o->oParentRelativePosZ = -100.0f;
+    QSETFIELD(o,  oParentRelativePosX, q(-50));
+    QSETFIELD(o,  oParentRelativePosY, q(35));
+    QSETFIELD(o,  oParentRelativePosZ, q(-100));
 
     if (o->parentObj->prevObj == NULL) {
         o->oAction = SPINY_ACT_THROWN_BY_LAKITU;
         o->oMoveAngleYaw = o->parentObj->oFaceAngleYaw;
 
         // Move more quickly if the lakitu is moving forward
-        o->oForwardVel =
-            o->parentObj->oForwardVel * coss(o->oMoveAngleYaw - o->parentObj->oMoveAngleYaw) + 10.0f;
-        o->oVelY = 30.0f;
+        FSETFIELD(o, oForwardVel,
+            FFIELD(o->parentObj, oForwardVel) * coss(o->oMoveAngleYaw - o->parentObj->oMoveAngleYaw) + 10.0f);
+        QSETFIELD(o,  oVelY, q(30));
 
         o->oMoveFlags = 0; // you do you, spiny
     }
@@ -150,7 +149,7 @@ static void spiny_act_thrown_by_lakitu(void) {
     if (spiny_check_active()) {
         cur_obj_update_floor_and_walls();
 
-        o->oGraphYOffset = 15.0f;
+        QSETFIELD(o,  oGraphYOffset, q(15));
         o->oFaceAnglePitch -= 0x2000;
 
         cur_obj_init_animation_with_sound(0);
@@ -159,7 +158,7 @@ static void spiny_act_thrown_by_lakitu(void) {
             cur_obj_play_sound_2(SOUND_OBJ_SPINY_UNK59);
             cur_obj_set_model(MODEL_SPINY);
             obj_init_animation_with_sound(o, spiny_seg5_anims_05016EAC, 0);
-            o->oGraphYOffset = -17.0f;
+            QSETFIELD(o,  oGraphYOffset, q(-17));
 
             o->oFaceAnglePitch = 0;
             o->oAction = SPINY_ACT_WALK;

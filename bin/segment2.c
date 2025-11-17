@@ -2504,43 +2504,43 @@ UNUSED static const Lights1 segment2_lights_unused = gdSPDefLights1(
 );
 
 // 0x02014470 - 0x020144B0
-static const Mtx matrix_identity = {
-#ifndef GBI_FLOATS
-    {{0x00010000, 0x00000000,
-      0x00000001, 0x00000000},
-     {0x00000000, 0x00010000,
-      0x00000000, 0x00000001},
-     {0x00000000, 0x00000000,
-      0x00000000, 0x00000000},
-     {0x00000000, 0x00000000,
-      0x00000000, 0x00000000}}
-#else
-    {{1.0f, 0.0f, 0.0f, 0.0f},
-    {0.0f, 1.0f, 0.0f, 0.0f},
-    {0.0f, 0.0f, 1.0f, 0.0f},
-    {0.0f, 0.0f, 0.0f, 1.0f}}
-#endif
-};
+//static const Mtx matrix_identity = {
+//#ifndef GBI_FLOATS
+//    {{0x00010000, 0x00000000,
+//      0x00000001, 0x00000000},
+//     {0x00000000, 0x00010000,
+//      0x00000000, 0x00000001},
+//     {0x00000000, 0x00000000,
+//      0x00000000, 0x00000000},
+//     {0x00000000, 0x00000000,
+//      0x00000000, 0x00000000}}
+//#else
+//    {{1.0f, 0.0f, 0.0f, 0.0f},
+//    {0.0f, 1.0f, 0.0f, 0.0f},
+//    {0.0f, 0.0f, 1.0f, 0.0f},
+//    {0.0f, 0.0f, 0.0f, 1.0f}}
+//#endif
+//};
 
 
 // 0x020144B0 - 0x020144F0
-static const Mtx matrix_fullscreen = {
-#ifndef GBI_FLOATS
-    {{0x00000000, 0x00000000,
-      0x00000000, 0x00000000},
-     {0x00000000, 0xffff0000,
-      0xffffffff, 0xffff0001},
-     {((65536 * 2 / SCREEN_WIDTH) << 16) | 0, 0x00000000,
-      (0 << 16) | (65536 * 2 / SCREEN_HEIGHT), 0x00000000},
-     {0x00000000, 0x00000000,
-      0x00000000, 0x00000000}}
-#else
-    {{2.0f / SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},
-    {0.0f, 2.0f / SCREEN_HEIGHT, 0.0f, 0.0f},
-    {0.0f, 0.0f, -1.0f, 0.0f},
-    {-1.0f, -1.0f, -1.0f, 1.0f}}
-#endif
-};
+//static const Mtx matrix_fullscreen = {
+//#ifndef GBI_FLOATS
+//    {{0x00000000, 0x00000000,
+//      0x00000000, 0x00000000},
+//     {0x00000000, 0xffff0000,
+//      0xffffffff, 0xffff0001},
+//     {((65536 * 2 / SCREEN_WIDTH) << 16) | 0, 0x00000000,
+//      (0 << 16) | (65536 * 2 / SCREEN_HEIGHT), 0x00000000},
+//     {0x00000000, 0x00000000,
+//      0x00000000, 0x00000000}}
+//#else
+//    {{2.0f / SCREEN_WIDTH, 0.0f, 0.0f, 0.0f},
+//    {0.0f, 2.0f / SCREEN_HEIGHT, 0.0f, 0.0f},
+//    {0.0f, 0.0f, -1.0f, 0.0f},
+//    {-1.0f, -1.0f, -1.0f, 1.0f}}
+//#endif
+//};
 
 
 // 0x020144F0 - 0x02014508
@@ -2600,15 +2600,15 @@ const Gfx dl_shadow_end[] = {
 };
 
 // 0x02014660 - 0x02014698
-const Gfx dl_proj_mtx_fullscreen[] = {
-    gsDPPipeSync(),
-    gsSPClearGeometryMode(G_LIGHTING),
-    gsSPMatrix(&matrix_identity, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH),
-    gsSPMatrix(&matrix_fullscreen, G_MTX_PROJECTION | G_MTX_MUL | G_MTX_NOPUSH),
-    gsSPMatrix(&matrix_identity, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH),
-    gsSPPerspNormalize(0xFFFF),
-    gsSPEndDisplayList(),
-};
+//const Gfx dl_proj_mtx_fullscreen[] = {
+//    gsDPPipeSync(),
+//    gsSPClearGeometryMode(G_LIGHTING),
+//    gsSPMatrix(&matrix_identity, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH),
+//    gsSPMatrix(&matrix_fullscreen, G_MTX_PROJECTION | G_MTX_MUL | G_MTX_NOPUSH),
+//    gsSPMatrix(&matrix_identity, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH),
+//    gsSPPerspNormalize(0xFFFF),
+//    gsSPEndDisplayList(),
+//};
 
 // 0x02014698 - 0x020146C0
 const Gfx dl_screen_transition_end[] = {
@@ -2629,33 +2629,33 @@ const Gfx dl_transition_draw_filled_region[] = {
 };
 
 // 0x02014708 - 0x02014738
-const Gfx dl_skybox_begin[] = {
-    gsDPPipeSync(),
-    gsSPClearGeometryMode(G_LIGHTING),
-    gsDPSetCombineMode(G_CC_MODULATERGB, G_CC_MODULATERGB),
-    gsSPPerspNormalize(0xFFFF),
-    gsSPMatrix(&matrix_identity, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH),
-    gsSPEndDisplayList(),
-};
+//const Gfx dl_skybox_begin[] = {
+//    gsDPPipeSync(),
+//    gsSPClearGeometryMode(G_LIGHTING),
+//    gsDPSetCombineMode(G_CC_MODULATERGB, G_CC_MODULATERGB),
+//    gsSPPerspNormalize(0xFFFF),
+//    gsSPMatrix(&matrix_identity, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH),
+//    gsSPEndDisplayList(),
+//};
 
 // 0x02014738 - 0x02014768
-const Gfx dl_skybox_tile_tex_settings[] = {
-    gsSPMatrix(&matrix_identity, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH),
-    gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON),
-    gsDPTileSync(),
-    gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 0, G_TX_RENDERTILE, 0, G_TX_CLAMP, 5, G_TX_NOLOD, G_TX_CLAMP, 5, G_TX_NOLOD),
-    gsDPSetTileSize(0, 0, 0, (32 - 1) << G_TEXTURE_IMAGE_FRAC, (32 - 1) << G_TEXTURE_IMAGE_FRAC),
-    gsSPEndDisplayList(),
-};
+//const Gfx dl_skybox_tile_tex_settings[] = {
+//    gsSPMatrix(&matrix_identity, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH),
+//    gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON),
+//    gsDPTileSync(),
+//    gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 0, G_TX_RENDERTILE, 0, G_TX_CLAMP, 5, G_TX_NOLOD, G_TX_CLAMP, 5, G_TX_NOLOD),
+//    gsDPSetTileSize(0, 0, 0, (32 - 1) << G_TEXTURE_IMAGE_FRAC, (32 - 1) << G_TEXTURE_IMAGE_FRAC),
+//    gsSPEndDisplayList(),
+//};
 
 // 0x02014768 - 0x02014790
-const Gfx dl_skybox_end[] = {
-    gsDPPipeSync(),
-    gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF),
-    gsSPSetGeometryMode(G_LIGHTING),
-    gsDPSetCombineMode(G_CC_SHADE, G_CC_SHADE),
-    gsSPEndDisplayList(),
-};
+//const Gfx dl_skybox_end[] = {
+//    gsDPPipeSync(),
+//    gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF),
+//    gsSPSetGeometryMode(G_LIGHTING),
+//    gsDPSetCombineMode(G_CC_SHADE, G_CC_SHADE),
+//    gsSPEndDisplayList(),
+//};
 
 // 0x02014790 - 0x020147D0
 const Gfx dl_waterbox_rgba16_begin[] = {
@@ -2696,26 +2696,26 @@ ALIGNED8 static const Texture texture_ia8_up_arrow[] = {
 };
 
 // 0x02014878 - 0x020148B0
-const Gfx dl_ia8_up_arrow_begin[] = {
-    gsDPPipeSync(),
-    gsSPClearGeometryMode(G_LIGHTING),
-    gsDPSetCombineMode(G_CC_MODULATEIA, G_CC_MODULATEIA),
-    gsDPSetRenderMode(G_RM_XLU_SURF, G_RM_NOOP2),
-    gsSPPerspNormalize(0xFFFF),
-    gsSPMatrix(&matrix_identity, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH),
-    gsSPEndDisplayList(),
-};
+//const Gfx dl_ia8_up_arrow_begin[] = {
+//    gsDPPipeSync(),
+//    gsSPClearGeometryMode(G_LIGHTING),
+//    gsDPSetCombineMode(G_CC_MODULATEIA, G_CC_MODULATEIA),
+//    gsDPSetRenderMode(G_RM_XLU_SURF, G_RM_NOOP2),
+//    gsSPPerspNormalize(0xFFFF),
+//    gsSPMatrix(&matrix_identity, G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH),
+//    gsSPEndDisplayList(),
+//};
 
 // 0x020148B0 - 0x020148E0
 // Unused, seems to be an early DL for the power meter, seeing that is loading a 64x32 texture
-const Gfx dl_rgba16_unused[] = {
-    gsSPMatrix(&matrix_identity, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH),
-    gsDPTileSync(),
-    gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, 16, 0, G_TX_RENDERTILE, 0, G_TX_CLAMP, 5, G_TX_NOLOD, G_TX_CLAMP, 6, G_TX_NOLOD),
-    gsDPSetTileSize(0, 0, 0, (64 - 1) << G_TEXTURE_IMAGE_FRAC, (32 - 1) << G_TEXTURE_IMAGE_FRAC),
-    gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON),
-    gsSPEndDisplayList(),
-};
+//const Gfx dl_rgba16_unused[] = {
+//    gsSPMatrix(&matrix_identity, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH),
+//    gsDPTileSync(),
+//    gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, 16, 0, G_TX_RENDERTILE, 0, G_TX_CLAMP, 5, G_TX_NOLOD, G_TX_CLAMP, 6, G_TX_NOLOD),
+//    gsDPSetTileSize(0, 0, 0, (64 - 1) << G_TEXTURE_IMAGE_FRAC, (32 - 1) << G_TEXTURE_IMAGE_FRAC),
+//    gsSPTexture(0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON),
+//    gsSPEndDisplayList(),
+//};
 
 // 0x020148E0 - 0x02014938
 const Gfx dl_ia8_up_arrow_load_texture_block[] = {

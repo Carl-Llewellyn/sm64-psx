@@ -16,16 +16,16 @@ static s32 arrow_lift_move_away(void) {
     s8 status = ARROW_LIFT_NOT_DONE_MOVING;
 
     o->oMoveAngleYaw = o->oFaceAngleYaw - 0x4000;
-    o->oVelY = 0;
-    o->oForwardVel = 12;
+    QSETFIELD(o,  oVelY, q(0));
+    QSETFIELD(o,  oForwardVel, q(12));
     // Cumulative displacement is used to keep track of how far the platform
     // has travelled, so that it can stop.
-    o->oArrowLiftDisplacement += o->oForwardVel;
+    QMODFIELD(o, oArrowLiftDisplacement, += QFIELD(o, oForwardVel));
 
     // Stop the platform after moving 384 units.
-    if (o->oArrowLiftDisplacement > 384) {
-        o->oForwardVel = 0;
-        o->oArrowLiftDisplacement = 384;
+    if (QFIELD(o, oArrowLiftDisplacement) > q(384)) {
+        QSETFIELD(o,  oForwardVel, q(0));
+        QSETFIELD(o,  oArrowLiftDisplacement, q(384));
         status = ARROW_LIFT_DONE_MOVING;
     }
 
@@ -40,14 +40,14 @@ static s8 arrow_lift_move_back(void) {
     s8 status = ARROW_LIFT_NOT_DONE_MOVING;
 
     o->oMoveAngleYaw = o->oFaceAngleYaw + 0x4000;
-    o->oVelY = 0;
-    o->oForwardVel = 12;
-    o->oArrowLiftDisplacement -= o->oForwardVel;
+    QSETFIELD(o,  oVelY, q(0));
+    QSETFIELD(o,  oForwardVel, q(12));
+    QMODFIELD(o, oArrowLiftDisplacement, -= QFIELD(o, oForwardVel));
 
     // Stop the platform after returning back to its original position.
-    if (o->oArrowLiftDisplacement < 0) {
-        o->oForwardVel = 0;
-        o->oArrowLiftDisplacement = 0;
+    if (QFIELD(o, oArrowLiftDisplacement) < 0) {
+        QSETFIELD(o,  oForwardVel, q(0));
+        QSETFIELD(o,  oArrowLiftDisplacement, q(0));
         status = ARROW_LIFT_DONE_MOVING;
     }
 

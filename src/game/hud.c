@@ -13,6 +13,7 @@
 #include "area.h"
 #include "save_file.h"
 #include "print.h"
+#include <port/gfx/gfx.h>
 
 /* @file hud.c
  * This file implements HUD rendering and power meter animations.
@@ -61,17 +62,23 @@ static struct CameraHUD sCameraHUD = { CAM_STATUS_NONE };
  * Renders a rgba16 16x16 glyph texture from a table list.
  */
 void render_hud_tex_lut(s32 x, s32 y, u8 *texture) {
+#ifdef RSP_DL
     gDPPipeSync(gDisplayListHead++);
     gDPSetTextureImage(gDisplayListHead++, G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, texture);
     gSPDisplayList(gDisplayListHead++, &dl_hud_img_load_tex_block);
     gSPTextureRectangle(gDisplayListHead++, x << 2, y << 2, (x + 15) << 2, (y + 15) << 2,
                         G_TX_RENDERTILE, 0, 0, 4 << 10, 1 << 10);
+#else
+    gfx_emit_tex(segmented_to_virtual(texture));
+    gfx_emit_sprite(x, y);
+#endif
 }
 
 /**
  * Renders a rgba16 8x8 glyph texture from a table list.
  */
 void render_hud_small_tex_lut(s32 x, s32 y, u8 *texture) {
+#ifdef RSP_DL
     gDPSetTile(gDisplayListHead++, G_IM_FMT_RGBA, G_IM_SIZ_16b, 0, 0, G_TX_LOADTILE, 0,
                 G_TX_WRAP | G_TX_NOMIRROR, G_TX_NOMASK, G_TX_NOLOD, G_TX_WRAP | G_TX_NOMIRROR, G_TX_NOMASK, G_TX_NOLOD);
     gDPTileSync(gDisplayListHead++);
@@ -84,6 +91,10 @@ void render_hud_small_tex_lut(s32 x, s32 y, u8 *texture) {
     gDPLoadBlock(gDisplayListHead++, G_TX_LOADTILE, 0, 0, 8 * 8 - 1, CALC_DXT(8, G_IM_SIZ_16b_BYTES));
     gSPTextureRectangle(gDisplayListHead++, x << 2, y << 2, (x + 7) << 2, (y + 7) << 2, G_TX_RENDERTILE,
                         0, 0, 4 << 10, 1 << 10);
+#else
+    gfx_emit_tex(segmented_to_virtual(texture));
+    gfx_emit_sprite(x, y);
+#endif
 }
 
 /**
@@ -94,13 +105,8 @@ void render_power_meter_health_segment(s16 numHealthWedges) {
 
     healthLUT = segmented_to_virtual(&power_meter_health_segments_lut);
 
-    gDPPipeSync(gDisplayListHead++);
-    gDPSetTextureImage(gDisplayListHead++, G_IM_FMT_RGBA, G_IM_SIZ_16b, 1,
-                       (*healthLUT)[numHealthWedges - 1]);
-    gDPLoadSync(gDisplayListHead++);
-    gDPLoadBlock(gDisplayListHead++, G_TX_LOADTILE, 0, 0, 32 * 32 - 1, CALC_DXT(32, G_IM_SIZ_16b_BYTES));
-    gSP1Triangle(gDisplayListHead++, 0, 1, 2, 0);
-    gSP1Triangle(gDisplayListHead++, 0, 2, 3, 0);
+    gfx_emit_tex(segmented_to_virtual((*healthLUT)[numHealthWedges - 1]));
+	gfx_emit_sprite(sPowerMeterHUD.x + 16, YRES - sPowerMeterHUD.y - 32 + 16);
 }
 
 /**
@@ -108,27 +114,14 @@ void render_power_meter_health_segment(s16 numHealthWedges) {
  * That includes the "POWER" base and the colored health segment textures.
  */
 void render_dl_power_meter(s16 numHealthWedges) {
-    Mtx *mtx;
-
-    mtx = alloc_display_list(sizeof(Mtx));
-
-    if (mtx == NULL) {
-        return;
-    }
-
-    guTranslate(mtx, (f32) sPowerMeterHUD.x, (f32) sPowerMeterHUD.y, 0);
-
-    gSPMatrix(gDisplayListHead++, VIRTUAL_TO_PHYSICAL(mtx++),
-              G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_PUSH);
-    gSPDisplayList(gDisplayListHead++, &dl_power_meter_base);
-
-    if (numHealthWedges != 0) {
-        gSPDisplayList(gDisplayListHead++, &dl_power_meter_health_segments_begin);
+    gfx_emit_env_color_alpha_full(0xFFFFFF);
+    gfx_emit_tex(segmented_to_virtual(texture_power_meter_left_side));
+    gfx_emit_screen_quad(sPowerMeterHUD.x, YRES - sPowerMeterHUD.y - 32, sPowerMeterHUD.x + 32, YRES - sPowerMeterHUD.y + 32);
+    gfx_emit_tex(segmented_to_virtual(texture_power_meter_right_side));
+    gfx_emit_screen_quad(sPowerMeterHUD.x + 32, YRES - sPowerMeterHUD.y - 32, sPowerMeterHUD.x + 64, YRES - sPowerMeterHUD.y + 32);
+    if(numHealthWedges != 0) {
         render_power_meter_health_segment(numHealthWedges);
-        gSPDisplayList(gDisplayListHead++, &dl_power_meter_health_segments_end);
     }
-
-    gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
 }
 
 /**
@@ -234,7 +227,7 @@ void render_hud_power_meter(void) {
     }
 
     if (sPowerMeterHUD.animation == POWER_METER_HIDDEN) {
-        return;
+        //return;
     }
 
     switch (sPowerMeterHUD.animation) {
@@ -356,10 +349,14 @@ void render_hud_timer(void) {
     print_text_fmt_int(GFX_DIMENSIONS_RECT_FROM_RIGHT_EDGE(91), 185, "%0d", timerMins);
     print_text_fmt_int(GFX_DIMENSIONS_RECT_FROM_RIGHT_EDGE(71), 185, "%02d", timerSecs);
     print_text_fmt_int(GFX_DIMENSIONS_RECT_FROM_RIGHT_EDGE(37), 185, "%d", timerFracSecs);
+#ifdef RSP_DL
     gSPDisplayList(gDisplayListHead++, dl_hud_img_begin);
+#endif
     render_hud_tex_lut(GFX_DIMENSIONS_RECT_FROM_RIGHT_EDGE(81), 32, (*hudLUT)[GLYPH_APOSTROPHE]);
     render_hud_tex_lut(GFX_DIMENSIONS_RECT_FROM_RIGHT_EDGE(46), 32, (*hudLUT)[GLYPH_DOUBLE_QUOTE]);
+#ifdef RSP_DL
     gSPDisplayList(gDisplayListHead++, dl_hud_img_end);
+#endif
 }
 
 /**
@@ -387,7 +384,11 @@ void render_hud_camera_status(void) {
         return;
     }
 
+#ifdef RSP_DL
     gSPDisplayList(gDisplayListHead++, dl_hud_img_begin);
+#else
+    gfx_emit_env_color_alpha_full(0xFFFFFF);
+#endif
     render_hud_tex_lut(x, y, (*cameraLUT)[GLYPH_CAM_CAMERA]);
 
     switch (sCameraHUD.status & CAM_STATUS_MODE_GROUP) {
@@ -411,7 +412,9 @@ void render_hud_camera_status(void) {
             break;
     }
 
+#ifdef RSP_DL
     gSPDisplayList(gDisplayListHead++, dl_hud_img_end);
+#endif
 }
 
 /**

@@ -2182,4 +2182,3 @@ const Gfx debug_level_select_dl_070063B0[] = {
     gsSP1Triangle( 6,  7,  8, 0x0),
     gsSPEndDisplayList(),
 };
-

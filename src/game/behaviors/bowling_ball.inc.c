@@ -40,9 +40,9 @@ static Trajectory sThiTinyMetalBallTraj[] = {
 };
 
 void bhv_bowling_ball_init(void) {
-    o->oGravity = 5.5f;
-    o->oFriction = 1.0f;
-    o->oBuoyancy = 2.0f;
+    QSETFIELD(o, oGravity, q(5.5f));
+    QSETFIELD(o,  oFriction, q(1));
+    QSETFIELD(o,  oBuoyancy, q(2));
 }
 
 void bowling_ball_set_hitbox(void) {
@@ -91,14 +91,14 @@ void bhv_bowling_ball_roll_loop(void) {
 
     o->oBowlingBallTargetYaw = o->oPathedTargetYaw;
     o->oMoveAngleYaw = approach_s16_symmetric(o->oMoveAngleYaw, o->oBowlingBallTargetYaw, 0x400);
-    if (o->oForwardVel > 70.0) {
-        o->oForwardVel = 70.0;
+    if (QFIELD(o, oForwardVel) > q(70.0)) {
+        QSETFIELD(o,  oForwardVel, q(70));
     }
 
     bowling_ball_set_hitbox();
 
     if (sp18 == -1) {
-        if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 7000)) {
+        if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 7000)) {
             spawn_mist_particles();
             spawn_mist_particles_variable(0, 0, 92.0f);
         }
@@ -106,7 +106,7 @@ void bhv_bowling_ball_roll_loop(void) {
         o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
     }
 
-    if ((collisionFlags & OBJ_COL_FLAG_GROUNDED) && (o->oVelY > 5.0f))
+    if ((collisionFlags & OBJ_COL_FLAG_GROUNDED) && (QFIELD(o, oVelY) > q(5.0f)))
         cur_obj_play_sound_2(SOUND_GENERAL_QUIET_POUND1_LOWPRIO);
 }
 
@@ -125,25 +125,25 @@ void bhv_bowling_ball_initializeLoop(void) {
 
     switch (o->oBehParams2ndByte) {
         case BBALL_BP_STYPE_BOB_UPPER:
-            o->oForwardVel = 20.0f;
+            QSETFIELD(o,  oForwardVel, q(20));
             break;
 
         case BBALL_BP_STYPE_TTM:
-            o->oForwardVel = 10.0f;
+            QSETFIELD(o,  oForwardVel, q(10));
             break;
 
         case BBALL_BP_STYPE_BOB_LOWER:
-            o->oForwardVel = 20.0f;
+            QSETFIELD(o,  oForwardVel, q(20));
             break;
 
         case BBALL_BP_STYPE_THI_LARGE:
-            o->oForwardVel = 25.0f;
+            QSETFIELD(o,  oForwardVel, q(25));
             break;
 
         case BBALL_BP_STYPE_THI_SMALL:
-            o->oForwardVel = 10.0f;
-            cur_obj_scale(0.3f);
-            o->oGraphYOffset = 39.0f;
+            QSETFIELD(o,  oForwardVel, q(10));
+            cur_obj_scaleq(q(0.3f));
+            QSETFIELD(o,  oGraphYOffset, q(39));
             break;
     }
 }
@@ -161,7 +161,7 @@ void bhv_bowling_ball_loop(void) {
     }
 
     if (o->oBehParams2ndByte != 4)
-        set_camera_shake_from_point(SHAKE_POS_BOWLING_BALL, o->oPosX, o->oPosY, o->oPosZ);
+        set_camera_shake_from_pointq(SHAKE_POS_BOWLING_BALL, QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ));
 
     set_object_visibility(o, 4000);
 }
@@ -169,18 +169,18 @@ void bhv_bowling_ball_loop(void) {
 void bhv_generic_bowling_ball_spawner_init(void) {
     switch (o->oBehParams2ndByte) {
         case BBALL_BP_STYPE_BOB_UPPER:
-            o->oBBallSpawnerMaxSpawnDist = 7000.0f;
-            o->oBBallSpawnerSpawnOdds = 2.0f;
+            QSETFIELD(o,  oBBallSpawnerMaxSpawnDist, q(7000));
+            QSETFIELD(o,  oBBallSpawnerSpawnOdds, q(2));
             break;
 
         case BBALL_BP_STYPE_TTM:
-            o->oBBallSpawnerMaxSpawnDist = 8000.0f;
-            o->oBBallSpawnerSpawnOdds = 1.0f;
+            QSETFIELD(o,  oBBallSpawnerMaxSpawnDist, q(8000));
+            QSETFIELD(o,  oBBallSpawnerSpawnOdds, q(1));
             break;
 
         case BBALL_BP_STYPE_BOB_LOWER:
-            o->oBBallSpawnerMaxSpawnDist = 6000.0f;
-            o->oBBallSpawnerSpawnOdds = 2.0f;
+            QSETFIELD(o,  oBBallSpawnerMaxSpawnDist, q(6000));
+            QSETFIELD(o,  oBBallSpawnerSpawnOdds, q(2));
             break;
     }
 }
@@ -191,14 +191,14 @@ void bhv_generic_bowling_ball_spawner_loop(void) {
     if (o->oTimer == 256)
         o->oTimer = 0;
 
-    if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 1000)
-        || (o->oPosY < gMarioObject->header.gfx.pos[1]))
+    if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 1000)
+        || (IFIELD(o, oPosY) < gMarioObject->header.gfx.posi[1]))
         return;
 
     if ((o->oTimer & o->oBBallSpawnerPeriodMinus1) == 0) /* Modulus */
     {
-        if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, o->oBBallSpawnerMaxSpawnDist)) {
-            if ((s32)(random_float() * o->oBBallSpawnerSpawnOdds) == 0) {
+        if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), IFIELD(o, oBBallSpawnerMaxSpawnDist))) {
+            if (qmul(random_q32(), QFIELD(o, oBBallSpawnerSpawnOdds)) < ONE) {
                 bowlingBall = spawn_object(o, MODEL_BOWLING_BALL, bhvBowlingBall);
                 bowlingBall->oBehParams2ndByte = o->oBehParams2ndByte;
             }
@@ -212,13 +212,12 @@ void bhv_thi_bowling_ball_spawner_loop(void) {
     if (o->oTimer == 256)
         o->oTimer = 0;
 
-    if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 800)
-        || (o->oPosY < gMarioObject->header.gfx.pos[1]))
+    if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 800) || (IFIELD(o, oPosY) < gMarioObject->header.gfx.posi[1]))
         return;
 
     if ((o->oTimer % 64) == 0) {
-        if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 12000)) {
-            if ((s32)(random_float() * 1.5) == 0) {
+        if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 12000)) {
+            if (qmul(random_q32(), q(1.5)) < QONE) {
                 bowlingBall = spawn_object(o, MODEL_BOWLING_BALL, bhvBowlingBall);
                 bowlingBall->oBehParams2ndByte = o->oBehParams2ndByte;
             }
@@ -227,33 +226,33 @@ void bhv_thi_bowling_ball_spawner_loop(void) {
 }
 
 void bhv_bob_pit_bowling_ball_init(void) {
-    o->oGravity = 12.0f;
-    o->oFriction = 1.0f;
-    o->oBuoyancy = 2.0f;
+    QSETFIELD(o, oGravity, q(12.0f));
+    QSETFIELD(o,  oFriction, q(1));
+    QSETFIELD(o,  oBuoyancy, q(2));
 }
 
 void bhv_bob_pit_bowling_ball_loop(void) {
     struct FloorGeometry *sp1c;
     UNUSED s16 collisionFlags = object_step();
 
-    find_floor_height_and_data(o->oPosX, o->oPosY, o->oPosZ, &sp1c);
-    if ((sp1c->normalX == 0) && (sp1c->normalZ == 0))
-        o->oForwardVel = 28.0f;
+    find_floor_height_and_dataq(QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ), &sp1c);
+    if ((sp1c->normalXq == 0) && (sp1c->normalZq == 0))
+        QSETFIELD(o,  oForwardVel, q(28));
 
     bowling_ball_set_hitbox();
-    set_camera_shake_from_point(SHAKE_POS_BOWLING_BALL, o->oPosX, o->oPosY, o->oPosZ);
+    set_camera_shake_from_pointq(SHAKE_POS_BOWLING_BALL, QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ));
     cur_obj_play_sound_1(SOUND_ENV_UNKNOWN2);
     set_object_visibility(o, 3000);
 }
 
 void bhv_free_bowling_ball_init(void) {
-    o->oGravity = 5.5f;
-    o->oFriction = 1.0f;
-    o->oBuoyancy = 2.0f;
-    o->oHomeX = o->oPosX;
-    o->oHomeY = o->oPosY;
-    o->oHomeZ = o->oPosZ;
-    o->oForwardVel = 0;
+    QSETFIELD(o, oGravity, q(5.5f));
+    QSETFIELD(o,  oFriction, q(1));
+    QSETFIELD(o,  oBuoyancy, q(2));
+    QSETFIELD(o,  oHomeX, QFIELD(o,  oPosX));
+    QSETFIELD(o,  oHomeY, QFIELD(o,  oPosY));
+    QSETFIELD(o,  oHomeZ, QFIELD(o,  oPosZ));
+    QSETFIELD(o,  oForwardVel, q(0));
     o->oMoveAngleYaw = 0;
 }
 
@@ -261,32 +260,32 @@ void bhv_free_bowling_ball_roll_loop(void) {
     s16 collisionFlags = object_step();
     bowling_ball_set_hitbox();
 
-    if (o->oForwardVel > 10.0f) {
-        set_camera_shake_from_point(SHAKE_POS_BOWLING_BALL, o->oPosX, o->oPosY, o->oPosZ);
+    if (QFIELD(o, oForwardVel) > q(10.0f)) {
+        set_camera_shake_from_pointq(SHAKE_POS_BOWLING_BALL, QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ));
         cur_obj_play_sound_1(SOUND_ENV_UNKNOWN2);
     }
 
     if ((collisionFlags & OBJ_COL_FLAG_GROUNDED) && !(collisionFlags & OBJ_COL_FLAGS_LANDED))
         cur_obj_play_sound_2(SOUND_GENERAL_QUIET_POUND1_LOWPRIO);
 
-    if (!is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 6000)) {
+    if (!is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 6000)) {
         o->header.gfx.node.flags |= GRAPH_RENDER_INVISIBLE;
         cur_obj_become_intangible();
 
-        o->oPosX = o->oHomeX;
-        o->oPosY = o->oHomeY;
-        o->oPosZ = o->oHomeZ;
+        QSETFIELD(o,  oPosX, QFIELD(o,  oHomeX));
+        QSETFIELD(o,  oPosY, QFIELD(o,  oHomeY));
+        QSETFIELD(o,  oPosZ, QFIELD(o,  oHomeZ));
         bhv_free_bowling_ball_init();
         o->oAction = FREE_BBALL_ACT_RESET;
     }
 }
 
 void bhv_free_bowling_ball_loop(void) {
-    o->oGravity = 5.5f;
+    QSETFIELD(o, oGravity, q(5.5f));
 
     switch (o->oAction) {
         case FREE_BBALL_ACT_IDLE:
-            if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 3000)) {
+            if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 3000)) {
                 o->oAction = FREE_BBALL_ACT_ROLL;
                 o->header.gfx.node.flags &= ~GRAPH_RENDER_INVISIBLE;
                 cur_obj_become_tangible();
@@ -298,7 +297,7 @@ void bhv_free_bowling_ball_loop(void) {
             break;
 
         case FREE_BBALL_ACT_RESET:
-            if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 5000))
+            if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 5000))
                 o->oAction = FREE_BBALL_ACT_IDLE;
             break;
     }

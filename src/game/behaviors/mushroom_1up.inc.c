@@ -15,9 +15,9 @@ void bhv_1up_interact(void) {
 
 void bhv_1up_common_init(void) {
     o->oMoveAnglePitch = -0x4000;
-    o->oGravity = 3.0f;
-    o->oFriction = 1.0f;
-    o->oBuoyancy = 1.0f;
+    QSETFIELD(o, oGravity, q(3.0f));
+    QSETFIELD(o,  oFriction, q(1));
+    QSETFIELD(o,  oBuoyancy, q(1));
 }
 
 void bhv_1up_init(void) {
@@ -35,36 +35,36 @@ void bhv_1up_init(void) {
 
 void one_up_loop_in_air(void) {
     if (o->oTimer < 5) {
-        o->oVelY = 40.0f;
+        QSETFIELD(o, oVelY, q(40));
     } else {
         o->oAngleVelPitch = -0x1000;
         o->oMoveAnglePitch += o->oAngleVelPitch;
-        o->oVelY = coss(o->oMoveAnglePitch) * 30.0f + 2.0f;
-        o->oForwardVel = -sins(o->oMoveAnglePitch) * 30.0f;
+        QSETFIELD(o, oVelY, cosqs(o->oMoveAnglePitch) * 30 + q(2));
+        QSETFIELD(o, oForwardVel, -sinqs(o->oMoveAnglePitch) * 30);
     }
 }
 
 void pole_1up_move_towards_mario(void) {
-    f32 sp34 = gMarioObject->header.gfx.pos[0] - o->oPosX;
-    f32 sp30 = gMarioObject->header.gfx.pos[1] + 120.0f - o->oPosY;
-    f32 sp2C = gMarioObject->header.gfx.pos[2] - o->oPosZ;
+    s32 sp34 = gMarioObject->header.gfx.posi[0] - qtrunc(QFIELD(o, oPosX));
+    s32 sp30 = gMarioObject->header.gfx.posi[1] + 120 - qtrunc(QFIELD(o, oPosY));
+    s32 sp2C = gMarioObject->header.gfx.posi[2] - qtrunc(QFIELD(o, oPosZ));
     s16 sp2A = atan2s(sqrtf(sqr(sp34) + sqr(sp2C)), sp30);
 
     obj_turn_toward_object(o, gMarioObject, 16, 0x1000);
     o->oMoveAnglePitch = approach_s16_symmetric(o->oMoveAnglePitch, sp2A, 0x1000);
-    o->oVelY = sins(o->oMoveAnglePitch) * 30.0f;
-    o->oForwardVel = coss(o->oMoveAnglePitch) * 30.0f;
+    QSETFIELD(o, oVelY, sinqs(o->oMoveAnglePitch) * q(30));
+    QSETFIELD(o, oForwardVel, cosqs(o->oMoveAnglePitch) * q(30));
     bhv_1up_interact();
 }
 
 void one_up_move_away_from_mario(s16 sp1A) {
-    o->oForwardVel = 8.0f;
+    QSETFIELD(o, oForwardVel, q(8));
     o->oMoveAngleYaw = o->oAngleToMario + 0x8000;
     bhv_1up_interact();
     if (sp1A & 0x02)
         o->oAction = 2;
 
-    if (!is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 3000))
+    if (!is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 3000))
         o->oAction = 2;
 }
 
@@ -84,7 +84,7 @@ void bhv_1up_walking_loop(void) {
             if (o->oTimer == 37) {
                 cur_obj_become_tangible();
                 o->oAction = 1;
-                o->oForwardVel = 2.0f;
+                QSETFIELD(o,  oForwardVel, q(2));
             }
             break;
 
@@ -121,7 +121,7 @@ void bhv_1up_running_away_loop(void) {
             if (o->oTimer == 37) {
                 cur_obj_become_tangible();
                 o->oAction = 1;
-                o->oForwardVel = 8.0f;
+                QSETFIELD(o,  oForwardVel, q(8));
             }
             break;
 
@@ -144,16 +144,16 @@ void sliding_1up_move(void) {
 
     sp1E = object_step();
     if (sp1E & 0x01) {
-        o->oForwardVel += 25.0f;
-        o->oVelY = 0;
+        QMODFIELD(o, oForwardVel, += q(25.0f));
+        QSETFIELD(o, oVelY, q(0));
     } else {
-        o->oForwardVel *= 0.98;
+        QSETFIELD(o, oForwardVel, QFIELD(o, oForwardVel) * 49 / 50);
     }
 
-    if (o->oForwardVel > 40.0)
-        o->oForwardVel = 40.0f;
+    if (QFIELD(o, oForwardVel) > q(40.0))
+        QSETFIELD(o,  oForwardVel, q(40));
 
-    if (!is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 5000))
+    if (!is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 5000))
         o->oAction = 2;
 }
 
@@ -161,7 +161,7 @@ void bhv_1up_sliding_loop(void) {
     switch (o->oAction) {
         case 0:
             set_object_visibility(o, 3000);
-            if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 1000))
+            if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 1000))
                 o->oAction = 1;
             break;
 
@@ -189,8 +189,8 @@ void bhv_1up_jump_on_approach_loop(void) {
 
     switch (o->oAction) {
         case 0:
-            if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 1000)) {
-                o->oVelY = 40.0f;
+            if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 1000)) {
+                QSETFIELD(o,  oVelY, q(40));
                 o->oAction = 1;
             }
             break;
@@ -217,7 +217,7 @@ void bhv_1up_hidden_loop(void) {
         case 0:
             o->header.gfx.node.flags |= GRAPH_RENDER_INVISIBLE;
             if (o->o1UpHiddenUnkF4 == o->oBehParams2ndByte) {
-                o->oVelY = 40.0f;
+                QSETFIELD(o,  oVelY, q(40));
                 o->oAction = 3;
                 o->header.gfx.node.flags &= ~GRAPH_RENDER_INVISIBLE;
                 play_sound(SOUND_GENERAL2_1UP_APPEAR, gGlobalSoundSource);
@@ -246,7 +246,7 @@ void bhv_1up_hidden_loop(void) {
             if (o->oTimer == 37) {
                 cur_obj_become_tangible();
                 o->oAction = 1;
-                o->oForwardVel = 8.0f;
+                QSETFIELD(o,  oForwardVel, q(8));
             }
             break;
     }
@@ -269,7 +269,7 @@ void bhv_1up_hidden_in_pole_loop(void) {
         case 0:
             o->header.gfx.node.flags |= GRAPH_RENDER_INVISIBLE;
             if (o->o1UpHiddenUnkF4 == o->oBehParams2ndByte) {
-                o->oVelY = 40.0f;
+                QSETFIELD(o,  oVelY, q(40));
                 o->oAction = 3;
                 o->header.gfx.node.flags &= ~GRAPH_RENDER_INVISIBLE;
                 play_sound(SOUND_GENERAL2_1UP_APPEAR, gGlobalSoundSource);
@@ -291,7 +291,7 @@ void bhv_1up_hidden_in_pole_loop(void) {
             if (o->oTimer == 37) {
                 cur_obj_become_tangible();
                 o->oAction = 1;
-                o->oForwardVel = 10.0f;
+                QSETFIELD(o,  oForwardVel, q(10));
             }
             break;
     }
@@ -313,7 +313,7 @@ void bhv_1up_hidden_in_pole_trigger_loop(void) {
 void bhv_1up_hidden_in_pole_spawner_loop(void) {
     s8 sp2F;
 
-    if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 700)) {
+    if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 700)) {
         spawn_object_relative(2, 0, 50, 0, o, MODEL_1UP, bhvHidden1upInPole);
         for (sp2F = 0; sp2F < 2; sp2F++) {
             spawn_object_relative(0, 0, sp2F * -200, 0, o, MODEL_NONE, bhvHidden1upInPoleTrigger);

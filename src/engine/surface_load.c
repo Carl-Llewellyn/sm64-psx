@@ -14,8 +14,8 @@
 #include "game/mario.h"
 #include "game/object_list_processor.h"
 #include "surface_load.h"
-
-s32 unused8038BE90;
+#include "math_util.h"
+#include <assert.h>
 
 /**
  * Partitions for course and object surfaces. The arrays represent
@@ -27,22 +27,8 @@ SpatialPartitionCell gDynamicSurfacePartition[NUM_CELLS][NUM_CELLS];
 /**
  * Pools of data to contain either surface nodes or surfaces.
  */
-#ifdef USE_SYSTEM_MALLOC
-static struct AllocOnlyPool *sStaticSurfaceNodePool;
-static struct AllocOnlyPool *sStaticSurfacePool;
-static struct AllocOnlyPool *sDynamicSurfaceNodePool;
-static struct AllocOnlyPool *sDynamicSurfacePool;
-static u8 sStaticSurfaceLoadComplete;
-#else
 struct SurfaceNode *sSurfaceNodePool;
 struct Surface *sSurfacePool;
-
-/**
- * The size of the surface pool (2300).
- */
-s16 sSurfacePoolSize;
-#endif
-
 
 u8 unused8038EEA8[0x30];
 
@@ -50,24 +36,16 @@ u8 unused8038EEA8[0x30];
  * Allocate the part of the surface node pool to contain a surface node.
  */
 static struct SurfaceNode *alloc_surface_node(void) {
-#ifdef USE_SYSTEM_MALLOC
-    struct AllocOnlyPool *pool = !sStaticSurfaceLoadComplete ?
-                                 sStaticSurfaceNodePool : sDynamicSurfaceNodePool;
-    struct SurfaceNode *node = alloc_only_pool_alloc(pool, sizeof(struct SurfaceNode));
-#else
     struct SurfaceNode *node = &sSurfaceNodePool[gSurfaceNodesAllocated];
-#endif
     gSurfaceNodesAllocated++;
 
     node->next = NULL;
 
-#ifndef USE_SYSTEM_MALLOC
     //! A bounds check! If there's more surface nodes than 7000 allowed,
     //  we, um...
     // Perhaps originally just debug feedback?
-    if (gSurfaceNodesAllocated >= 7000) {
-    }
-#endif
+    // replaced it with an assert
+    assertm(gSurfaceNodesAllocated < SURFACE_NODE_POOL_LEN, "surface node pool full");
 
     return node;
 }
@@ -77,22 +55,14 @@ static struct SurfaceNode *alloc_surface_node(void) {
  * initialize the surface.
  */
 static struct Surface *alloc_surface(void) {
-#ifdef USE_SYSTEM_MALLOC
-    struct AllocOnlyPool *pool = !sStaticSurfaceLoadComplete ?
-                                 sStaticSurfacePool : sDynamicSurfacePool;
-    struct Surface *surface = alloc_only_pool_alloc(pool, sizeof(struct Surface));
-#else
     struct Surface *surface = &sSurfacePool[gSurfacesAllocated];
-#endif
     gSurfacesAllocated++;
 
-#ifndef USE_SYSTEM_MALLOC
     //! A bounds check! If there's more surfaces than the 2300 allowed,
     //  we, um...
     // Perhaps originally just debug feedback?
-    if (gSurfacesAllocated >= sSurfacePoolSize) {
-    }
-#endif
+    // replaced with an assert
+    assertm(gSurfacesAllocated < SURFACE_POOL_LEN, "surface pool full");
 
     surface->type = 0;
     surface->force = 0;
@@ -140,17 +110,17 @@ static void add_surface_to_cell(s16 dynamic, s16 cellX, s16 cellZ, struct Surfac
     s16 sortDir;
     s16 listIndex;
 
-    if (surface->normal.y > 0.01) {
+    if (surface->compressed_normal.y > (s8) (0.01 * COMPRESSED_NORMAL_ONE)) {
         listIndex = SPATIAL_PARTITION_FLOORS;
         sortDir = 1; // highest to lowest, then insertion order
-    } else if (surface->normal.y < -0.01) {
+    } else if (surface->compressed_normal.y < (s8) (-0.01 * COMPRESSED_NORMAL_ONE)) {
         listIndex = SPATIAL_PARTITION_CEILS;
         sortDir = -1; // lowest to highest, then insertion order
     } else {
         listIndex = SPATIAL_PARTITION_WALLS;
         sortDir = 0; // insertion order
 
-        if (surface->normal.x < -0.707 || surface->normal.x > 0.707) {
+        if (surface->compressed_normal.x < (s8) (-0.707 * COMPRESSED_NORMAL_ONE) || surface->compressed_normal.x > (s8) (0.707 * COMPRESSED_NORMAL_ONE)) {
             surface->flags |= SURFACE_FLAG_X_PROJECTION;
         }
     }
@@ -353,6 +323,8 @@ static struct Surface *read_surface_data(s16 *vertexData, s16 **vertexIndices) {
     nx = (y2 - y1) * (z3 - z2) - (z2 - z1) * (y3 - y2);
     ny = (z2 - z1) * (x3 - x2) - (x2 - x1) * (z3 - z2);
     nz = (x2 - x1) * (y3 - y2) - (y2 - y1) * (x3 - x2);
+	// this CANNOT be q32 or even s32, the values are just too large
+	// maybe we could just approximate it? that would probably be fine
     mag = sqrtf(nx * nx + ny * ny + nz * nz);
 
     // Could have used min_3 and max_3 for this...
@@ -373,10 +345,10 @@ static struct Surface *read_surface_data(s16 *vertexData, s16 **vertexIndices) {
     }
 
     // Checking to make sure no DIV/0
-    if (mag < 0.0001) {
+    if (mag == 0) {
         return NULL;
     }
-    mag = (f32)(1.0 / mag);
+    mag = recipf(mag);
     nx *= mag;
     ny *= mag;
     nz *= mag;
@@ -395,11 +367,11 @@ static struct Surface *read_surface_data(s16 *vertexData, s16 **vertexIndices) {
     surface->vertex2[2] = z2;
     surface->vertex3[2] = z3;
 
-    surface->normal.x = nx;
-    surface->normal.y = ny;
-    surface->normal.z = nz;
+	surface->compressed_normal.x = q(nx) * COMPRESSED_NORMAL_ONE / QONE;
+	surface->compressed_normal.y = q(ny) * COMPRESSED_NORMAL_ONE / QONE;
+	surface->compressed_normal.z = q(nz) * COMPRESSED_NORMAL_ONE / QONE;
 
-    surface->originOffset = -(nx * x1 + ny * y1 + nz * z1);
+    surface->originOffsetq = q(-(nx * x1 + ny * y1 + nz * z1));
 
     surface->lowerY = minY - 5;
     surface->upperY = maxY + 5;
@@ -548,16 +520,8 @@ static void load_environmental_regions(s16 **data) {
  * Allocate some of the main pool for surfaces (2300 surf) and for surface nodes (7000 nodes).
  */
 void alloc_surface_pools(void) {
-#ifdef USE_SYSTEM_MALLOC
-    sStaticSurfaceNodePool = alloc_only_pool_init();
-    sStaticSurfacePool = alloc_only_pool_init();
-    sDynamicSurfaceNodePool = alloc_only_pool_init();
-    sDynamicSurfacePool = alloc_only_pool_init();
-#else
-    sSurfacePoolSize = 2300;
-    sSurfaceNodePool = main_pool_alloc(7000 * sizeof(struct SurfaceNode), MEMORY_POOL_LEFT);
-    sSurfacePool = main_pool_alloc(sSurfacePoolSize * sizeof(struct Surface), MEMORY_POOL_LEFT);
-#endif
+    sSurfaceNodePool = main_pool_alloc(SURFACE_NODE_POOL_LEN * sizeof(struct SurfaceNode), MEMORY_POOL_LEFT);
+    sSurfacePool = main_pool_alloc(SURFACE_POOL_LEN * sizeof(struct Surface), MEMORY_POOL_LEFT);
 
     gCCMEnteredSlide = 0;
     reset_red_coins_collected();
@@ -620,25 +584,12 @@ u32 get_area_terrain_size(s16 *data) {
  */
 void load_area_terrain(s16 index, s16 *data, s8 *surfaceRooms, s16 *macroObjects) {
     s16 terrainLoadType;
-    s16 *vertexData;
-    UNUSED s32 unused;
+    s16 *vertexData = NULL;
 
     // Initialize the data for this.
     gEnvironmentRegions = NULL;
-    unused8038BE90 = 0;
     gSurfaceNodesAllocated = 0;
     gSurfacesAllocated = 0;
-#ifdef USE_SYSTEM_MALLOC
-    alloc_only_pool_clear(sStaticSurfaceNodePool);
-    alloc_only_pool_clear(sStaticSurfacePool);
-    alloc_only_pool_clear(sDynamicSurfaceNodePool);
-    alloc_only_pool_clear(sDynamicSurfacePool);
-    sStaticSurfaceLoadComplete = FALSE;
-
-    // Originally they forgot to clear this matrix,
-    // results in segfaults if this is not done.
-    clear_dynamic_surfaces();
-#endif
 
     clear_static_surfaces();
 
@@ -662,6 +613,7 @@ void load_area_terrain(s16 index, s16 *data, s8 *surfaceRooms, s16 *macroObjects
         } else if (terrainLoadType == TERRAIN_LOAD_END) {
             break;
         } else if (TERRAIN_LOAD_IS_SURFACE_TYPE_HIGH(terrainLoadType)) {
+            assert(vertexData);
             load_static_surfaces(&data, vertexData, terrainLoadType, &surfaceRooms);
             continue;
         }
@@ -681,10 +633,6 @@ void load_area_terrain(s16 index, s16 *data, s8 *surfaceRooms, s16 *macroObjects
 
     gNumStaticSurfaceNodes = gSurfaceNodesAllocated;
     gNumStaticSurfaces = gSurfacesAllocated;
-
-#ifdef USE_SYSTEM_MALLOC
-    sStaticSurfaceLoadComplete = TRUE;
-#endif
 }
 
 /**
@@ -692,15 +640,6 @@ void load_area_terrain(s16 index, s16 *data, s8 *surfaceRooms, s16 *macroObjects
  */
 void clear_dynamic_surfaces(void) {
     if (!(gTimeStopState & TIME_STOP_ACTIVE)) {
-#ifdef USE_SYSTEM_MALLOC
-        if (gSurfacesAllocated > gNumStaticSurfaces) {
-            alloc_only_pool_clear(sDynamicSurfacePool);
-        }
-        if (gSurfaceNodesAllocated > gNumStaticSurfaceNodes) {
-            alloc_only_pool_clear(sDynamicSurfaceNodePool);
-        }
-#endif
-
         gSurfacesAllocated = gNumStaticSurfaces;
         gSurfaceNodesAllocated = gNumStaticSurfaceNodes;
 
@@ -708,44 +647,42 @@ void clear_dynamic_surfaces(void) {
     }
 }
 
-UNUSED static void unused_80383604(void) {
-}
-
 /**
  * Applies an object's transformation to the object's vertices.
  */
 void transform_object_vertices(s16 **data, s16 *vertexData) {
     register s16 *vertices;
-    register f32 vx, vy, vz;
+    register s32 vxi, vyi, vzi;
     register s32 numVertices;
 
-    Mat4 *objectTransform;
-    Mat4 m;
+    ShortMatrix* objectTransformq;
+    ShortMatrix mq;
 
-    objectTransform = &gCurrentObject->transform;
+    objectTransformq = &gCurrentObject->transformq;
 
     numVertices = *(*data);
     (*data)++;
 
     vertices = *data;
 
-    if (gCurrentObject->header.gfx.throwMatrix == NULL) {
-        gCurrentObject->header.gfx.throwMatrix = objectTransform;
+    if(!gCurrentObject->header.gfx.throwMatrixq) {
+        gCurrentObject->header.gfx.throwMatrixq = objectTransformq;
         obj_build_transform_from_pos_and_angle(gCurrentObject, O_POS_INDEX, O_FACE_ANGLE_INDEX);
     }
 
-    obj_apply_scale_to_matrix(gCurrentObject, m, *objectTransform);
+    obj_apply_scale_to_mtxq(gCurrentObject, &mq, objectTransformq);
 
     // Go through all vertices, rotating and translating them to transform the object.
-    while (numVertices--) {
-        vx = *(vertices++);
-        vy = *(vertices++);
-        vz = *(vertices++);
+    while(numVertices--) {
+        vxi = *(vertices++);
+        vyi = *(vertices++);
+        vzi = *(vertices++);
 
         //! No bounds check on vertex data
-        *vertexData++ = (s16)(vx * m[0][0] + vy * m[1][0] + vz * m[2][0] + m[3][0]);
-        *vertexData++ = (s16)(vx * m[0][1] + vy * m[1][1] + vz * m[2][1] + m[3][1]);
-        *vertexData++ = (s16)(vx * m[0][2] + vy * m[1][2] + vz * m[2][2] + m[3][2]);
+        // TODO: optimize with GTE?
+        *vertexData++ = qtrunc(vxi * (q32) mq.m[0][0] + vyi * (q32) mq.m[1][0] + vzi * (q32) mq.m[2][0]) + mq.t[0];
+        *vertexData++ = qtrunc(vxi * (q32) mq.m[0][1] + vyi * (q32) mq.m[1][1] + vzi * (q32) mq.m[2][1]) + mq.t[1];
+        *vertexData++ = qtrunc(vxi * (q32) mq.m[0][2] + vyi * (q32) mq.m[1][2] + vzi * (q32) mq.m[2][2]) + mq.t[2];
     }
 
     *data = vertices;
@@ -811,27 +748,26 @@ void load_object_surfaces(s16 **data, s16 *vertexData) {
  * Transform an object's vertices, reload them, and render the object.
  */
 void load_object_collision_model(void) {
-    UNUSED s32 unused;
     s16 vertexData[600];
 
     s16 *collisionData = gCurrentObject->collisionData;
-    f32 marioDist = gCurrentObject->oDistanceToMario;
-    f32 tangibleDist = gCurrentObject->oCollisionDistance;
+    q32 marioDistq = QFIELD(gCurrentObject, oDistanceToMario);
+    q32 tangibleDistq = QFIELD(gCurrentObject, oCollisionDistance);
 
     // On an object's first frame, the distance is set to 19000.0f.
     // If the distance hasn't been updated, update it now.
-    if (gCurrentObject->oDistanceToMario == 19000.0f) {
-        marioDist = dist_between_objects(gCurrentObject, gMarioObject);
+    if (QFIELD(gCurrentObject, oDistanceToMario) == q(19000)) {
+        marioDistq = dist_between_objectsq(gCurrentObject, gMarioObject);
     }
 
     // If the object collision is supposed to be loaded more than the
     // drawing distance of 4000, extend the drawing range.
-    if (gCurrentObject->oCollisionDistance > 4000.0f) {
-        gCurrentObject->oDrawingDistance = gCurrentObject->oCollisionDistance;
+    if (QFIELD(gCurrentObject, oCollisionDistance) > q(4000)) {
+        QSETFIELD(gCurrentObject, oDrawingDistance, QFIELD(gCurrentObject, oCollisionDistance));
     }
 
     // Update if no Time Stop, in range, and in the current room.
-    if (!(gTimeStopState & TIME_STOP_ACTIVE) && marioDist < tangibleDist
+    if (!(gTimeStopState & TIME_STOP_ACTIVE) && marioDistq < tangibleDistq
         && !(gCurrentObject->activeFlags & ACTIVE_FLAG_IN_DIFFERENT_ROOM)) {
         collisionData++;
         transform_object_vertices(&collisionData, vertexData);
@@ -842,7 +778,7 @@ void load_object_collision_model(void) {
         }
     }
 
-    if (marioDist < gCurrentObject->oDrawingDistance) {
+    if (marioDistq < QFIELD(gCurrentObject, oDrawingDistance)) {
         gCurrentObject->header.gfx.node.flags |= GRAPH_RENDER_ACTIVE;
     } else {
         gCurrentObject->header.gfx.node.flags &= ~GRAPH_RENDER_ACTIVE;

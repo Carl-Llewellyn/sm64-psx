@@ -25,9 +25,9 @@ static struct ObjectHitbox sMoneybagHiddenHitbox = {
 };
 
 void bhv_moneybag_init(void) {
-    o->oGravity = 3.0f;
-    o->oFriction = 1.0f;
-    o->oBuoyancy = 2.0f;
+    QSETFIELD(o, oGravity, q(3.0f));
+    QSETFIELD(o,  oFriction, q(1));
+    QSETFIELD(o,  oBuoyancy, q(2));
     cur_obj_init_animation(0);
     o->oOpacity = 0;
 }
@@ -40,7 +40,7 @@ void moneybag_check_mario_collision(void) {
         if (o->oInteractStatus & INT_STATUS_ATTACKED_MARIO) /* bit 13 */
         {
             o->oMoveAngleYaw = o->oAngleToMario + 0x8000;
-            o->oVelY = 30.0f;
+            QSETFIELD(o,  oVelY, q(30));
         }
 
         if (o->oInteractStatus & INT_STATUS_WAS_ATTACKED) /* bit 14 */
@@ -61,8 +61,8 @@ void moneybag_jump(s8 collisionFlags) {
         case MONEYBAG_JUMP_PREPARE:
             cur_obj_init_animation(1);
             if (animFrame == 5) {
-                o->oForwardVel = 20.0f;
-                o->oVelY = 40.0f;
+                QSETFIELD(o,  oForwardVel, q(20));
+                QSETFIELD(o,  oVelY, q(40));
             }
 
             if (cur_obj_check_if_near_animation_end() == 1) {
@@ -76,8 +76,8 @@ void moneybag_jump(s8 collisionFlags) {
 
             if ((collisionFlags & 1) == 1) /* bit 0 */
             {
-                o->oForwardVel = 0;
-                o->oVelY = 0;
+                QSETFIELD(o,  oForwardVel, q(0));
+                QSETFIELD(o,  oVelY, q(0));
                 o->oMoneybagJumpState = MONEYBAG_JUMP_LANDING;
             }
             break;
@@ -91,18 +91,18 @@ void moneybag_jump(s8 collisionFlags) {
 
         case MONEYBAG_JUMP_WALK_AROUND:
             cur_obj_init_animation(4);
-            o->oForwardVel = 10.0f;
+            QSETFIELD(o,  oForwardVel, q(10));
 
             if (o->oTimer >= 61) {
                 o->oMoneybagJumpState = MONEYBAG_JUMP_LANDING;
-                o->oForwardVel = 0;
+                QSETFIELD(o,  oForwardVel, q(0));
                 o->header.gfx.animInfo.animFrame = 0;
             }
             break;
 
         case MONEYBAG_JUMP_WALK_HOME:
             cur_obj_init_animation(4);
-            o->oForwardVel = 5.0f;
+            QSETFIELD(o,  oForwardVel, q(5));
             break;
     }
 }
@@ -110,7 +110,7 @@ void moneybag_jump(s8 collisionFlags) {
 void moneybag_act_move_around(void) {
     s16 collisionFlags;
 
-    obj_return_and_displace_home(o, o->oHomeX, o->oHomeY, o->oHomeZ, 200);
+    obj_return_and_displace_home(o, IFIELD(o, oHomeX), IFIELD(o, oHomeZ), 200);
 
     collisionFlags = object_step();
 
@@ -126,15 +126,15 @@ void moneybag_act_move_around(void) {
     moneybag_jump(collisionFlags);
     moneybag_check_mario_collision();
 
-    if (!is_point_within_radius_of_mario(o->oHomeX, o->oHomeY, o->oHomeZ, 800)
+    if (!is_point_within_radius_of_mario(IFIELD(o, oHomeX), IFIELD(o, oHomeY), IFIELD(o, oHomeZ), 800)
         && ((collisionFlags & OBJ_COL_FLAGS_LANDED) == OBJ_COL_FLAGS_LANDED))
         o->oAction = MONEYBAG_ACT_RETURN_HOME;
 }
 
 void moneybag_act_return_home(void) {
     s16 collisionFlags;
-    f32 sp28 = o->oHomeX - o->oPosX;
-    f32 sp24 = o->oHomeZ - o->oPosZ;
+    f32 sp28 = FFIELD(o, oHomeX) - FFIELD(o, oPosX);
+    f32 sp24 = FFIELD(o, oHomeZ) - FFIELD(o, oPosZ);
     s16 sp22 = atan2s(sp24, sp28);
     o->oMoveAngleYaw = approach_s16_symmetric(o->oMoveAngleYaw, sp22, 0x800);
 
@@ -146,7 +146,7 @@ void moneybag_act_return_home(void) {
     moneybag_jump(collisionFlags);
     moneybag_check_mario_collision();
 
-    if (is_point_close_to_object(o, o->oHomeX, o->oHomeY, o->oHomeZ, 100)) {
+    if (is_point_close_to_object(o, FFIELD(o, oHomeX), FFIELD(o, oHomeY), FFIELD(o, oHomeZ), 100)) {
         spawn_object(o, MODEL_YELLOW_COIN, bhvMoneybagHidden);
 #ifndef VERSION_JP
         cur_obj_play_sound_2(SOUND_GENERAL_VANISH_SFX);
@@ -156,7 +156,7 @@ void moneybag_act_return_home(void) {
         o->oMoneybagJumpState = MONEYBAG_JUMP_LANDING;
     }
 
-    if (is_point_within_radius_of_mario(o->oHomeX, o->oHomeY, o->oHomeZ, 800) == 1) {
+    if (is_point_within_radius_of_mario(IFIELD(o, oHomeX), IFIELD(o, oHomeY), IFIELD(o, oHomeZ), 800) == 1) {
         o->oAction = MONEYBAG_ACT_MOVE_AROUND;
         o->oMoneybagJumpState = MONEYBAG_JUMP_LANDING;
     }
@@ -216,7 +216,7 @@ void bhv_moneybag_hidden_loop(void) {
 
     switch (o->oAction) {
         case FAKE_MONEYBAG_COIN_ACT_IDLE:
-            if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 400)) {
+            if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 400)) {
                 spawn_object(o, MODEL_MONEYBAG, bhvMoneybag);
 #ifndef VERSION_JP
                 cur_obj_play_sound_2(SOUND_GENERAL_VANISH_SFX);

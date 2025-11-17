@@ -11,7 +11,7 @@ void water_level_pillar_undrained(void) {
             break;
         case 1:
             if (o->oTimer < 4)
-                o->oPosY -= 20.0f;
+                QMODFIELD(o, oPosY, -= q(20.0f));
             else
                 o->oAction++;
             break;
@@ -53,7 +53,7 @@ void water_level_pillar_undrained(void) {
 
 void water_level_pillar_drained(void) {
     if (o->oTimer == 0) {
-        o->oPosY -= 80.0f;
+        QMODFIELD(o, oPosY, -= q(80.0f));
         gEnvironmentLevels[2] = -2450;
         gEnvironmentLevels[0] = -2450;
     }

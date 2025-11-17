@@ -16,7 +16,7 @@ void bhv_thi_huge_island_top_loop(void) {
 void bhv_thi_tiny_island_top_loop(void) {
     if (!(gTHIWaterDrained & 1)) {
         if (o->oAction == 0) {
-            if (o->oDistanceToMario < 500.0f)
+            if (QFIELD(o, oDistanceToMario) < q(500.0))
                 if (gMarioStates[0].action == ACT_GROUND_POUND_LAND) {
                     o->oAction++;
                     cur_obj_spawn_particles(&sThiTopPuffs);

@@ -25,7 +25,8 @@
 
 typedef enum
 {
-    IMG_FORMAT_CI
+    IMG_FORMAT_CI,
+	IMG_FORMAT_PSX
 } img_format;
 
 rgba *raw2rgba(const uint8_t *raw, int width, int height, int depth)
@@ -144,6 +145,27 @@ int rgba2rawci(uint8_t *raw, uint8_t *out_palette, int *pal_len, const rgba *img
     free(rgba32_palette);
     free(ci8_raw);
     return size;
+}
+
+int rgba2psx(uint8_t *raw, const rgba *img, int width, int height)
+{
+	int size = width * height * 2;
+	INFO("Converting RGBA %dx%d to 16-bit PSX format\n", width, height);
+	for(int i = 0; i < width * height; i++) {
+		uint16_t r, g, b;
+		r = SCALE_8_5(img[i].red);
+		g = SCALE_8_5(img[i].green);
+		b = SCALE_8_5(img[i].blue);
+		if(img[i].alpha) {
+			uint16_t col16 = r | g << 5 | b << 10 | 0x8000;
+			raw[i * 2] = col16 & 0xFF;
+			raw[i * 2 + 1] = col16 >> 8;
+		} else {
+			raw[i * 2] = 0;
+			raw[i * 2 + 1] = 0;
+		}
+	}
+	return size;
 }
 
 rgba *png2rgba(const char *png_filename, int *width, int *height)
@@ -295,6 +317,7 @@ static const format_entry format_table[] =
 {
     { "ci4",    IMG_FORMAT_CI,   4 },
     { "ci8",    IMG_FORMAT_CI,   8 },
+	{ "psx",    IMG_FORMAT_PSX,  16 },
 };
 
 static const char *format2str(img_format format, int depth)
@@ -491,6 +514,15 @@ int main(int argc, char* argv[])
             length = rgba2rawci(raw, pal, &pal_len, imgr, config.width, config.height, config.depth);
             //length = rgba2raw(raw, imgr, config.width, config.height, config.depth);
             break;
+		case IMG_FORMAT_PSX:
+            imgr = png2rgba(config.img_filename, &config.width, &config.height);
+            raw_size = config.width * config.height * 2;
+            raw = malloc(raw_size);
+            if (!raw) {
+                ERROR("Error allocating %u bytes\n", raw_size);
+            }
+            length = rgba2psx(raw, imgr, config.width, config.height);
+			break;
         }
         if (length <= 0) {
             ERROR("Error converting to raw format\n");

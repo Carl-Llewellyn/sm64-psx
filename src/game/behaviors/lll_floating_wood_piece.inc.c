@@ -2,8 +2,8 @@
 
 void bhv_lll_wood_piece_loop(void) {
     if (o->oTimer == 0)
-        o->oPosY -= 100.0f;
-    o->oPosY += sins(o->oLllWoodPieceOscillationTimer) * 3.0f;
+        QMODFIELD(o, oPosY, -= q(100));
+    QMODFIELD(o, oPosY, += sinqs(o->oLllWoodPieceOscillationTimer) * 3);
     o->oLllWoodPieceOscillationTimer += 0x400;
     if (o->parentObj->oAction == 2)
         obj_mark_for_deletion(o);
@@ -14,7 +14,7 @@ void bhv_lll_floating_wood_bridge_loop(void) {
     s32 i;
     switch (o->oAction) {
         case 0:
-            if (o->oDistanceToMario < 2500.0f) {
+            if (QFIELD(o, oDistanceToMario) < q(2500.0)) {
                 for (i = 1; i < 4; i++) {
                     sp3C = spawn_object_relative(0, (i - 2) * 300, 0, 0, o, MODEL_LLL_WOOD_BRIDGE,
                                                  bhvLllWoodPiece);
@@ -24,7 +24,7 @@ void bhv_lll_floating_wood_bridge_loop(void) {
             }
             break;
         case 1:
-            if (o->oDistanceToMario > 2600.0f)
+            if (QFIELD(o, oDistanceToMario) > q(2600.0))
                 o->oAction = 2;
             break;
         case 2:

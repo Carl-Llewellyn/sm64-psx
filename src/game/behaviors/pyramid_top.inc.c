@@ -32,31 +32,31 @@ void bhv_pyramid_top_spinning(void) {
     struct Object *pyramidFragment;
 
     // (TODO: What is this doing)
-    o->oPosX = o->oHomeX + sins(o->oTimer * 0x4000) * 40.0f;
+    FSETFIELD(o, oPosX, FFIELD(o, oHomeX) + sins(o->oTimer * 0x4000) * 40.0f);
 
     // At first, move upward smoothly without rotating.
     if (o->oTimer < 60) {
-        o->oPosY = o->oHomeY + absf_2(sins(o->oTimer * 0x2000) * 10.0f);
+        FSETFIELD(o, oPosY, FFIELD(o, oHomeY) + absf_2(sins(o->oTimer * 0x2000) * 10.0f));
     } else {
         // Then, rotate at an accelerating rate, and move upward at a constant rate.
         o->oAngleVelYaw += 0x100;
         if (o->oAngleVelYaw > 0x1800) {
             o->oAngleVelYaw = 0x1800;
-            o->oVelY = 5.0f;
+            QSETFIELD(o,  oVelY, q(5));
         }
 
         o->oFaceAngleYaw += o->oAngleVelYaw;
-        o->oPosY += o->oVelY;
+        QMODFIELD(o, oPosY, += QFIELD(o, oVelY));
     }
 
     // Every frame until 90 frames have passed, generate a pyramid fragment
     // with a random velocity and angle.
     if (o->oTimer < 90) {
         pyramidFragment = spawn_object(o, MODEL_DIRT_ANIMATION, bhvPyramidTopFragment);
-        pyramidFragment->oForwardVel = random_float() * 10.0f + 20.0f;
+        FSETFIELD(pyramidFragment, oForwardVel, random_float() * 10.0f + 20.0f);
         pyramidFragment->oMoveAngleYaw = random_u16();
-        pyramidFragment->oPyramidTopFragmentsScale = 0.8f;
-        pyramidFragment->oGravity = random_float() + 2.0f;
+        QSETFIELD(pyramidFragment,  oPyramidTopFragmentsScale, q(0.8));
+        QSETFIELD(pyramidFragment, oGravity, q(random_float() + 2.0f));
     }
 
     // After enough time, transition to the exploding state.
@@ -79,11 +79,11 @@ void bhv_pyramid_top_explode(void) {
         pyramidFragment = spawn_object(
             o, MODEL_DIRT_ANIMATION, bhvPyramidTopFragment
         );
-        pyramidFragment->oForwardVel = random_float() * 50 + 80;
-        pyramidFragment->oVelY = random_float() * 80 + 20;
+        FSETFIELD(pyramidFragment, oForwardVel, random_float() * 50 + 80);
+        FSETFIELD(pyramidFragment, oVelY, random_float() * 80 + 20);
         pyramidFragment->oMoveAngleYaw = random_u16();
-        pyramidFragment->oPyramidTopFragmentsScale = 3;
-        pyramidFragment->oGravity = random_float() * 2 + 5;
+        QSETFIELD(pyramidFragment,  oPyramidTopFragmentsScale, q(3));
+        QSETFIELD(pyramidFragment, oGravity, q(random_float() * 2 + 5));
     }
 
     // Deactivate the pyramid top.
@@ -121,10 +121,10 @@ void bhv_pyramid_top_loop(void) {
  * Initialize the pyramid fragment.
  */
 void bhv_pyramid_top_fragment_init(void) {
-    o->oFriction = 0.999f;
-    o->oBuoyancy = 2.0f;
+    QSETFIELD(o,  oFriction, q(0.999));
+    QSETFIELD(o,  oBuoyancy, q(2));
     o->oAnimState = 3;
-    cur_obj_scale(o->oPyramidTopFragmentsScale);
+    cur_obj_scaleq(QFIELD(o, oPyramidTopFragmentsScale));
 }
 
 /**

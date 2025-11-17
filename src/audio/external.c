@@ -1,3 +1,141 @@
+#ifdef NO_AUDIO
+
+// stub version of all audio functions
+
+#include <ultra64.h>
+#include "sm64.h"
+#include "heap.h"
+#include "load.h"
+#include "data.h"
+#include "seqplayer.h"
+#include "external.h"
+#include "playback.h"
+#include "synthesis.h"
+#include "game/level_update.h"
+#include "game/object_list_processor.h"
+#include "game/camera.h"
+#include "seq_ids.h"
+#include "dialog_ids.h"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused"
+
+f32 gGlobalSoundSource[3] = { 0.0f, 0.0f, 0.0f };
+#if defined(VERSION_EU) || defined(VERSION_SH)
+// moved to bss in data.c
+s32 gAudioErrorFlags2 = 0;
+#else
+s32 gAudioErrorFlags = 0;
+#endif
+
+#ifdef VERSION_JP
+typedef u16 FadeT;
+#else
+typedef s32 FadeT;
+#endif
+
+#if defined(VERSION_EU) || defined(VERSION_SH)
+//void audio_reset_session_eu(s32 presetId) {}
+#endif
+
+#if defined(VERSION_JP) || defined(VERSION_US)
+//static void seq_player_fade_to_zero_volume(s32 player, FadeT fadeDuration) {}
+//static void func_8031D690(s32 player, FadeT fadeInTime) {}
+#endif
+
+//static void seq_player_fade_to_percentage_of_volume(s32 player, FadeT fadeDuration, u8 percentage) {}
+//static void seq_player_fade_to_normal_volume(s32 player, FadeT fadeDuration) {}
+//static void seq_player_fade_to_target_volume(s32 player, FadeT fadeDuration, u8 targetVolume) {}
+
+#if defined(VERSION_EU) || defined(VERSION_SH)
+#ifdef VERSION_EU
+//extern void func_802ad7a0(void);
+#else
+//extern void func_sh_802F64C8(void);
+#endif
+
+/**
+ * Called from threads: thread5_game_loop
+ */
+//void maybe_tick_game_sound(void) {}
+
+//void func_eu_802e9bec(s32 player, s32 channel, s32 arg2) {}
+
+#else
+
+//struct SPTask *create_next_audio_frame_task(void) {
+//    return NULL;
+//}
+//void create_next_audio_buffer(s16 *samples, u32 num_samples) {}
+#endif
+
+//void play_sound(s32 soundBits, f32 *pos) {}
+//static void delete_sound_from_bank(u8 bank, u8 soundIndex) {}
+//static void update_background_music_after_sound(u8 bank, u8 soundIndex) {}
+//static void select_current_sounds(u8 bank) {}
+//static f32 get_sound_pan(f32 x, f32 z) {
+//	return 0;
+//}
+//static f32 get_sound_volume(u8 bank, u8 soundIndex, f32 volumeRange) {
+//	return 0;
+//}
+//static f32 get_sound_freq_scale(u8 bank, u8 item) {
+//	return 0;
+//}
+//static u8 get_sound_reverb(UNUSED u8 bank, UNUSED u8 soundIndex, u8 channelIndex) {
+//	return 0;
+//}
+void audio_signal_game_loop_tick(void) {}
+void seq_player_fade_out(UNUSED u8 player, UNUSED u16 fadeDuration) {}
+void fade_volume_scale(UNUSED u8 player, UNUSED u8 targetScale, UNUSED u16 fadeDuration) {}
+void process_level_music_dynamics(void) {}
+void unused_8031FED0(UNUSED u8 player, UNUSED u32 bits, UNUSED s8 arg2) {}
+void seq_player_lower_volume(UNUSED u8 player, UNUSED u16 fadeDuration, UNUSED u8 percentage) {}
+void seq_player_unlower_volume(UNUSED u8 player, UNUSED u16 fadeDuration) {}
+void set_audio_muted(UNUSED u8 muted) {}
+void sound_init(void) {}
+void get_currently_playing_sound(UNUSED u8 bank, UNUSED u8 *numPlayingSounds, UNUSED u8 *numSoundsInBank, UNUSED u8 *soundId) {}
+void stop_sound(UNUSED u32 soundBits, UNUSED f32 *pos) {}
+void stop_sounds_from_source(UNUSED f32 *pos) {}
+void stop_sounds_in_continuous_banks(void) {}
+void sound_banks_disable(UNUSED u8 player, UNUSED u16 bankMask) {}
+void sound_banks_enable(UNUSED u8 player, UNUSED u16 bankMask) {}
+u8 unused_803209D8(UNUSED u8 player, UNUSED u8 channelIndex, UNUSED u8 arg2) {
+	return 0;
+}
+void set_sound_moving_speed(UNUSED u8 bank, UNUSED u8 speed) {}
+void play_dialog_sound(UNUSED u8 dialogID) {}
+//void play_music(UNUSED u8 player, UNUSED u16 seqArgs, UNUSED u16 fadeTimer) {}
+void stop_background_music(UNUSED u16 seqId) {}
+void fadeout_background_music(UNUSED u16 seqId, UNUSED u16 fadeOut) {}
+void drop_queued_background_music(void) {}
+u16 get_current_background_music(void) {
+	return -1;
+}
+void func_80320ED8(void) {}
+void play_secondary_music(UNUSED u8 seqId, UNUSED u8 bgMusicVolume, UNUSED u8 volume, UNUSED u16 fadeTimer) {}
+void func_80321080(UNUSED u16 fadeTimer) {}
+void func_803210D4(UNUSED u16 fadeDuration) {}
+void play_course_clear(void) {}
+void play_peachs_jingle(void) {}
+void play_puzzle_jingle(void) {}
+void play_star_fanfare(void) {}
+void play_power_star_jingle(UNUSED u8 arg0) {}
+void play_race_fanfare(void) {}
+void play_toads_jingle(void) {}
+void sound_reset(UNUSED u8 presetId) {}
+void audio_set_sound_mode(UNUSED u8 soundMode) {}
+
+#if defined(VERSION_JP) || defined(VERSION_US)
+void unused_80321460(UNUSED s32 arg0, UNUSED s32 arg1, UNUSED s32 arg2, UNUSED s32 arg3) {}
+
+void unused_80321474(UNUSED s32 arg0) {}
+#endif
+
+#pragma GCC diagnostic pop
+
+#else
+
 #include <ultra64.h>
 #include "sm64.h"
 #include "heap.h"
@@ -2756,3 +2894,5 @@ void unused_80321460(UNUSED s32 arg0, UNUSED s32 arg1, UNUSED s32 arg2, UNUSED s
 void unused_80321474(UNUSED s32 arg0) {
 }
 #endif
+
+#endif // NO_AUDIO

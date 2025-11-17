@@ -28,6 +28,7 @@
 #include "level_table.h"
 #include "course_table.h"
 #include "rumble_init.h"
+#include <assert.h>
 
 #define PLAY_MODE_NORMAL 0
 #define PLAY_MODE_PAUSED 2
@@ -286,8 +287,8 @@ void init_door_warp(struct SpawnInfo *spawnInfo, u32 arg1) {
         spawnInfo->startAngle[1] += 0x8000;
     }
 
-    spawnInfo->startPos[0] += 300.0f * sins(spawnInfo->startAngle[1]);
-    spawnInfo->startPos[2] += 300.0f * coss(spawnInfo->startAngle[1]);
+    spawnInfo->startPos[0] += 300 * sinqs(spawnInfo->startAngle[1]) / ONE;
+    spawnInfo->startPos[2] += 300 * cosqs(spawnInfo->startAngle[1]) / ONE;
 }
 
 void set_mario_initial_cap_powerup(struct MarioState *m) {
@@ -374,12 +375,13 @@ void set_mario_initial_action(struct MarioState *m, u32 spawnType, u32 actionArg
 
 void init_mario_after_warp(void) {
     struct ObjectWarpNode *spawnNode = area_get_warp_node(sWarpDest.nodeId);
+	assert(spawnNode->object);
     u32 marioSpawnType = get_mario_spawn_type(spawnNode->object);
 
     if (gMarioState->action != ACT_UNINITIALIZED) {
-        gPlayerSpawnInfos[0].startPos[0] = (s16) spawnNode->object->oPosX;
-        gPlayerSpawnInfos[0].startPos[1] = (s16) spawnNode->object->oPosY;
-        gPlayerSpawnInfos[0].startPos[2] = (s16) spawnNode->object->oPosZ;
+        gPlayerSpawnInfos[0].startPos[0] = qtrunc(QFIELD(spawnNode->object, oPosX));
+        gPlayerSpawnInfos[0].startPos[1] = qtrunc(QFIELD(spawnNode->object, oPosY));
+        gPlayerSpawnInfos[0].startPos[2] = qtrunc(QFIELD(spawnNode->object, oPosZ));
 
         gPlayerSpawnInfos[0].startAngle[0] = 0;
         gPlayerSpawnInfos[0].startAngle[1] = spawnNode->object->oMoveAngleYaw;
@@ -504,14 +506,15 @@ void warp_credits(void) {
         case WARP_NODE_CREDITS_END:
             marioAction = ACT_END_WAVING_CUTSCENE;
             break;
+
+        default: unreachable();
     }
 
     gCurrLevelNum = sWarpDest.levelNum;
 
     load_area(sWarpDest.areaIdx);
 
-    vec3s_set(gPlayerSpawnInfos[0].startPos, gCurrCreditsEntry->marioPos[0],
-              gCurrCreditsEntry->marioPos[1], gCurrCreditsEntry->marioPos[2]);
+    vec3s_set(gPlayerSpawnInfos[0].startPos, gCurrCreditsEntry->marioPos[0], gCurrCreditsEntry->marioPos[1], gCurrCreditsEntry->marioPos[2]);
 
     vec3s_set(gPlayerSpawnInfos[0].startAngle, 0, 0x100 * gCurrCreditsEntry->marioAngle, 0);
 
@@ -554,16 +557,16 @@ void check_instant_warp(void) {
                 gMarioState->pos[1] += warp->displacement[1];
                 gMarioState->pos[2] += warp->displacement[2];
 
-                gMarioState->marioObj->oPosX = gMarioState->pos[0];
-                gMarioState->marioObj->oPosY = gMarioState->pos[1];
-                gMarioState->marioObj->oPosZ = gMarioState->pos[2];
+                FSETFIELD(gMarioState->marioObj, oPosX, gMarioState->pos[0]);
+                FSETFIELD(gMarioState->marioObj, oPosY, gMarioState->pos[1]);
+                FSETFIELD(gMarioState->marioObj, oPosZ, gMarioState->pos[2]);
 
                 cameraAngle = gMarioState->area->camera->yaw;
 
                 change_area(warp->area);
                 gMarioState->area = gCurrentArea;
 
-                warp_camera(warp->displacement[0], warp->displacement[1], warp->displacement[2]);
+                warp_cameraq(q(warp->displacement[0]), q(warp->displacement[1]), q(warp->displacement[2]));
 
                 gMarioState->area->camera->yaw = cameraAngle;
             }
@@ -691,7 +694,7 @@ void initiate_painting_warp(void) {
                 fadeout_music(398);
 #if ENABLE_RUMBLE
                 queue_rumble_data(80, 70);
-                func_sh_8024C89C(1);
+                set_rumble_decay(1);
 #endif
             }
         }
@@ -1131,7 +1134,7 @@ UNUSED static s32 play_mode_unused(void) {
 }
 
 s32 update_level(void) {
-    s32 changeLevel;
+    s32 changeLevel = FALSE;
 
     switch (sCurrPlayMode) {
         case PLAY_MODE_NORMAL:
@@ -1146,9 +1149,9 @@ s32 update_level(void) {
         case PLAY_MODE_CHANGE_LEVEL:
             changeLevel = play_mode_change_level();
             break;
-        case PLAY_MODE_FRAME_ADVANCE:
-            changeLevel = play_mode_frame_advance();
-            break;
+        //case PLAY_MODE_FRAME_ADVANCE:
+        //    changeLevel = play_mode_frame_advance();
+        //    break;
     }
 
     if (changeLevel) {

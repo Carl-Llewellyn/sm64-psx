@@ -1,5 +1,6 @@
 #include <PR/ultratypes.h>
 
+#include "platform_info.h"
 #include "sm64.h"
 #include "area.h"
 #include "behavior_data.h"
@@ -63,12 +64,10 @@ s16 gDebugInfoOverwrite[16][8];
  */
 u32 gTimeStopState;
 
-#ifndef USE_SYSTEM_MALLOC
 /**
  * The pool that objects are allocated from.
  */
 struct Object gObjectPool[OBJECT_POOL_CAPACITY];
-#endif
 
 /**
  * A special object whose purpose is to act as a parent for macro objects.
@@ -97,7 +96,7 @@ struct Object *gMarioObject;
  * second player. This is speculation, based on its position and its usage in
  * shadow.c.
  */
-struct Object *gLuigiObject;
+//struct Object *gLuigiObject;
 
 /**
  * The object whose behavior script is currently being updated.
@@ -230,13 +229,13 @@ void copy_mario_state_to_object(void) {
         i += 1;
     }
 
-    gCurrentObject->oVelX = gMarioStates[i].vel[0];
-    gCurrentObject->oVelY = gMarioStates[i].vel[1];
-    gCurrentObject->oVelZ = gMarioStates[i].vel[2];
+    FSETFIELD(gCurrentObject, oVelX, gMarioStates[i].vel[0]);
+    FSETFIELD(gCurrentObject, oVelY, gMarioStates[i].vel[1]);
+    FSETFIELD(gCurrentObject, oVelZ, gMarioStates[i].vel[2]);
 
-    gCurrentObject->oPosX = gMarioStates[i].pos[0];
-    gCurrentObject->oPosY = gMarioStates[i].pos[1];
-    gCurrentObject->oPosZ = gMarioStates[i].pos[2];
+    FSETFIELD(gCurrentObject, oPosX, gMarioStates[i].pos[0]);
+    FSETFIELD(gCurrentObject, oPosY, gMarioStates[i].pos[1]);
+    FSETFIELD(gCurrentObject, oPosZ, gMarioStates[i].pos[2]);
 
     gCurrentObject->oMoveAnglePitch = gCurrentObject->header.gfx.angle[0];
     gCurrentObject->oMoveAngleYaw = gCurrentObject->header.gfx.angle[1];
@@ -479,8 +478,7 @@ void spawn_objects_from_info(UNUSED s32 unused, struct SpawnInfo *spawnInfo) {
         script = segmented_to_virtual(spawnInfo->behaviorScript);
 
         // If the object was previously killed/collected, don't respawn it
-        if ((spawnInfo->behaviorArg & (RESPAWN_INFO_DONT_RESPAWN << 8))
-            != (RESPAWN_INFO_DONT_RESPAWN << 8)) {
+        if ((spawnInfo->behaviorArg & (RESPAWN_INFO_DONT_RESPAWN << 8)) != (RESPAWN_INFO_DONT_RESPAWN << 8)) {
             object = create_object(script);
 
             // Behavior parameters are often treated as four separate bytes, but
@@ -491,7 +489,7 @@ void spawn_objects_from_info(UNUSED s32 unused, struct SpawnInfo *spawnInfo) {
             object->oBehParams2ndByte = ((spawnInfo->behaviorArg) >> 16) & 0xFF;
 
             object->behavior = script;
-            object->unused1 = 0;
+            //object->unused1 = 0;
 
             // Record death/collection in the SpawnInfo
             object->respawnInfoType = RESPAWN_INFO_TYPE_32;
@@ -504,9 +502,9 @@ void spawn_objects_from_info(UNUSED s32 unused, struct SpawnInfo *spawnInfo) {
 
             geo_obj_init_spawninfo(&object->header.gfx, spawnInfo);
 
-            object->oPosX = spawnInfo->startPos[0];
-            object->oPosY = spawnInfo->startPos[1];
-            object->oPosZ = spawnInfo->startPos[2];
+            ISETFIELD(object, oPosX, spawnInfo->startPos[0]);
+            ISETFIELD(object, oPosY, spawnInfo->startPos[1]);
+            ISETFIELD(object, oPosZ, spawnInfo->startPos[2]);
 
             object->oFaceAnglePitch = spawnInfo->startAngle[0];
             object->oFaceAngleYaw = spawnInfo->startAngle[1];
@@ -519,9 +517,6 @@ void spawn_objects_from_info(UNUSED s32 unused, struct SpawnInfo *spawnInfo) {
 
         spawnInfo = spawnInfo->next;
     }
-}
-
-void stub_obj_list_processor_1(void) {
 }
 
 /**
@@ -542,22 +537,15 @@ void clear_objects(void) {
 
     debug_unknown_level_select_check();
 
-#ifndef USE_SYSTEM_MALLOC
     init_free_object_list();
-#endif
     clear_object_lists(gObjectListArray);
 
-    stub_behavior_script_2();
-    stub_obj_list_processor_1();
-
-#ifndef USE_SYSTEM_MALLOC
     for (i = 0; i < OBJECT_POOL_CAPACITY; i++) {
         gObjectPool[i].activeFlags = ACTIVE_FLAG_DEACTIVATED;
         geo_reset_object_node(&gObjectPool[i].header.gfx);
     }
-#endif
 
-    gObjectMemoryPool = mem_pool_init(0x800, MEMORY_POOL_LEFT);
+    gObjectMemoryPool = mem_pool_init(DOUBLE_SIZE_ON_64_BIT(0x800), MEMORY_POOL_LEFT);
     gObjectLists = gObjectListArray;
 
     clear_dynamic_surfaces();
@@ -603,26 +591,6 @@ void unload_deactivated_objects(void) {
     // TIME_STOP_UNKNOWN_0 was most likely intended to be used to track whether
     // any objects had been deactivated
     gTimeStopState &= ~TIME_STOP_UNKNOWN_0;
-}
-
-/**
- * Unused profiling function.
- */
-UNUSED static u16 unused_get_elapsed_time(u64 *cycleCounts, s32 index) {
-    u16 time;
-    f64 cycles;
-
-    cycles = cycleCounts[index] - cycleCounts[index - 1];
-    if (cycles < 0) {
-        cycles = 0;
-    }
-
-    time = (u16)(((u64) cycles * 1000000 / osClockRate) / 16667.0 * 1000.0);
-    if (time > 999) {
-        time = 999;
-    }
-
-    return time;
 }
 
 /**

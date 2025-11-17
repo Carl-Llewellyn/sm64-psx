@@ -63,11 +63,13 @@ static const Gfx bitdw_seg7_dl_07003588[] = {
 
 // 0x070035D0 - 0x07003608
 static const Gfx bitdw_seg7_dl_070035D0[] = {
+#ifdef SKYBOX
     gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, sky_09000000),
     gsDPLoadSync(),
     gsDPLoadBlock(G_TX_LOADTILE, 0, 0, 32 * 32 - 1, CALC_DXT(32, G_IM_SIZ_16b_BYTES)),
     gsSPVertex(bitdw_seg7_vertex_070034E0, 4, 0),
     gsSP2Triangles( 0,  1,  2, 0x0,  3,  0,  2, 0x0),
+#endif
     gsSPEndDisplayList(),
 };
 

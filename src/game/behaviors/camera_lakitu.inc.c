@@ -28,9 +28,9 @@ void bhv_camera_lakitu_init(void) {
 static void camera_lakitu_intro_act_trigger_cutscene(void) {
     //! These bounds are slightly smaller than the actual bridge bounds, allowing
     //  the RTA speedrunning method of lakitu skip
-    if (gMarioObject->oPosX > -544.0f && gMarioObject->oPosX < 545.0f && gMarioObject->oPosY > 800.0f
-        && gMarioObject->oPosZ > -2000.0f && gMarioObject->oPosZ < -177.0f
-        && gMarioObject->oPosZ < -177.0f) // always double check your conditions
+    if (QFIELD(gMarioObject, oPosX) > q(-544.0f) && QFIELD(gMarioObject, oPosX) < q(545.0f) && QFIELD(gMarioObject, oPosY) > q(800.0f)
+        && QFIELD(gMarioObject, oPosZ) > q(-2000.0f) && QFIELD(gMarioObject, oPosZ) < q(-177.0f)
+        && QFIELD(gMarioObject, oPosZ) < q(-177.0f)) // always double check your conditions
     {
         if (set_mario_npc_dialog(MARIO_DIALOG_LOOK_UP) == MARIO_DIALOG_STATUS_START) {
             o->oAction = CAMERA_LAKITU_INTRO_ACT_SPAWN_CLOUD;
@@ -45,13 +45,13 @@ static void camera_lakitu_intro_act_spawn_cloud(void) {
     if (set_mario_npc_dialog(MARIO_DIALOG_LOOK_UP) == MARIO_DIALOG_STATUS_SPEAK) {
         o->oAction = CAMERA_LAKITU_INTRO_ACT_UNK2;
 
-        o->oPosX = 1800.0f;
-        o->oPosY = 2400.0f;
-        o->oPosZ = -2400.0f;
+        ISETFIELD(o, oPosX, 1800);
+        ISETFIELD(o, oPosY, 2400);
+        ISETFIELD(o, oPosZ, -2400);
 
         o->oMoveAnglePitch = 0x4000;
-        o->oCameraLakituSpeed = 60.0f;
-        o->oCameraLakituCircleRadius = 1000.0f;
+        QSETFIELD(o, oCameraLakituSpeed, q(60));
+        ISETFIELD(o, oCameraLakituCircleRadius, 1000);
 
         spawn_object_relative_with_scale(CLOUD_BP_LAKITU_CLOUD, 0, 0, 0, 2.0f, o, MODEL_MIST, bhvCloud);
     }
@@ -76,23 +76,23 @@ static void camera_lakitu_intro_act_show_dialog(void) {
 
     // After finishing dialog, fly away and despawn
     if (o->oCameraLakituFinishedDialog) {
-        approach_f32_ptr(&o->oCameraLakituSpeed, 60.0f, 3.0f);
-        if (o->oDistanceToMario > 6000.0f) {
+        APPROACH_F32_FIELD(o, oCameraLakituSpeed, 60.0f, 3.0f);
+        if (QFIELD(o, oDistanceToMario) > q(6000.0)) {
             obj_mark_for_deletion(o);
         }
 
         targetMovePitch = -0x3000;
         targetMoveYaw = -0x6000;
     } else {
-        if (o->oCameraLakituSpeed != 0.0f) {
-            if (o->oDistanceToMario > 5000.0f) {
+        if (QFIELD(o, oCameraLakituSpeed) != 0) {
+            if (QFIELD(o, oDistanceToMario) > q(5000.0)) {
                 targetMovePitch = o->oMoveAnglePitch;
                 targetMoveYaw = o->oAngleToMario;
             } else {
                 // Stay moving in a circle around mario
                 s16 turnAmount = 0x4000
-                                 - atan2s(o->oCameraLakituCircleRadius,
-                                          o->oDistanceToMario - o->oCameraLakituCircleRadius);
+                                 - atan2sq(QFIELD(o, oCameraLakituCircleRadius),
+                                          QFIELD(o, oDistanceToMario) - QFIELD(o, oCameraLakituCircleRadius));
                 if ((s16)(o->oMoveAngleYaw - o->oAngleToMario) < 0) {
                     turnAmount = -turnAmount;
                 }
@@ -100,8 +100,10 @@ static void camera_lakitu_intro_act_show_dialog(void) {
                 targetMoveYaw = o->oAngleToMario + turnAmount;
                 targetMovePitch = o->oFaceAnglePitch;
 
-                approach_f32_ptr(&o->oCameraLakituCircleRadius, 200.0f, 50.0f);
-                if (o->oDistanceToMario < 1000.0f) {
+				q32 cameraLakituCircleRadiusq = QFIELD(o, oCameraLakituCircleRadius);
+                approach_q32_ptr(&cameraLakituCircleRadiusq, q(200), q(50));
+				QSETFIELD(o, oCameraLakituCircleRadius, cameraLakituCircleRadiusq);
+                if (QFIELD(o, oDistanceToMario) < q(1000.0)) {
 #ifndef VERSION_JP
                     if (!o->oCameraLakituUnk104) {
                         play_music(SEQ_PLAYER_LEVEL, SEQUENCE_ARGS(15, SEQ_EVENT_CUTSCENE_LAKITU), 0);
@@ -110,16 +112,16 @@ static void camera_lakitu_intro_act_show_dialog(void) {
 #endif
 
                     // Once within 1000 units, slow down
-                    approach_f32_ptr(&o->oCameraLakituSpeed, 20.0f, 1.0f);
-                    if (o->oDistanceToMario < 500.0f
+                    APPROACH_F32_FIELD(o, oCameraLakituSpeed, 20.0f, 1.0f);
+                    if (QFIELD(o, oDistanceToMario) < q(500.0)
                         && abs_angle_diff(gMarioObject->oFaceAngleYaw, o->oFaceAngleYaw) > 0x7000) {
                         // Once within 500 units and facing toward mario, come
                         // to a stop
-                        approach_f32_ptr(&o->oCameraLakituSpeed, 0.0f, 5.0f);
+                        APPROACH_F32_FIELD(o, oCameraLakituSpeed, 0.0f, 5.0f);
                     }
                 }
             }
-        } else if (cur_obj_update_dialog_with_cutscene(MARIO_DIALOG_LOOK_UP, 
+        } else if (cur_obj_update_dialog_with_cutscene(MARIO_DIALOG_LOOK_UP,
             DIALOG_FLAG_TURN_TO_MARIO, CUTSCENE_DIALOG, DIALOG_034)) {
             o->oCameraLakituFinishedDialog = TRUE;
         }
@@ -132,7 +134,7 @@ static void camera_lakitu_intro_act_show_dialog(void) {
     cur_obj_rotate_yaw_toward(targetMoveYaw, o->oCameraLakituYawVel);
 
     // vel y is explicitly computed, so gravity doesn't apply
-    obj_compute_vel_from_move_pitch(o->oCameraLakituSpeed);
+    obj_compute_vel_from_move_pitchq(QFIELD(o, oCameraLakituSpeed));
     cur_obj_move_using_fvel_and_gravity();
 }
 
@@ -156,24 +158,24 @@ void bhv_camera_lakitu_update(void) {
                     break;
             }
         } else {
-            f32 val0C = (f32) 0x875C3D / 0x800 - gLakituState.curPos[0];
-            if (gLakituState.curPos[0] < 1700.0f || val0C < 0.0f) {
+            q32 val0Cq = (q32) ((u64) 0x875C3D * (u64) QONE / 0x800) - gLakituState.curPosq[0];
+            if (gLakituState.curPosq[0] < q(1700) || val0Cq < 0) {
                 cur_obj_hide();
             } else {
                 cur_obj_unhide();
 
-                o->oPosX = gLakituState.curPos[0];
-                o->oPosY = gLakituState.curPos[1];
-                o->oPosZ = gLakituState.curPos[2];
+                FSETFIELD(o, oPosX, qtof(gLakituState.curPosq[0]));
+                FSETFIELD(o, oPosY, qtof(gLakituState.curPosq[1]));
+                FSETFIELD(o, oPosZ, qtof(gLakituState.curPosq[2]));
 
-                o->oHomeX = gLakituState.curFocus[0];
-                o->oHomeZ = gLakituState.curFocus[2];
+                FSETFIELD(o, oHomeX, qtof(gLakituState.curFocusq[0]));
+                FSETFIELD(o, oHomeZ, qtof(gLakituState.curFocusq[2]));
 
                 o->oFaceAngleYaw = -cur_obj_angle_to_home();
-                o->oFaceAnglePitch = atan2s(cur_obj_lateral_dist_to_home(),
-                                            o->oPosY - gLakituState.curFocus[1]);
+                o->oFaceAnglePitch = atan2sq(q(cur_obj_lateral_dist_to_home()),
+                                            QFIELD(o, oPosY) - gLakituState.curFocusq[1]);
 
-                o->oPosX = (f32) 0x875C3D / 0x800 + val0C;
+                FSETFIELD(o, oPosX, qtof((q32) ((u64) 0x875C3D * (u64) QONE / 0x800) + val0Cq));
             }
         }
     }

@@ -1,6 +1,3 @@
-#ifdef USE_SYSTEM_MALLOC
-#include <stdlib.h>
-#endif
 #include <PR/ultratypes.h>
 
 #include "audio/external.h"
@@ -15,6 +12,7 @@
 #include "object_list_processor.h"
 #include "spawn_object.h"
 #include "types.h"
+#include <port/gfx/gfx.h>
 
 /**
  * An unused linked list struct that seems to have been replaced by ObjectNode.
@@ -92,26 +90,10 @@ struct Object *try_allocate_object(struct ObjectNode *destList, struct ObjectNod
         destList->prev->next = nextObj;
         destList->prev = nextObj;
     } else {
-#ifdef USE_SYSTEM_MALLOC
-        nextObj = (struct ObjectNode *) malloc(sizeof(struct Object));
-        if (nextObj == NULL) {
-            abort();
-        }
-        // Insert at end of destination list
-        nextObj->prev = destList->prev;
-        nextObj->next = destList;
-        destList->prev->next = nextObj;
-        destList->prev = nextObj;
-#else
         return NULL;
-#endif
     }
 
-#ifdef USE_SYSTEM_MALLOC
-    init_graph_node_object(NULL, &nextObj->gfx, 0, gVec3fZero, gVec3sZero, gVec3fOne);
-#else
     geo_remove_child(&nextObj->gfx.node);
-#endif
     geo_add_child(&gObjParentGraphNode, &nextObj->gfx.node);
 
     return (struct Object *) nextObj;
@@ -146,7 +128,6 @@ static void deallocate_object(struct ObjectNode *freeList, struct ObjectNode *ob
     freeList->next = obj;
 }
 
-#ifndef USE_SYSTEM_MALLOC
 /**
  * Add every object in the pool to the free object list.
  */
@@ -167,7 +148,6 @@ void init_free_object_list(void) {
     // End the list
     obj->header.next = NULL;
 }
-#endif
 
 /**
  * Clear each object list, without adding the objects back to the free list.
@@ -176,17 +156,6 @@ void clear_object_lists(struct ObjectNode *objLists) {
     s32 i;
 
     for (i = 0; i < NUM_OBJ_LISTS; i++) {
-#ifdef USE_SYSTEM_MALLOC
-        struct ObjectNode *list = objLists + i;
-        struct ObjectNode *node = list->next;
-
-        while (node != NULL && node != list) {
-            struct Object *obj = (struct Object *) node;
-            node = node->next;
-
-            unload_object(obj);
-        }
-#endif
         objLists[i].next = &objLists[i];
         objLists[i].prev = &objLists[i];
     }
@@ -222,12 +191,10 @@ void unload_object(struct Object *obj) {
     obj->activeFlags = ACTIVE_FLAG_DEACTIVATED;
     obj->prevObj = NULL;
 
-    obj->header.gfx.throwMatrix = NULL;
+    obj->header.gfx.throwMatrixq = NULL;
     stop_sounds_from_source(obj->header.gfx.cameraToObject);
     geo_remove_child(&obj->header.gfx.node);
-#ifndef USE_SYSTEM_MALLOC
     geo_add_child(&gObjParentGraphNode, &obj->header.gfx.node);
-#endif
 
     obj->header.gfx.node.flags &= ~GRAPH_RENDER_BILLBOARD;
     obj->header.gfx.node.flags &= ~GRAPH_RENDER_ACTIVE;
@@ -244,7 +211,6 @@ struct Object *allocate_object(struct ObjectNode *objList) {
     s32 i;
     struct Object *obj = try_allocate_object(objList, &gFreeObjectList);
 
-#ifndef USE_SYSTEM_MALLOC
     // The object list is full if the newly created pointer is NULL.
     // If this happens, we first attempt to unload unimportant objects
     // in order to finish allocating the object.
@@ -269,7 +235,6 @@ struct Object *allocate_object(struct ObjectNode *objList) {
             }
         }
     }
-#endif
 
     // Initialize object fields
 
@@ -289,16 +254,16 @@ struct Object *allocate_object(struct ObjectNode *objList) {
     for (i = 0; i < 0x50; i++) obj->rawData.asS32[i] = 0;
 #endif
 
-    obj->unused1 = 0;
+    //obj->unused1 = 0;
     obj->bhvStackIndex = 0;
     obj->bhvDelayTimer = 0;
 
-    obj->hitboxRadius = 50.0f;
-    obj->hitboxHeight = 100.0f;
-    obj->hurtboxRadius = 0.0f;
-    obj->hurtboxHeight = 0.0f;
-    obj->hitboxDownOffset = 0.0f;
-    obj->unused2 = 0;
+    obj->hitboxRadius_s16 = 50;
+    obj->hitboxHeight_s16 = 100;
+    obj->hurtboxRadius_s16 = 0;
+    obj->hurtboxHeight_s16 = 0;
+    obj->hitboxDownOffset_s16 = 0;
+    //obj->unused2 = 0;
 
     obj->platform = NULL;
     obj->collisionData = NULL;
@@ -306,26 +271,26 @@ struct Object *allocate_object(struct ObjectNode *objList) {
     obj->oDamageOrCoinValue = 0;
     obj->oHealth = 2048;
 
-    obj->oCollisionDistance = 1000.0f;
+    QSETFIELD(obj, oCollisionDistance, q(1000));
     if (gCurrLevelNum == LEVEL_TTC) {
-        obj->oDrawingDistance = 2000.0f;
+        QSETFIELD(obj, oDrawingDistance, q(2000));
     } else {
-        obj->oDrawingDistance = 4000.0f;
+        QSETFIELD(obj, oDrawingDistance, q(4000));
     }
 
-    mtxf_identity(obj->transform);
+    obj->transformq = mtx_identity();
 
     obj->respawnInfoType = RESPAWN_INFO_TYPE_NULL;
     obj->respawnInfo = NULL;
 
-    obj->oDistanceToMario = 19000.0f;
+    QSETFIELD(obj,  oDistanceToMario, q(19000));
     obj->oRoom = -1;
 
     obj->header.gfx.node.flags &= ~GRAPH_RENDER_INVISIBLE;
-    obj->header.gfx.pos[0] = -10000.0f;
-    obj->header.gfx.pos[1] = -10000.0f;
-    obj->header.gfx.pos[2] = -10000.0f;
-    obj->header.gfx.throwMatrix = NULL;
+    obj->header.gfx.posi[0] = -10000;
+    obj->header.gfx.posi[1] = -10000;
+    obj->header.gfx.posi[2] = -10000;
+    obj->header.gfx.throwMatrixq = NULL;
 
     return obj;
 }
@@ -336,10 +301,10 @@ struct Object *allocate_object(struct ObjectNode *objList) {
 static void snap_object_to_floor(struct Object *obj) {
     struct Surface *surface;
 
-    obj->oFloorHeight = find_floor(obj->oPosX, obj->oPosY, obj->oPosZ, &surface);
+    FSETFIELD(obj, oFloorHeight, find_floor(FFIELD(obj, oPosX), FFIELD(obj, oPosY), FFIELD(obj, oPosZ), &surface));
 
-    if (obj->oFloorHeight + 2.0f > obj->oPosY && obj->oPosY > obj->oFloorHeight - 10.0f) {
-        obj->oPosY = obj->oFloorHeight;
+    if (FFIELD(obj, oFloorHeight) + 2.0f > FFIELD(obj, oPosY) && FFIELD(obj, oPosY) > FFIELD(obj, oFloorHeight) - 10.0f) {
+        QSETFIELD(obj,  oPosY, QFIELD(obj,  oFloorHeight));
         obj->oMoveFlags |= OBJ_MOVE_ON_GROUND;
     }
 }

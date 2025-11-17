@@ -1,15 +1,15 @@
 // cannon.c.inc
 
 void bhv_cannon_base_unused_loop(void) {
-    o->oPosY += o->oVelY;
+    QMODFIELD(o, oPosY, += QFIELD(o, oVelY));
 }
 
 void opened_cannon_act_0(void) {
     if (o->oTimer == 0) {
         o->oInteractStatus = 0;
-        o->oPosX = o->oHomeX;
-        o->oPosY = o->oHomeY;
-        o->oPosZ = o->oHomeZ;
+        QSETFIELD(o,  oPosX, QFIELD(o,  oHomeX));
+        QSETFIELD(o,  oPosY, QFIELD(o,  oHomeY));
+        QSETFIELD(o,  oPosZ, QFIELD(o,  oHomeZ));
         o->oMoveAnglePitch = 0;
         o->oMoveAngleYaw = (s16)(o->oBehParams2ndByte << 8);
         o->oCannonUnkF4 = 0;
@@ -17,7 +17,7 @@ void opened_cannon_act_0(void) {
         cur_obj_enable_rendering();
         cur_obj_become_tangible();
     }
-    if (o->oDistanceToMario < 500.0f) {
+    if (QFIELD(o, oDistanceToMario) < q(500.0)) {
         cur_obj_become_tangible();
         cur_obj_enable_rendering();
         if (o->oInteractStatus & INT_STATUS_INTERACTED
@@ -39,12 +39,12 @@ void opened_cannon_act_0(void) {
 void opened_cannon_act_4(void) {
     if (o->oTimer == 0)
         cur_obj_play_sound_2(SOUND_OBJ_CANNON1);
-    o->oPosY += 5.0f;
-    o->oPosX += (f32)((o->oTimer / 2 & 1) - 0.5) * 2;
-    o->oPosZ += (f32)((o->oTimer / 2 & 1) - 0.5) * 2;
+    QMODFIELD(o, oPosY, += q(5.0f));
+    FMODFIELD(o, oPosX,  += (f32)((o->oTimer / 2 & 1) - 0.5) * 2);
+    FMODFIELD(o, oPosZ,  += (f32)((o->oTimer / 2 & 1) - 0.5) * 2);
     if (o->oTimer > 67) {
-        o->oPosX += (f32)((o->oTimer / 2 & 1) - 0.5) * 4;
-        o->oPosZ += (f32)((o->oTimer / 2 & 1) - 0.5) * 4;
+        FMODFIELD(o, oPosX,  += (f32)((o->oTimer / 2 & 1) - 0.5) * 4);
+        FMODFIELD(o, oPosZ,  += (f32)((o->oTimer / 2 & 1) - 0.5) * 4);
         o->oAction = 6;
     }
 }
@@ -53,8 +53,8 @@ void opened_cannon_act_6(void) {
     if (o->oTimer == 0)
         cur_obj_play_sound_2(SOUND_OBJ_CANNON2);
     if (o->oTimer < 4) {
-        o->oPosX += (f32)((o->oTimer / 2 & 1) - 0.5) * 4.0f;
-        o->oPosZ += (f32)((o->oTimer / 2 & 1) - 0.5) * 4.0f;
+        FMODFIELD(o, oPosX,  += (f32)((o->oTimer / 2 & 1) - 0.5) * 4.0f);
+        FMODFIELD(o, oPosZ,  += (f32)((o->oTimer / 2 & 1) - 0.5) * 4.0f);
     } else {
         if (o->oTimer < 6) {
         } else {

@@ -7,7 +7,7 @@ void bhv_hidden_star_init(void) {
     sp36 = count_objects_with_behavior(bhvHiddenStarTrigger);
     if (sp36 == 0) {
         sp30 =
-            spawn_object_abs_with_rot(o, 0, MODEL_STAR, bhvStar, o->oPosX, o->oPosY, o->oPosZ, 0, 0, 0);
+            spawn_object_abs_with_rot(o, 0, MODEL_STAR, bhvStar, FFIELD(o, oPosX), FFIELD(o, oPosY), FFIELD(o, oPosZ), 0, 0, 0);
         sp30->oBehParams = o->oBehParams;
         o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
     }
@@ -24,7 +24,7 @@ void bhv_hidden_star_loop(void) {
 
         case 1:
             if (o->oTimer > 2) {
-                spawn_red_coin_cutscene_star(o->oPosX, o->oPosY, o->oPosZ);
+                spawn_red_coin_cutscene_star(FFIELD(o, oPosX), FFIELD(o, oPosY), FFIELD(o, oPosZ));
                 spawn_mist_particles();
                 o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
             }
@@ -66,7 +66,7 @@ void bhv_bowser_course_red_coin_star_loop(void) {
 
         case 1:
             if (o->oTimer > 2) {
-                spawn_no_exit_star(o->oPosX, o->oPosY, o->oPosZ);
+                spawn_no_exit_star(FFIELD(o, oPosX), FFIELD(o, oPosY), FFIELD(o, oPosZ));
                 spawn_mist_particles();
                 o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
             }

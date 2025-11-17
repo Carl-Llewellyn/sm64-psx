@@ -8,18 +8,18 @@ void grindel_thwomp_act_4(void) {
 }
 
 void grindel_thwomp_act_2(void) {
-    o->oVelY += -4.0f;
-    o->oPosY += o->oVelY;
-    if (o->oPosY < o->oHomeY) {
-        o->oPosY = o->oHomeY;
-        o->oVelY = 0;
+    QMODFIELD(o, oVelY, += q(-4));
+    QMODFIELD(o, oPosY, += QFIELD(o, oVelY));
+    if (QFIELD(o, oPosY) < QFIELD(o, oHomeY)) {
+        QSETFIELD(o,  oPosY, QFIELD(o,  oHomeY));
+        QSETFIELD(o,  oVelY, q(0));
         o->oAction = 3;
     }
 }
 
 void grindel_thwomp_act_3(void) {
     if (o->oTimer == 0)
-        if (o->oDistanceToMario < 1500.0f) {
+        if (QFIELD(o, oDistanceToMario) < q(1500.0)) {
             cur_obj_shake_screen(SHAKE_POS_SMALL);
             cur_obj_play_sound_2(SOUND_OBJ_THWOMP);
         }
@@ -37,9 +37,9 @@ void grindel_thwomp_act_1(void) {
 void grindel_thwomp_act_0(void) {
     if (o->oBehParams2ndByte + 40 < o->oTimer) {
         o->oAction = 1;
-        o->oPosY += 5.0f;
+        QMODFIELD(o, oPosY, += q(5));
     } else
-        o->oPosY += 10.0f;
+        QMODFIELD(o, oPosY, += q(10));
 }
 
 void (*sGrindelThwompActions[])(void) = { grindel_thwomp_act_0, grindel_thwomp_act_1,

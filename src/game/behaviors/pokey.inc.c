@@ -75,27 +75,27 @@ void bhv_pokey_body_part_update(void) {
             //! If you kill a body part as it's expanding, the body part that
             //  was above it will instantly shrink and begin expanding in its
             //  place.
-            else if (o->parentObj->oPokeyBottomBodyPartSize < 1.0f
+            else if (QFIELD(o->parentObj, oPokeyBottomBodyPartSize) < QONE
                      && o->oBehParams2ndByte + 1 == o->parentObj->oPokeyNumAliveBodyParts) {
-                approach_f32_ptr(&o->parentObj->oPokeyBottomBodyPartSize, 1.0f, 0.1f);
-                cur_obj_scale(o->parentObj->oPokeyBottomBodyPartSize * 3.0f);
+                APPROACH_Q32_FIELD(o->parentObj, oPokeyBottomBodyPartSize, QONE, q(0.1));
+                cur_obj_scaleq(QFIELD(o->parentObj, oPokeyBottomBodyPartSize) * 3);
             }
 
             //! Pausing causes jumps in offset angle
             offsetAngle = o->oBehParams2ndByte * 0x4000 + gGlobalTimer * 0x800;
-            o->oPosX = o->parentObj->oPosX + coss(offsetAngle) * 6.0f;
-            o->oPosZ = o->parentObj->oPosZ + sins(offsetAngle) * 6.0f;
+            FSETFIELD(o, oPosX, FFIELD(o->parentObj, oPosX) + coss(offsetAngle) * 6.0f);
+            FSETFIELD(o, oPosZ, FFIELD(o->parentObj, oPosZ) + sins(offsetAngle) * 6.0f);
 
             // This is the height of the tower beneath the body part
-            baseHeight = o->parentObj->oPosY
+            baseHeight = FFIELD(o->parentObj, oPosY)
                          + (120 * (o->parentObj->oPokeyNumAliveBodyParts - o->oBehParams2ndByte) - 240)
-                         + 120.0f * o->parentObj->oPokeyBottomBodyPartSize;
+                         + 120.0f * FFIELD(o->parentObj, oPokeyBottomBodyPartSize);
 
             // We treat the base height as a minimum height, allowing the body
             // part to briefly stay in the air after a part below it dies
-            if (o->oPosY < baseHeight) {
-                o->oPosY = baseHeight;
-                o->oVelY = 0.0f;
+            if (FFIELD(o, oPosY) < baseHeight) {
+                FSETFIELD(o, oPosY, baseHeight);
+                QSETFIELD(o,  oVelY, q(0));
             }
 
             // Only the head has loot coins
@@ -139,7 +139,7 @@ void bhv_pokey_body_part_update(void) {
         o->oAnimState = 1;
     }
 
-    o->oGraphYOffset = o->header.gfx.scale[1] * 22.0f;
+    QSETFIELD(o, oGraphYOffset, o->header.gfx.scaleq[1] * 22);
 }
 
 /**
@@ -151,7 +151,7 @@ static void pokey_act_uninitialized(void) {
     s32 i;
     s16 partModel;
 
-    if (o->oDistanceToMario < 2000.0f) {
+    if (QFIELD(o, oDistanceToMario) < q(2000)) {
         partModel = MODEL_POKEY_HEAD;
 
         for (i = 0; i < 5; i++) {
@@ -168,7 +168,7 @@ static void pokey_act_uninitialized(void) {
 
         o->oPokeyAliveBodyPartFlags = 0x1F;
         o->oPokeyNumAliveBodyParts = 5;
-        o->oPokeyBottomBodyPartSize = 1.0f;
+        QSETFIELD(o,  oPokeyBottomBodyPartSize, q(1));
         o->oAction = POKEY_ACT_WANDER;
     }
 }
@@ -185,17 +185,17 @@ static void pokey_act_wander(void) {
 
     if (o->oPokeyNumAliveBodyParts == 0) {
         obj_mark_for_deletion(o);
-    } else if (o->oDistanceToMario > 2500.0f) {
+    } else if (QFIELD(o, oDistanceToMario) > q(2500.0)) {
         o->oAction = POKEY_ACT_UNLOAD_PARTS;
-        o->oForwardVel = 0.0f;
+        QSETFIELD(o,  oForwardVel, q(0));
     } else {
-        treat_far_home_as_mario(1000.0f);
+        treat_far_home_as_marioq(q(1000.0f));
         cur_obj_update_floor_and_walls();
 
         if (o->oPokeyHeadWasKilled) {
-            o->oForwardVel = 0.0f;
+            QSETFIELD(o,  oForwardVel, q(0));
         } else {
-            o->oForwardVel = 5.0f;
+            QSETFIELD(o,  oForwardVel, q(5));
 
             // If a body part is missing, replenish it after 100 frames
             if (o->oPokeyNumAliveBodyParts < 5) {
@@ -211,7 +211,7 @@ static void pokey_act_wander(void) {
                         o->oPokeyAliveBodyPartFlags =
                             o->oPokeyAliveBodyPartFlags | (1 << o->oPokeyNumAliveBodyParts);
                         o->oPokeyNumAliveBodyParts += 1;
-                        o->oPokeyBottomBodyPartSize = 0.0f;
+                        QSETFIELD(o,  oPokeyBottomBodyPartSize, q(0));
 
                         obj_scale(bodyPart, 0.0f);
                     }
@@ -227,7 +227,7 @@ static void pokey_act_wander(void) {
                     obj_resolve_collisions_and_turn(o->oPokeyTargetYaw, 0x200);
             } else {
                 // If far from home, turn back toward home
-                if (o->oDistanceToMario >= 25000.0f) {
+                if (QFIELD(o, oDistanceToMario) >= q(25000)) {
                     o->oPokeyTargetYaw = o->oAngleToMario;
                 }
 
@@ -235,7 +235,7 @@ static void pokey_act_wander(void) {
                           obj_bounce_off_walls_edges_objects(&o->oPokeyTargetYaw))) {
                     if (o->oPokeyChangeTargetTimer != 0) {
                         o->oPokeyChangeTargetTimer -= 1;
-                    } else if (o->oDistanceToMario > 2000.0f) {
+                    } else if (QFIELD(o, oDistanceToMario) > q(2000.0)) {
                         o->oPokeyTargetYaw = obj_random_fixed_turn(0x2000);
                         o->oPokeyChangeTargetTimer = random_linear_offset(30, 50);
                     } else {
@@ -245,7 +245,7 @@ static void pokey_act_wander(void) {
 
                         // targetAngleOffset is 0 when distance to mario is >= 1838.4
                         // and 0x4000 when distance to mario is <= 200
-                        targetAngleOffset = (s32)(0x4000 - (o->oDistanceToMario - 200.0f) * 10.0f);
+                        targetAngleOffset = (s32)(0x4000 - (FFIELD(o, oDistanceToMario) - 200.0f) * 10.0f);
                         if (targetAngleOffset < 0) {
                             targetAngleOffset = 0;
                         } else if (targetAngleOffset > 0x4000) {

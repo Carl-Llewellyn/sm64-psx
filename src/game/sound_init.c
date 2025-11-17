@@ -18,10 +18,10 @@
 
 #define MUSIC_NONE 0xFFFF
 
-static Vec3f unused80339DC0;
-static OSMesgQueue sSoundMesgQueue;
-static OSMesg sSoundMesgBuf[1];
-static struct VblankHandler sSoundVblankHandler;
+//static Vec3f unused80339DC0;
+//static OSMesgQueue sSoundMesgQueue;
+//static OSMesg sSoundMesgBuf[1];
+//static struct VblankHandler sSoundVblankHandler;
 
 // Only written to, never read.
 static u8 sMusicVolume = 0;
@@ -225,7 +225,7 @@ void play_infinite_stairs_music(void) {
  * Called from threads: thread5_game_loop
  */
 void set_background_music(u16 a, u16 seqArgs, s16 fadeTimer) {
-    if (gResetTimer == 0 && seqArgs != sCurrentMusic) {
+    if (seqArgs != sCurrentMusic) {
         if (gCurrCreditsEntry != NULL) {
             sound_reset(7);
         } else {
@@ -320,40 +320,4 @@ void stop_cap_music(void) {
  */
 void play_menu_sounds_extra(s32 a, void *b) {
     play_sound(sMenuSoundsExtra[a], b);
-}
-
-/**
- * Called from threads: thread5_game_loop
- */
-void audio_game_loop_tick(void) {
-    audio_signal_game_loop_tick();
-}
-
-/**
- * Sound processing thread. Runs at 60 FPS.
- */
-void thread4_sound(UNUSED void *arg) {
-    audio_init();
-    sound_init();
-
-    // Zero-out unused vector
-    vec3f_copy(unused80339DC0, gVec3fZero);
-
-    osCreateMesgQueue(&sSoundMesgQueue, sSoundMesgBuf, ARRAY_COUNT(sSoundMesgBuf));
-    set_vblank_handler(1, &sSoundVblankHandler, &sSoundMesgQueue, (OSMesg) 512);
-
-    while (TRUE) {
-        OSMesg msg;
-
-        osRecvMesg(&sSoundMesgQueue, &msg, OS_MESG_BLOCK);
-        if (gResetTimer < 25) {
-            struct SPTask *spTask;
-            profiler_log_thread4_time();
-            spTask = create_next_audio_frame_task(); 
-            if (spTask != NULL) {
-                dispatch_audio_sptask(spTask);
-            }
-            profiler_log_thread4_time();
-        }
-    }
 }

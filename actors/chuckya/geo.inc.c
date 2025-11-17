@@ -99,7 +99,7 @@ const GeoLayout chuckya_geo[] = {
                                              GEO_DISPLAY_LIST(LAYER_ALPHA, chuckya_seg8_dl_0800A510),
                                           GEO_CLOSE_NODE(),
                                        GEO_CLOSE_NODE(),
-                                       GEO_ASM(0, geo_update_held_mario_pos),
+                                       GEO_ASM_DYN(0, DYN_geo_update_held_mario_pos),
                                     GEO_CLOSE_NODE(),
                                  GEO_CLOSE_NODE(),
                               GEO_CLOSE_NODE(),

@@ -58,13 +58,13 @@ void bhv_ferris_wheel_platform_update(void) {
     offsetAngle = o->parentObj->oFaceAngleRoll + o->oBehParams2ndByte * 0x4000;
     offsetXZ = 400.0f * coss(offsetAngle);
 
-    o->oPosX = o->parentObj->oPosX + offsetXZ * sins(o->parentObj->oMoveAngleYaw)
-               + 300.0f * coss(o->parentObj->oMoveAngleYaw);
+    FSETFIELD(o, oPosX, FFIELD(o->parentObj, oPosX) + offsetXZ * sins(o->parentObj->oMoveAngleYaw)
+               + 300.0f * coss(o->parentObj->oMoveAngleYaw));
 
-    o->oPosY = o->parentObj->oPosY + 400.0f * sins(offsetAngle);
+    FSETFIELD(o, oPosY, FFIELD(o->parentObj, oPosY) + 400.0f * sins(offsetAngle));
 
-    o->oPosZ = o->parentObj->oPosZ + offsetXZ * coss(o->parentObj->oMoveAngleYaw)
-               + 300.0f * sins(o->parentObj->oMoveAngleYaw);
+    FSETFIELD(o, oPosZ, FFIELD(o->parentObj, oPosZ) + offsetXZ * coss(o->parentObj->oMoveAngleYaw)
+               + 300.0f * sins(o->parentObj->oMoveAngleYaw));
 
     obj_perform_position_op(POS_OP_COMPUTE_VELOCITY);
 }

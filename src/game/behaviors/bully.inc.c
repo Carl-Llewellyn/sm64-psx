@@ -27,12 +27,12 @@ static struct ObjectHitbox sBigBullyHitbox = {
 void bhv_small_bully_init(void) {
     cur_obj_init_animation(0);
 
-    o->oHomeX = o->oPosX;
-    o->oHomeZ = o->oPosZ;
+    QSETFIELD(o,  oHomeX, QFIELD(o,  oPosX));
+    QSETFIELD(o,  oHomeZ, QFIELD(o,  oPosZ));
     o->oBehParams2ndByte = BULLY_BP_SIZE_SMALL;
-    o->oGravity = 4.0;
-    o->oFriction = 0.91;
-    o->oBuoyancy = 1.3;
+    QSETFIELD(o, oGravity, q(4.0));
+    QSETFIELD(o,  oFriction, q(0.91));
+    QSETFIELD(o,  oBuoyancy, q(1.3));
 
     obj_set_hitbox(o, &sSmallBullyHitbox);
 }
@@ -40,13 +40,13 @@ void bhv_small_bully_init(void) {
 void bhv_big_bully_init(void) {
     cur_obj_init_animation(0);
 
-    o->oHomeX = o->oPosX;
-    o->oHomeY = o->oPosY;
-    o->oHomeZ = o->oPosZ;
+    QSETFIELD(o,  oHomeX, QFIELD(o,  oPosX));
+    QSETFIELD(o,  oHomeY, QFIELD(o,  oPosY));
+    QSETFIELD(o,  oHomeZ, QFIELD(o,  oPosZ));
     o->oBehParams2ndByte = BULLY_BP_SIZE_BIG;
-    o->oGravity = 5.0;
-    o->oFriction = 0.93;
-    o->oBuoyancy = 1.3;
+    QSETFIELD(o, oGravity, q(5.0));
+    QSETFIELD(o,  oFriction, q(0.93));
+    QSETFIELD(o,  oBuoyancy, q(1.3));
 
     obj_set_hitbox(o, &sBigBullyHitbox);
 }
@@ -71,32 +71,32 @@ void bully_check_mario_collision(void) {
 }
 
 void bully_act_chase_mario(void) {
-    f32 homeX = o->oHomeX;
-    f32 posY = o->oPosY;
-    f32 homeZ = o->oHomeZ;
+    s32 homeXi = IFIELD(o, oHomeX);
+    s32 posYi = IFIELD(o, oPosY);
+    s32 homeZi = IFIELD(o, oHomeZ);
 
     if (o->oTimer < 10) {
-        o->oForwardVel = 3.0;
+        QSETFIELD(o, oForwardVel, q(3));
         obj_turn_toward_object(o, gMarioObject, 16, 4096);
     } else if (o->oBehParams2ndByte == BULLY_BP_SIZE_SMALL) {
-        o->oForwardVel = 20.0;
+        QSETFIELD(o, oForwardVel, q(20));
         if (o->oTimer >= 31)
             o->oTimer = 0;
     } else {
-        o->oForwardVel = 30.0;
+        QSETFIELD(o, oForwardVel, q(30));
         if (o->oTimer >= 36)
             o->oTimer = 0;
     }
 
-    if (!is_point_within_radius_of_mario(homeX, posY, homeZ, 1000)) {
+    if (!is_point_within_radius_of_mario(homeXi, posYi, homeZi, 1000)) {
         o->oAction = BULLY_ACT_PATROL;
         cur_obj_init_animation(0);
     }
 }
 
 void bully_act_knockback(void) {
-    if (o->oForwardVel < 10.0 && (s32) o->oVelY == 0) {
-        o->oForwardVel = 1.0;
+    if (QFIELD(o, oForwardVel) < q(10) && IFIELD(o, oVelY) == 0) {
+        QSETFIELD(o, oForwardVel, q(1));
         o->oBullyKBTimerAndMinionKOCounter++;
         o->oFlags |= 0x8; /* bit 3 */
         o->oMoveAngleYaw = o->oFaceAngleYaw;
@@ -117,7 +117,7 @@ void bully_act_back_up(void) {
         o->oMoveAngleYaw += 0x8000;
     }
 
-    o->oForwardVel = 5.0;
+    QSETFIELD(o, oForwardVel, q(5));
 
     //! bully_backup_check() happens after this function, and has the potential to reset
     //  the bully's action to BULLY_ACT_BACK_UP. Because the back up action is only
@@ -136,8 +136,8 @@ void bully_act_back_up(void) {
 void bully_backup_check(s16 collisionFlags) {
     if (!(collisionFlags & 0x8) && o->oAction != BULLY_ACT_KNOCKBACK) /* bit 3 */
     {
-        o->oPosX = o->oBullyPrevX;
-        o->oPosZ = o->oBullyPrevZ;
+        QSETFIELD(o, oPosX, QFIELD(o,  oBullyPrevX));
+        QSETFIELD(o, oPosZ, QFIELD(o,  oBullyPrevZ));
         o->oAction = BULLY_ACT_BACK_UP;
     }
 }
@@ -174,7 +174,7 @@ void bully_step(void) {
     obj_check_floor_death(collisionFlags, sObjFloor);
 
     if (o->oBullySubtype & BULLY_STYPE_CHILL) {
-        if (o->oPosY < 1030.0f)
+        if (QFIELD(o, oPosY) < q(1030.0f))
             o->oAction = BULLY_ACT_LAVA_DEATH;
     }
 }
@@ -188,10 +188,10 @@ void bully_spawn_coin(void) {
 #else
     cur_obj_play_sound_2(SOUND_GENERAL_COIN_SPURT_2);
 #endif
-    coin->oForwardVel = 10.0f;
-    coin->oVelY = 100.0f;
-    coin->oPosY = o->oPosY + 310.0f;
-    coin->oMoveAngleYaw = (f32)(o->oBullyMarioCollisionAngle + 0x8000) + random_float() * 1024.0f;
+    QSETFIELD(coin, oForwardVel, q(10));
+    QSETFIELD(coin, oVelY, q(100));
+    QSETFIELD(coin, oPosY, QFIELD(o, oPosY) + q(310));
+    coin->oMoveAngleYaw = (f32)(o->oBullyMarioCollisionAngle + 0x8000) + random_q32() * 1024 / ONE;
 }
 
 void bully_act_level_death(void) {
@@ -215,9 +215,9 @@ void bully_act_level_death(void) {
 }
 
 void bhv_bully_loop(void) {
-    o->oBullyPrevX = o->oPosX;
-    o->oBullyPrevY = o->oPosY;
-    o->oBullyPrevZ = o->oPosZ;
+    QSETFIELD(o, oBullyPrevX, QFIELD(o, oPosX));
+    QSETFIELD(o, oBullyPrevY, QFIELD(o, oPosY));
+    QSETFIELD(o, oBullyPrevZ, QFIELD(o, oPosZ));
 
     //! Because this function runs no matter what, Mario is able to interrupt the bully's
     //  death action by colliding with it. Since the bully hitbox is tall enough to collide
@@ -227,9 +227,9 @@ void bhv_bully_loop(void) {
 
     switch (o->oAction) {
         case BULLY_ACT_PATROL:
-            o->oForwardVel = 5.0;
+            QSETFIELD(o, oForwardVel, q(5));
 
-            if (obj_return_home_if_safe(o, o->oHomeX, o->oPosY, o->oHomeZ, 800) == 1) {
+            if (obj_return_home_if_safe(o, IFIELD(o, oHomeX), IFIELD(o, oPosY), IFIELD(o, oHomeZ), 800) == 1) {
                 o->oAction = BULLY_ACT_CHASE_MARIO;
                 cur_obj_init_animation(1);
             }
@@ -298,17 +298,17 @@ void big_bully_spawn_star(void) {
 void bhv_big_bully_with_minions_loop(void) {
     s16 collisionFlags;
 
-    o->oBullyPrevX = o->oPosX;
-    o->oBullyPrevY = o->oPosY;
-    o->oBullyPrevZ = o->oPosZ;
+    QSETFIELD(o,  oBullyPrevX, QFIELD(o,  oPosX));
+    QSETFIELD(o,  oBullyPrevY, QFIELD(o,  oPosY));
+    QSETFIELD(o,  oBullyPrevZ, QFIELD(o,  oPosZ));
 
     bully_check_mario_collision();
 
     switch (o->oAction) {
         case BULLY_ACT_PATROL:
-            o->oForwardVel = 5.0;
+            QSETFIELD(o, oForwardVel, q(5));
 
-            if (obj_return_home_if_safe(o, o->oHomeX, o->oPosY, o->oHomeZ, 1000) == 1) {
+            if (obj_return_home_if_safe(o, IFIELD(o, oHomeX), IFIELD(o, oPosY), IFIELD(o, oHomeZ), 1000) == 1) {
                 o->oAction = BULLY_ACT_CHASE_MARIO;
                 cur_obj_init_animation(1);
             }
@@ -351,7 +351,7 @@ void bhv_big_bully_with_minions_loop(void) {
 
             if (collisionFlags == 1) {
                 cur_obj_play_sound_2(SOUND_OBJ_THWOMP);
-                set_camera_shake_from_point(SHAKE_POS_SMALL, o->oPosX, o->oPosY, o->oPosZ);
+                set_camera_shake_from_pointq(SHAKE_POS_SMALL, QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ));
                 spawn_mist_particles();
             }
 

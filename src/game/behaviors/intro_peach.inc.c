@@ -5,17 +5,17 @@
  * If nonzero, make peach's opacity approach targetOpacity by increment
  */
 void intro_peach_set_pos_and_opacity(struct Object *o, f32 targetOpacity, f32 increment) {
-    Vec3f newPos;
+    Vec3q newPosq;
     s16 focusPitch, focusYaw;
-    f32 UNUSED dist, newOpacity;
+    q32 UNUSED distq, newOpacityq;
 
-    vec3f_get_dist_and_angle(gLakituState.pos, gLakituState.focus, &dist, &focusPitch, &focusYaw);
-    vec3f_set_dist_and_angle(gLakituState.pos, newPos, o->oIntroPeachDistToCamera, o->oIntroPeachPitchFromFocus + focusPitch,
-                             o->oIntroPeachYawFromFocus + focusYaw);
-    vec3f_to_object_pos(o, newPos);
-    newOpacity = o->oOpacity;
-    camera_approach_f32_symmetric_bool(&newOpacity, targetOpacity, increment);
-    o->oOpacity = newOpacity;
+    vec3q_get_dist_and_angle(gLakituState.posq, gLakituState.focusq, &distq, &focusPitch, &focusYaw);
+    vec3q_set_dist_and_angle(gLakituState.posq, newPosq, QFIELD(o, oIntroPeachDistToCamera), qtrunc(QFIELD(o, oIntroPeachPitchFromFocus)) + focusPitch,
+                             qtrunc(QFIELD(o, oIntroPeachYawFromFocus)) + focusYaw);
+    vec3q_to_object_pos(o, newPosq);
+    newOpacityq = q(o->oOpacity);
+    camera_approach_q32_symmetric_bool(&newOpacityq, q(targetOpacity), increment);
+    o->oOpacity = qtof(newOpacityq);
 }
 
 void bhv_intro_peach_loop(void) {
@@ -25,9 +25,9 @@ void bhv_intro_peach_loop(void) {
             gCurrentObject->oFaceAnglePitch = 0x400;
             gCurrentObject->oFaceAngleYaw = 0x7500;
             gCurrentObject->oFaceAngleRoll = -0x3700;
-            gCurrentObject->oIntroPeachDistToCamera = 186.f;
-            gCurrentObject->oIntroPeachPitchFromFocus = -9984.f;
-            gCurrentObject->oIntroPeachYawFromFocus = -768.f;
+            QSETFIELD(gCurrentObject, oIntroPeachDistToCamera, q(186));
+            QSETFIELD(gCurrentObject, oIntroPeachPitchFromFocus, q(-9984));
+            QSETFIELD(gCurrentObject, oIntroPeachYawFromFocus, q(-768));
             gCurrentObject->oOpacity = 255;
             gCurrentObject->header.gfx.animInfo.animFrame = 100;
             break;

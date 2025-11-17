@@ -35,17 +35,17 @@ void whirpool_orient_graph(void) {
 }
 
 void bhv_whirlpool_loop(void) {
-    if (o->oDistanceToMario < 5000.0f) {
+    if (QFIELD(o, oDistanceToMario) < q(5000.0)) {
         o->header.gfx.node.flags &= ~GRAPH_RENDER_INVISIBLE;
 
         // not sure if actually an array
         gEnvFxBubbleConfig[ENVFX_STATE_PARTICLECOUNT] = 60;
-        gEnvFxBubbleConfig[ENVFX_STATE_SRC_X] = o->oPosX;
-        gEnvFxBubbleConfig[ENVFX_STATE_SRC_Z] = o->oPosZ;
-        gEnvFxBubbleConfig[ENVFX_STATE_DEST_X] = o->oPosX;
-        gEnvFxBubbleConfig[ENVFX_STATE_DEST_Y] = o->oPosY;
-        gEnvFxBubbleConfig[ENVFX_STATE_DEST_Z] = o->oPosZ;
-        gEnvFxBubbleConfig[ENVFX_STATE_SRC_Y] = o->oPosY + 800.0f;
+        gEnvFxBubbleConfig[ENVFX_STATE_SRC_X] = FFIELD(o, oPosX);
+        gEnvFxBubbleConfig[ENVFX_STATE_SRC_Z] = FFIELD(o, oPosZ);
+        gEnvFxBubbleConfig[ENVFX_STATE_DEST_X] = FFIELD(o, oPosX);
+        gEnvFxBubbleConfig[ENVFX_STATE_DEST_Y] = FFIELD(o, oPosY);
+        gEnvFxBubbleConfig[ENVFX_STATE_DEST_Z] = FFIELD(o, oPosZ);
+        gEnvFxBubbleConfig[ENVFX_STATE_SRC_Y] = FFIELD(o, oPosY) + 800.0f;
         gEnvFxBubbleConfig[ENVFX_STATE_PITCH] = o->oWhirlpoolInitFacePitch;
         gEnvFxBubbleConfig[ENVFX_STATE_YAW] = o->oWhirlpoolInitFaceRoll;
 
@@ -63,11 +63,11 @@ void bhv_whirlpool_loop(void) {
 }
 
 void bhv_jet_stream_loop(void) {
-    if (o->oDistanceToMario < 5000.0f) {
+    if (QFIELD(o, oDistanceToMario) < q(5000.0)) {
         gEnvFxBubbleConfig[ENVFX_STATE_PARTICLECOUNT] = 60;
-        gEnvFxBubbleConfig[ENVFX_STATE_SRC_X] = o->oPosX;
-        gEnvFxBubbleConfig[ENVFX_STATE_SRC_Y] = o->oPosY;
-        gEnvFxBubbleConfig[ENVFX_STATE_SRC_Z] = o->oPosZ;
+        gEnvFxBubbleConfig[ENVFX_STATE_SRC_X] = FFIELD(o, oPosX);
+        gEnvFxBubbleConfig[ENVFX_STATE_SRC_Y] = FFIELD(o, oPosY);
+        gEnvFxBubbleConfig[ENVFX_STATE_SRC_Z] = FFIELD(o, oPosZ);
     } else
         gEnvFxBubbleConfig[ENVFX_STATE_PARTICLECOUNT] = 0;
 

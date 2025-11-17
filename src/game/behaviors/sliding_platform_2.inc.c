@@ -16,38 +16,38 @@ void bhv_sliding_plat_2_init(void) {
 
     collisionDataIndex = ((u16)(o->oBehParams >> 16) & 0x0380) >> 7;
     o->collisionData = segmented_to_virtual(sSlidingPlatform2CollisionData[collisionDataIndex]);
-    o->oBackAndForthPlatformPathLength = 50.0f * ((u16)(o->oBehParams >> 16) & 0x003F);
+    FSETFIELD(o, oBackAndForthPlatformPathLength, 50.0f * ((u16)(o->oBehParams >> 16) & 0x003F));
 
     if (collisionDataIndex < 5 || collisionDataIndex > 6) {
-        o->oBackAndForthPlatformVel = 15.0f;
+        QSETFIELD(o,  oBackAndForthPlatformVel, q(15));
         if ((u16)(o->oBehParams >> 16) & 0x0040) {
             o->oMoveAngleYaw += 0x8000;
         }
     } else {
-        o->oBackAndForthPlatformVel = 10.0f;
+        QSETFIELD(o,  oBackAndForthPlatformVel, q(10));
         if ((u16)(o->oBehParams >> 16) & 0x0040) {
-            o->oBackAndForthPlatformDirection = -1.0f;
+            QSETFIELD(o,  oBackAndForthPlatformDirection, q(-1));
         } else {
-            o->oBackAndForthPlatformDirection = 1.0f;
+            QSETFIELD(o,  oBackAndForthPlatformDirection, q(1));
         }
     }
 }
 
 void bhv_sliding_plat_2_loop(void) {
     if (o->oTimer > 10) {
-        o->oBackAndForthPlatformDistance += o->oBackAndForthPlatformVel;
-        if (clamp_f32(&o->oBackAndForthPlatformDistance, -o->oBackAndForthPlatformPathLength, 0.0f)) {
-            o->oBackAndForthPlatformVel = -o->oBackAndForthPlatformVel;
+        QMODFIELD(o, oBackAndForthPlatformDistance, += QFIELD(o, oBackAndForthPlatformVel));
+        if (CLAMP_F32_FIELD(o, oBackAndForthPlatformDistance, FFIELD(-o, oBackAndForthPlatformPathLength), 0.0f)) {
+            QSETFIELD(o,  oBackAndForthPlatformVel, QFIELD(-o,  oBackAndForthPlatformVel));
             o->oTimer = 0;
         }
     }
 
     obj_perform_position_op(0);
 
-    if (o->oBackAndForthPlatformDirection != 0.0f) {
-        o->oPosY = o->oHomeY + o->oBackAndForthPlatformDistance * o->oBackAndForthPlatformDirection;
+    if (QFIELD(o, oBackAndForthPlatformDirection) != 0) {
+        QSETFIELD(o, oPosY, QFIELD(o, oHomeY) + qmul(QFIELD(o, oBackAndForthPlatformDistance), QFIELD(o, oBackAndForthPlatformDirection)));
     } else {
-        obj_set_dist_from_home(o->oBackAndForthPlatformDistance);
+        obj_set_dist_from_homeq(QFIELD(o, oBackAndForthPlatformDistance));
     }
 
     obj_perform_position_op(1);

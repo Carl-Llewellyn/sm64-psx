@@ -1,43 +1,43 @@
 // boulder.c.inc
 
 void bhv_big_boulder_init(void) {
-    o->oHomeX = o->oPosX;
-    o->oHomeY = o->oPosY;
-    o->oHomeZ = o->oPosZ;
+    QSETFIELD(o, oHomeX, QFIELD(o, oPosX));
+    QSETFIELD(o, oHomeY, QFIELD(o, oPosY));
+    QSETFIELD(o, oHomeZ, QFIELD(o, oPosZ));
 
-    o->oGravity = 8.0f;
-    o->oFriction = 0.999f;
-    o->oBuoyancy = 2.0f;
+    QSETFIELD(o, oGravity, q(8.0f));
+    QSETFIELD(o, oFriction, q(0.999));
+    QSETFIELD(o, oBuoyancy, q(2));
 }
 
 void boulder_act_1(void) {
     s16 sp1E;
 
     sp1E = object_step_without_floor_orient();
-    if ((sp1E & 0x09) == 0x01 && o->oVelY > 10.0f) {
+    if ((sp1E & 0x09) == 0x01 && FFIELD(o, oVelY) > 10.0f) {
         cur_obj_play_sound_2(SOUND_GENERAL_GRINDEL_ROLL);
         spawn_mist_particles();
     }
 
-    if (o->oForwardVel > 70.0)
-        o->oForwardVel = 70.0f;
+    if (QFIELD(o, oForwardVel) > q(70.0))
+        QSETFIELD(o,  oForwardVel, q(70));
 
-    if (o->oPosY < -1000.0f)
+    if (FFIELD(o, oPosY) < -1000.0f)
         o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
 }
 
 void bhv_big_boulder_loop(void) {
-    cur_obj_scale(1.5f);
-    o->oGraphYOffset = 270.0f;
+    cur_obj_scaleq(q(1.5f));
+    QSETFIELD(o,  oGraphYOffset, q(270));
     switch (o->oAction) {
         case 0:
-            o->oForwardVel = 40.0f;
+            QSETFIELD(o,  oForwardVel, q(40));
             o->oAction = 1;
             break;
 
         case 1:
             boulder_act_1();
-            adjust_rolling_face_pitch(1.5f);
+            adjust_rolling_face_pitchq(q(1.5f));
             cur_obj_play_sound_1(SOUND_ENV_UNKNOWN2);
             break;
     }
@@ -51,18 +51,17 @@ void bhv_big_boulder_generator_loop(void) {
         o->oTimer = 0;
     }
 
-    if (!current_mario_room_check(4) || is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 1500))
+    if (!current_mario_room_check(4) || is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 1500))
         return;
 
-    if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 6000)) {
-        if ((o->oTimer & 0x3F) == 0) {
-            sp1C = spawn_object(o, MODEL_HMC_ROLLING_ROCK, bhvBigBoulder);
-            sp1C->oMoveAngleYaw = random_float() * 4096.0f;
-        }
+    u32 mask;
+    if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 6000)) {
+        mask = 0x3F;
     } else {
-        if ((o->oTimer & 0x7F) == 0) {
-            sp1C = spawn_object(o, MODEL_HMC_ROLLING_ROCK, bhvBigBoulder);
-            sp1C->oMoveAngleYaw = random_float() * 4096.0f;
-        }
+        mask = 0x7F;
+    }
+    if ((o->oTimer & mask) == 0) {
+        sp1C = spawn_object(o, MODEL_HMC_ROLLING_ROCK, bhvBigBoulder);
+        sp1C->oMoveAngleYaw = random_float() * 4096.0f;
     }
 }

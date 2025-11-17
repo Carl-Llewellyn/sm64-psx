@@ -25,12 +25,14 @@
 
 #define STUB_LEVEL(textname, _1, _2, _3, _4, _5, _6, _7, _8) textname,
 #define DEFINE_LEVEL(textname, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10) textname,
+#define DEFINE_LEVEL_REMOVED(textname, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10) textname,
 
 static char sLevelSelectStageNames[64][16] = {
     #include "levels/level_defines.h"
 };
 #undef STUB_LEVEL
 #undef DEFINE_LEVEL
+#undef DEFINE_LEVEL_REMOVED
 
 static u16 sDemoCountdown = 0;
 #ifndef VERSION_JP
@@ -130,13 +132,13 @@ s16 intro_level_select(void) {
     print_text_fmt_int(40, 60, "%2d", gCurrLevelNum);
     print_text(80, 60, sLevelSelectStageNames[gCurrLevelNum - 1]); // print stage name
 
-#define QUIT_LEVEL_SELECT_COMBO (Z_TRIG | START_BUTTON | L_CBUTTONS | R_CBUTTONS)
+#define QUIT_LEVEL_SELECT_COMBO (Z_TRIG | START_BUTTON)// | L_CBUTTONS | R_CBUTTONS)
 
     // start being pressed signals the stage to be started. that is, unless...
     if (gPlayer1Controller->buttonPressed & START_BUTTON) {
         // ... the level select quit combo is being pressed, which uses START. If this
         // is the case, quit the menu instead.
-        if (gPlayer1Controller->buttonDown == QUIT_LEVEL_SELECT_COMBO) {
+        if ((gPlayer1Controller->buttonDown & QUIT_LEVEL_SELECT_COMBO) == QUIT_LEVEL_SELECT_COMBO) {
             gDebugLevelSelect = FALSE;
             return -1;
         }
@@ -172,7 +174,7 @@ s32 intro_regular(void) {
         play_sound(SOUND_MENU_STAR_SOUND, gGlobalSoundSource);
 #if ENABLE_RUMBLE
         queue_rumble_data(60, 70);
-        func_sh_8024C89C(1);
+        set_rumble_decay(1);
 #endif
         // calls level ID 100 (or 101 adding level select bool value)
         // defined in level_intro_mario_head_regular JUMP_IF commands
@@ -204,7 +206,7 @@ s32 intro_game_over(void) {
         play_sound(SOUND_MENU_STAR_SOUND, gGlobalSoundSource);
 #if ENABLE_RUMBLE
         queue_rumble_data(60, 70);
-        func_sh_8024C89C(1);
+        set_rumble_decay(1);
 #endif
         // same criteria as intro_regular
         level = 100 + gDebugLevelSelect;
@@ -244,6 +246,7 @@ s32 lvl_intro_update(s16 arg, UNUSED s32 unusedArg) {
         case LVL_INTRO_LEVEL_SELECT:
             retVar = intro_level_select();
             break;
+        default: unreachable();
     }
     return retVar;
 }

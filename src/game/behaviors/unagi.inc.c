@@ -32,12 +32,12 @@ void bhv_unagi_init(void) {
 }
 
 void unagi_act_0(void) {
-    if (o->oDistanceToMario > 4500.0f && o->oSubAction != 0) {
+    if (QFIELD(o, oDistanceToMario) > q(4500.0) && o->oSubAction != 0) {
         o->oAction = 1;
-        o->oPosX = o->oPathedStartWaypoint->pos[0];
-        o->oPosY = o->oPathedStartWaypoint->pos[1];
-        o->oPosZ = o->oPathedStartWaypoint->pos[2];
-    } else if (o->oUnagiUnk1AC < 700.0f) {
+        FSETFIELD(o, oPosX, o->oPathedStartWaypoint->pos[0]);
+        FSETFIELD(o, oPosY, o->oPathedStartWaypoint->pos[1]);
+        FSETFIELD(o, oPosZ, o->oPathedStartWaypoint->pos[2]);
+    } else if (QFIELD(o, oUnagiUnk1AC) < q(700.0f)) {
         o->oSubAction = 1;
     }
 }
@@ -45,7 +45,7 @@ void unagi_act_0(void) {
 void unagi_act_1_4(s32 arg0) {
     if (o->oSoundStateID == 3) {
         if (cur_obj_check_anim_frame(30)) {
-            o->oForwardVel = 40.0f;
+            QSETFIELD(o,  oForwardVel, q(40));
         }
     } else {
         if (cur_obj_check_if_at_animation_end()) {
@@ -71,7 +71,7 @@ void unagi_act_1_4(s32 arg0) {
     cur_obj_rotate_yaw_toward(o->oPathedTargetYaw, 120);
     obj_roll_to_match_yaw_turn(o->oPathedTargetYaw, 0x2000, 100);
 
-    obj_forward_vel_approach(10.0f, 0.2f);
+    obj_forward_vel_approachq(q(10.0f), q(0.2f));
     cur_obj_set_pos_via_transform();
 }
 
@@ -85,72 +85,72 @@ void unagi_act_2(void) {
     o->oMoveAngleYaw = o->oFaceAngleYaw = o->oUnagiUnk1B0;
     o->oFaceAngleRoll = 0;
 
-    o->oForwardVel = o->oVelX = o->oVelZ = o->oUnagiUnkF8 = 0.0f;
+    QSETFIELD(o, oForwardVel, QSETFIELD(o, oVelX, QSETFIELD(o, oVelZ, QSETFIELD(o, oUnagiUnkF8, 0))));
 
-    o->oUnagiUnkF4 = -800.0f;
+    QSETFIELD(o,  oUnagiUnkF4, q(-800));
 
     o->oAction = 3;
 }
 
 void unagi_act_3(void) {
-    if (o->oUnagiUnkF4 < 0.0f) {
+    if (QFIELD(o, oUnagiUnkF4) < 0) {
         cur_obj_init_animation_with_sound(6);
 
-        if ((o->oUnagiUnkF4 += 10.0f) > 0.0f) {
-            o->oUnagiUnkF4 = 0.0f;
+        if (QMODFIELD(o, oUnagiUnkF4, += q(10)) > 0) {
+            QSETFIELD(o, oUnagiUnkF4, 0);
         }
     } else {
-        if (o->oUnagiUnkF4 == 0.0f) {
+        if (QFIELD(o, oUnagiUnkF4) == 0) {
             cur_obj_init_animation_with_sound(6);
 
-            if (o->oTimer > 60 && o->oUnagiUnk1AC < 1000.0f) {
+            if (o->oTimer > 60 && FFIELD(o, oUnagiUnk1AC) < 1000.0f) {
                 cur_obj_play_sound_2(SOUND_OBJ_EEL_2);
-                o->oUnagiUnkF8 = o->oUnagiUnk110 = 30.0f;
+                QSETFIELD(o, oUnagiUnkF8, QSETFIELD(o, oUnagiUnk110, q(30.0f)));
             } else {
-                o->oUnagiUnk110 = 0.0f;
+                QSETFIELD(o,  oUnagiUnk110, q(0));
             }
-        } else if (o->oUnagiUnk110 > 0.0f) {
+        } else if (QFIELD(o, oUnagiUnk110) > 0) {
             if (cur_obj_init_anim_and_check_if_end(5)) {
-                o->oUnagiUnk110 = 0.0f;
+                QSETFIELD(o,  oUnagiUnk110, q(0));
             }
-        } else if (o->oUnagiUnk110 == 0.0f) {
+        } else if (QFIELD(o, oUnagiUnk110) == 0) {
             cur_obj_init_animation_with_sound(0);
             if (cur_obj_check_if_at_animation_end()) {
-                if (o->oUnagiUnk1AC < 1000.0f) {
+                if (QFIELD(o, oUnagiUnk1AC) < q(1000.0f)) {
                     o->oAction = 4;
-                    o->oForwardVel = o->oUnagiUnkF8;
+                    QSETFIELD(o,  oForwardVel, QFIELD(o,  oUnagiUnkF8));
                     cur_obj_init_animation_with_sound(1);
                 } else {
-                    o->oUnagiUnk110 = -50.0f;
+                    QSETFIELD(o,  oUnagiUnk110, q(-50));
                     cur_obj_init_animation_with_sound(4);
                 }
             }
         }
 
-        approach_f32_ptr(&o->oUnagiUnkF8, o->oUnagiUnk110, 4.0f);
+        APPROACH_F32_FIELD(o, oUnagiUnkF8, FFIELD(o, oUnagiUnk110), 4.0f);
 
-        if ((o->oUnagiUnkF4 += o->oUnagiUnkF8) < 0.0f) {
-            o->oUnagiUnkF4 = o->oUnagiUnkF8 = 0.0f;
+        if (QMODFIELD(o, oUnagiUnkF4, += QFIELD(o, oUnagiUnkF8)) < 0) {
+            QSETFIELD(o, oUnagiUnkF4, QSETFIELD(o, oUnagiUnkF8, 0));
             o->oTimer = 0;
         }
     }
 
-    o->oPosX = o->oHomeX + o->oUnagiUnkF4 * sins(o->oMoveAngleYaw);
-    o->oPosZ = o->oHomeZ + o->oUnagiUnkF4 * coss(o->oMoveAngleYaw);
+    FSETFIELD(o, oPosX, FFIELD(o, oHomeX) + FFIELD(o, oUnagiUnkF4) * sins(o->oMoveAngleYaw));
+    FSETFIELD(o, oPosZ, FFIELD(o, oHomeZ) + FFIELD(o, oUnagiUnkF4) * coss(o->oMoveAngleYaw));
 }
 
 void bhv_unagi_loop(void) {
     s32 val04;
 
     if (o->oUnagiUnk1B2 == 0) {
-        o->oUnagiUnk1AC = 99999.0f;
-        if (o->oDistanceToMario < 3000.0f) {
+        QSETFIELD(o,  oUnagiUnk1AC, q(99999));
+        if (QFIELD(o, oDistanceToMario) < q(3000.0)) {
             for (val04 = -4; val04 < 4; val04++) {
                 spawn_object_relative(val04, 0, 0, 0, o, MODEL_NONE, bhvUnagiSubobject);
             }
             o->oUnagiUnk1B2 = 1;
         }
-    } else if (o->oDistanceToMario > 4000.0f) {
+    } else if (QFIELD(o, oDistanceToMario) > q(4000.0)) {
         o->oUnagiUnk1B2 = 0;
     }
 
@@ -163,6 +163,7 @@ void bhv_unagi_loop(void) {
             break;
         case 2:
             unagi_act_2();
+            [[fallthrough]];
         case 3:
             unagi_act_3();
             break;
@@ -180,15 +181,15 @@ void bhv_unagi_subobject_loop(void) {
     } else {
         val04 = 300.0f * o->oBehParams2ndByte;
 
-        o->oPosY = o->parentObj->oPosY - val04 * sins(o->parentObj->oFaceAnglePitch) * 1.13f;
+        FSETFIELD(o, oPosY, FFIELD(o->parentObj, oPosY) - val04 * sins(o->parentObj->oFaceAnglePitch) * 1.13f);
 
         val04 = coss(o->parentObj->oFaceAnglePitch / 2) * val04;
 
-        o->oPosX = o->parentObj->oPosX + val04 * sins(o->parentObj->oFaceAngleYaw);
-        o->oPosZ = o->parentObj->oPosZ + val04 * coss(o->parentObj->oFaceAngleYaw);
+        FSETFIELD(o, oPosX, FFIELD(o->parentObj, oPosX) + val04 * sins(o->parentObj->oFaceAngleYaw));
+        FSETFIELD(o, oPosZ, FFIELD(o->parentObj, oPosZ) + val04 * coss(o->parentObj->oFaceAngleYaw));
 
         if (o->oBehParams2ndByte == -4) {
-            if (o->parentObj->oAnimState != 0 && o->oDistanceToMario < 150.0f) {
+            if (o->parentObj->oAnimState != 0 && QFIELD(o, oDistanceToMario) < q(150.0)) {
                 o->oBehParams = o->parentObj->oBehParams;
                 spawn_default_star(6833.0f, -3654.0f, 2230.0f);
                 o->parentObj->oAnimState = 0;
@@ -196,7 +197,7 @@ void bhv_unagi_subobject_loop(void) {
         } else {
             obj_check_attacks(&sUnagiHitbox, o->oAction);
             if (o->oBehParams2ndByte == 3) {
-                o->parentObj->oUnagiUnk1AC = o->oDistanceToMario;
+                QSETFIELD(o->parentObj,  oUnagiUnk1AC, QFIELD(o,  oDistanceToMario));
             }
         }
     }

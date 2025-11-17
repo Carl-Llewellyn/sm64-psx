@@ -21,7 +21,7 @@ void bhv_seesaw_platform_init(void) {
     // The S-shaped seesaw platform in BitS is large, so increase its collision
     // distance
     if (o->oBehParams2ndByte == 2) {
-        o->oCollisionDistance = 2000.0f;
+        QSETFIELD(o,  oCollisionDistance, q(2000));
     }
 }
 
@@ -30,34 +30,36 @@ void bhv_seesaw_platform_init(void) {
  */
 void bhv_seesaw_platform_update(void) {
     UNUSED s32 startPitch = o->oFaceAnglePitch;
-    o->oFaceAnglePitch += (s32) o->oSeesawPlatformPitchVel;
+    o->oFaceAnglePitch += IFIELD(o, oSeesawPlatformPitchVel);
 
-    if (absf(o->oSeesawPlatformPitchVel) > 10.0f) {
+    if (absf(FFIELD(o, oSeesawPlatformPitchVel)) > 10.0f) {
         cur_obj_play_sound_1(SOUND_ENV_BOAT_ROCKING1);
     }
 
     if (gMarioObject->platform == o) {
         // Rotate toward mario
-        f32 rotation = o->oDistanceToMario * coss(o->oAngleToMario - o->oMoveAngleYaw);
+        f32 rotation = FFIELD(o, oDistanceToMario) * coss(o->oAngleToMario - o->oMoveAngleYaw);
         UNUSED s32 unused;
 
         // Deceleration is faster than acceleration
-        if (o->oSeesawPlatformPitchVel * rotation < 0) {
+        if (FFIELD(o, oSeesawPlatformPitchVel) * rotation < 0) {
             rotation *= 0.04f;
         } else {
             rotation *= 0.02f;
         }
 
-        o->oSeesawPlatformPitchVel += rotation;
-        clamp_f32(&o->oSeesawPlatformPitchVel, -50.0f, 50.0f);
+        FMODFIELD(o, oSeesawPlatformPitchVel, += rotation);
+        CLAMP_F32_FIELD(o, oSeesawPlatformPitchVel, -50.0f, 50.0f);
     } else {
         // Rotate back to 0
+		f32 seesawPlatformPitchVel = FFIELD(o, oSeesawPlatformPitchVel);
         oscillate_toward(
             /* value          */ &o->oFaceAnglePitch,
-            /* vel            */ &o->oSeesawPlatformPitchVel,
+            /* vel            */ &seesawPlatformPitchVel,
             /* target         */ 0.0f,
             /* velCloseToZero */ 6.0f,
             /* accel          */ 3.0f,
             /* slowdown       */ 3.0f);
+		FSETFIELD(o, oSeesawPlatformPitchVel, seesawPlatformPitchVel);
     }
 }

@@ -19,10 +19,10 @@ static f32 sTTCPendulumInitialAccels[] = {
  */
 void bhv_ttc_pendulum_init(void) {
     if (gTTCSpeedSetting != TTC_SPEED_STOPPED) {
-        o->oTTCPendulumAngleAccel = sTTCPendulumInitialAccels[gTTCSpeedSetting];
-        o->oTTCPendulumAngle = 6500.0f;
+        FSETFIELD(o, oTTCPendulumAngleAccel, sTTCPendulumInitialAccels[gTTCSpeedSetting]);
+        QSETFIELD(o,  oTTCPendulumAngle, q(6500));
     } else {
-        o->oTTCPendulumAngle = 6371.5557f;
+        QSETFIELD(o,  oTTCPendulumAngle, q(6371.5557));
     }
 }
 
@@ -31,7 +31,7 @@ void bhv_ttc_pendulum_init(void) {
  */
 void bhv_ttc_pendulum_update(void) {
     if (gTTCSpeedSetting != TTC_SPEED_STOPPED) {
-        UNUSED f32 startVel = o->oTTCPendulumAngleVel;
+        UNUSED f32 startVel = FFIELD(o, oTTCPendulumAngleVel);
 
         // Play sound
         if (o->oTTCPendulumSoundTimer != 0) {
@@ -45,25 +45,25 @@ void bhv_ttc_pendulum_update(void) {
             o->oTTCPendulumDelay -= 1;
         } else {
             // Accelerate in the direction that moves angle to zero
-            if (o->oTTCPendulumAngle * o->oTTCPendulumAccelDir > 0.0f) {
-                o->oTTCPendulumAccelDir = -o->oTTCPendulumAccelDir;
+            if (FFIELD(o, oTTCPendulumAngle) * FFIELD(o, oTTCPendulumAccelDir) > 0.0f) {
+                QSETFIELD(o,  oTTCPendulumAccelDir, QFIELD(-o,  oTTCPendulumAccelDir));
             }
-            o->oTTCPendulumAngleVel += o->oTTCPendulumAngleAccel * o->oTTCPendulumAccelDir;
+            FMODFIELD(o, oTTCPendulumAngleVel, += FFIELD(o, oTTCPendulumAngleAccel) * FFIELD(o, oTTCPendulumAccelDir));
 
             // Ignoring floating point imprecision, angle vel should always be
             // a multiple of angle accel, and so it will eventually reach zero
             //! If the pendulum is moving fast enough, the vel could fail to
             //  be a multiple of angle accel, and so the pendulum would continue
             //  oscillating forever
-            if (o->oTTCPendulumAngleVel == 0.0f) {
+            if (QFIELD(o, oTTCPendulumAngleVel) == 0) {
                 if (gTTCSpeedSetting == TTC_SPEED_RANDOM) {
                     // Select a new acceleration
                     //! By manipulating this, we can cause the pendulum to reach
                     //  extreme angles and speeds
                     if (random_u16() % 3 != 0) {
-                        o->oTTCPendulumAngleAccel = 13.0f;
+                        QSETFIELD(o,  oTTCPendulumAngleAccel, q(13));
                     } else {
-                        o->oTTCPendulumAngleAccel = 42.0f;
+                        QSETFIELD(o,  oTTCPendulumAngleAccel, q(42));
                     }
 
                     // Pick a random delay
@@ -76,11 +76,11 @@ void bhv_ttc_pendulum_update(void) {
                 o->oTTCPendulumSoundTimer = o->oTTCPendulumDelay + 15;
             }
 
-            o->oTTCPendulumAngle += o->oTTCPendulumAngleVel;
+            QMODFIELD(o, oTTCPendulumAngle, += QFIELD(o, oTTCPendulumAngleVel));
         }
     } else {
     }
 
-    o->oFaceAngleRoll = (s32) o->oTTCPendulumAngle;
+    o->oFaceAngleRoll = IFIELD(o, oTTCPendulumAngle);
     // Note: no platform displacement
 }

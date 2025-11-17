@@ -49,36 +49,36 @@ s32 bowser_flame_should_despawn(s32 maxTime) {
 void bhv_flame_bowser_init(void) {
     o->oAnimState = (s32)(random_float() * 10.0f);
     o->oMoveAngleYaw = random_u16();
-    if (random_float() < 0.2) {
-        o->oVelY = 80.0f;
+    if (random_q32() < q(0.2)) {
+        QSETFIELD(o, oVelY, q(80));
     } else {
-        o->oVelY = 20.0f;
+        QSETFIELD(o, oVelY, q(20));
     }
-    o->oForwardVel = 10.0f;
-    o->oGravity = -1.0f;
-    o->oFlameScale = random_float() + 1.0f;
+    QSETFIELD(o, oForwardVel, q(10));
+    QSETFIELD(o, oGravity, q(-1));
+    QSETFIELD(o, oFlameScale, random_q32() + QONE);
 }
 
 void bhv_flame_large_burning_out_init(void) {
     o->oAnimState = (s32)(random_float() * 10.0f);
     o->oMoveAngleYaw = random_u16();
-    o->oVelY = 10.0f;
-    o->oForwardVel = 0.0f;
-    o->oFlameScale = 7.0f;
+    QSETFIELD(o, oVelY, q(10));
+    QSETFIELD(o, oForwardVel, 0);
+    QSETFIELD(o, oFlameScale, q(7));
 }
 
 void bowser_flame_move(void) {
     s32 timer;
     timer = ((o->oFlameSpeedTimerOffset + gGlobalTimer) & 0x3F) << 10;
-    o->oPosX += sins(o->oMoveAngleYaw) * sins(timer) * 4.0f;
-    o->oPosZ += coss(o->oMoveAngleYaw) * sins(timer) * 4.0f;
+    FMODFIELD(o, oPosX,  += sins(o->oMoveAngleYaw) * sins(timer) * 4.0f);
+    FMODFIELD(o, oPosZ,  += coss(o->oMoveAngleYaw) * sins(timer) * 4.0f);
 }
 
 void bhv_flame_bowser_loop(void) {
     cur_obj_update_floor_and_walls();
     cur_obj_move_standard(78);
-    if (o->oVelY < -4.0f) {
-        o->oVelY = -4.0f;
+    if (QFIELD(o, oVelY) < q(-4)) {
+        QSETFIELD(o, oVelY, q(-4));
     }
     if (o->oAction == 0) {
         cur_obj_become_intangible();
@@ -86,51 +86,51 @@ void bhv_flame_bowser_loop(void) {
         if (o->oMoveFlags & OBJ_MOVE_LANDED) {
             o->oAction++;
             if (cur_obj_has_behavior(bhvFlameLargeBurningOut)) {
-                o->oFlameScale = 8.0f;
+                QSETFIELD(o, oFlameScale, q(8));
             } else {
-                o->oFlameScale = random_float() * 2 + 6.0f;
+                QSETFIELD(o, oFlameScale, random_q32() * 2 + q(6));
             }
-            o->oForwardVel = 0;
-            o->oVelY = 0;
-            o->oGravity = 0;
+            QSETFIELD(o, oForwardVel, 0);
+            QSETFIELD(o, oVelY, 0);
+            QSETFIELD(o, oGravity, 0);
         }
     } else {
         cur_obj_become_tangible();
-        if (o->oTimer > o->oFlameScale * 10 + 5.0f) {
-            o->oFlameScale -= 0.15;
-            if (o->oFlameScale <= 0) {
+        if (o->oTimer > qtrunc(QFIELD(o, oFlameScale) * 10) + q(5)) {
+            QMODFIELD(o, oFlameScale, -= q(0.15));
+            if (QFIELD(o, oFlameScale) <= 0) {
                 bowser_flame_despawn();
             }
         }
     }
-    cur_obj_scale(o->oFlameScale);
-    o->oGraphYOffset = o->header.gfx.scale[1] * 14.0f;
+    cur_obj_scaleq(QFIELD(o, oFlameScale));
+    QSETFIELD(o, oGraphYOffset, o->header.gfx.scaleq[1] * 14);
     obj_set_hitbox(o, &sBowserFlameHitbox);
 }
 
 void bhv_flame_moving_forward_growing_init(void) {
-    o->oForwardVel = 30.0f;
+    QSETFIELD(o,  oForwardVel, q(30));
     obj_translate_xz_random(o, 80.0f);
     o->oAnimState = (s32)(random_float() * 10.0f);
-    o->oFlameScale = 3.0f;
+	QSETFIELD(o, oFlameScale, q(3));
 }
 
 void bhv_flame_moving_forward_growing_loop(void) {
     UNUSED s32 unused;
     UNUSED struct Object *flame;
     obj_set_hitbox(o, &sGrowingBowserFlameHitbox);
-    o->oFlameScale = o->oFlameScale + 0.5;
-    cur_obj_scale(o->oFlameScale);
+    QSETFIELD(o, oFlameScale, QFIELD(o, oFlameScale) + q(0.5));
+    cur_obj_scaleq(QFIELD(o, oFlameScale));
     if (o->oMoveAnglePitch > 0x800) {
         o->oMoveAnglePitch -= 0x200;
     }
     cur_obj_set_pos_via_transform();
     cur_obj_update_floor_height();
-    if (o->oFlameScale > 30.0f) {
+    if (QFIELD(o, oFlameScale) > q(30)) {
         obj_mark_for_deletion(o);
     }
-    if (o->oPosY < o->oFloorHeight) {
-        o->oPosY = o->oFloorHeight;
+    if (QFIELD(o, oPosY) < QFIELD(o, oFloorHeight)) {
+        QSETFIELD(o, oPosY, QFIELD(o, oFloorHeight));
         flame = spawn_object(o, MODEL_RED_FLAME, bhvFlameBowser);
         obj_mark_for_deletion(o);
     }
@@ -140,12 +140,12 @@ void bhv_flame_floating_landing_init(void) {
     o->oAnimState = (s32)(random_float() * 10.0f);
     o->oMoveAngleYaw = random_u16();
     if (o->oBehParams2ndByte != 0) {
-        o->oForwardVel = random_float() * 5.0f;
+        FSETFIELD(o, oForwardVel, random_float() * 5.0f);
     } else {
-        o->oForwardVel = random_float() * 70.0f;
+        FSETFIELD(o, oForwardVel, random_float() * 70.0f);
     }
-    o->oVelY = random_float() * 20.0f;
-    o->oGravity = -1.0f;
+    FSETFIELD(o, oVelY, random_float() * 20.0f);
+    QSETFIELD(o, oGravity, q(-1.0f));
     o->oFlameSpeedTimerOffset = random_float() * 64.0f;
 }
 
@@ -159,8 +159,8 @@ void bhv_flame_floating_landing_loop(void) {
     if (bowser_flame_should_despawn(900)) {
         obj_mark_for_deletion(o);
     }
-    if (o->oVelY < sFlameFloatingYLimit[o->oBehParams2ndByte]) {
-        o->oVelY = sFlameFloatingYLimit[o->oBehParams2ndByte];
+    if (FFIELD(o, oVelY) < sFlameFloatingYLimit[o->oBehParams2ndByte]) {
+        FSETFIELD(o, oVelY, sFlameFloatingYLimit[o->oBehParams2ndByte]);
     }
     if (o->oMoveFlags & OBJ_MOVE_LANDED) {
         if (o->oBehParams2ndByte == 0) {
@@ -170,27 +170,27 @@ void bhv_flame_floating_landing_loop(void) {
         }
         obj_mark_for_deletion(o);
     }
-    o->oGraphYOffset = o->header.gfx.scale[1] * 14.0f;
+    QSETFIELD(o, oGraphYOffset, o->header.gfx.scaleq[1] * 14);
 }
 
 void bhv_blue_bowser_flame_init(void) {
     obj_translate_xz_random(o, 80.0f);
     o->oAnimState = (s32)(random_float() * 10.0f);
-    o->oVelY = 7.0f;
-    o->oForwardVel = 35.0f;
-    o->oFlameScale = 3.0f;
-    o->oFlameUnusedRand = random_float() * 0.5;
-    o->oGravity = 1.0f;
+    QSETFIELD(o, oVelY, q(7));
+    QSETFIELD(o, oForwardVel, q(35));
+    QSETFIELD(o, oFlameScale, q(3));
+    QSETFIELD(o, oFlameUnusedRand, random_q32() / 2);
+    QSETFIELD(o, oGravity, q(1.0f));
     o->oFlameSpeedTimerOffset = (s32)(random_float() * 64.0f);
 }
 
 void bhv_blue_bowser_flame_loop(void) {
     s32 i;
     obj_set_hitbox(o, &sGrowingBowserFlameHitbox);
-    if (o->oFlameScale < 16.0f) {
-        o->oFlameScale = o->oFlameScale + 0.5;
+    if (QFIELD(o, oFlameScale) < q(16)) {
+        QSETFIELD(o, oFlameScale, QFIELD(o, oFlameScale) + q(0.5));
     }
-    cur_obj_scale(o->oFlameScale);
+    cur_obj_scaleq(QFIELD(o, oFlameScale));
     cur_obj_update_floor_and_walls();
     cur_obj_move_standard(78);
     if (o->oTimer > 0x14) {
@@ -211,9 +211,9 @@ void bhv_blue_bowser_flame_loop(void) {
 
 void bhv_flame_bouncing_init(void) {
     o->oAnimState = (s32)(random_float() * 10.0f);
-    o->oVelY = 30.0f;
-    o->oForwardVel = 20.0f;
-    o->oFlameScale = o->header.gfx.scale[0];
+    QSETFIELD(o,  oVelY, q(30));
+    QSETFIELD(o,  oForwardVel, q(20));
+    QSETFIELD(o, oFlameScale, o->header.gfx.scaleq[0]);
     o->oFlameSpeedTimerOffset = (s32)(random_float() * 64.0f);
 }
 
@@ -223,9 +223,9 @@ void bhv_flame_bouncing_loop(void) {
         o->oFlameBowser = cur_obj_nearest_object_with_behavior(bhvBowser);
     }
     bowser = o->oFlameBowser;
-    o->oForwardVel = 15.0f;
-    o->oBounciness = -1.0f;
-    cur_obj_scale(o->oFlameScale);
+    QSETFIELD(o, oForwardVel, q(15));
+    QSETFIELD(o, oBounciness, -QONE);
+    cur_obj_scaleq(QFIELD(o, oFlameScale));
     obj_set_hitbox(o, &sGrowingBowserFlameHitbox);
     cur_obj_update_floor_and_walls();
     cur_obj_move_standard(78);
@@ -234,7 +234,7 @@ void bhv_flame_bouncing_loop(void) {
     }
     if (bowser != NULL) {
         if (bowser->oHeldState == HELD_FREE) {
-            if (lateral_dist_between_objects(o, bowser) < 300.0f) {
+            if (lateral_dist_between_objectsq(o, bowser) < q(300)) {
                 obj_mark_for_deletion(o);
             }
         }
@@ -246,16 +246,16 @@ void bhv_blue_flames_group_loop(void) {
     s32 i;
     if (o->oTimer == 0) {
         o->oMoveAngleYaw = obj_angle_to_object(o, gMarioObject);
-        o->oBlueFlameNextScale = 5.0f;
+        QSETFIELD(o, oBlueFlameNextScale, q(5));
     }
     if (o->oTimer < 16) {
         if ((o->oTimer & 1) == 0) {
             for (i = 0; i < 3; i++) {
                 flame = spawn_object(o, MODEL_BLUE_FLAME, bhvFlameBouncing);
                 flame->oMoveAngleYaw += i * 0x5555;
-                flame->header.gfx.scale[0] = o->oBlueFlameNextScale;
+                flame->header.gfx.scaleq[0] = QFIELD(o, oBlueFlameNextScale);
             }
-            o->oBlueFlameNextScale -= 0.5;
+            QMODFIELD(o, oBlueFlameNextScale, -= q(0.5));
         }
     } else {
         obj_mark_for_deletion(o);

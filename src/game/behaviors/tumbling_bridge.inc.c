@@ -32,10 +32,10 @@ void bhv_tumbling_bridge_platform_loop(void) {
                 o->oAngleVelPitch += 0x80;
             if (o->oAngleVelRoll > -0x400 && o->oAngleVelRoll < 0x400)
                 o->oAngleVelRoll += o->oTumblingBridgeUnkF4; // acceleration?
-            o->oGravity = -3.0f;
+            QSETFIELD(o, oGravity, q(-3));
             cur_obj_rotate_face_angle_using_vel();
             cur_obj_move_using_fvel_and_gravity();
-            if (o->oPosY < o->oFloorHeight - 300.0f)
+            if (QFIELD(o, oPosY) < QFIELD(o, oFloorHeight) - q(300))
                 o->oAction++;
             break;
         case 3:
@@ -85,7 +85,7 @@ void tumbling_bridge_act_2(void) {
     cur_obj_hide();
     if (cur_obj_has_behavior(bhvLllTumblingBridge))
         cur_obj_unhide();
-    else if (o->oDistanceToMario > 1200.0f) {
+    else if (QFIELD(o, oDistanceToMario) > q(1200.0)) {
         o->oAction = 3;
         cur_obj_unhide();
     }
@@ -97,7 +97,7 @@ void tumbling_bridge_act_3(void) {
 }
 
 void tumbling_bridge_act_0(void) {
-    if (cur_obj_has_behavior(bhvLllTumblingBridge) || o->oDistanceToMario < 1000.0f)
+    if (cur_obj_has_behavior(bhvLllTumblingBridge) || QFIELD(o, oDistanceToMario) < q(1000.0))
         o->oAction = 1;
 }
 

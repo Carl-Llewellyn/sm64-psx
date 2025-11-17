@@ -1,6 +1,8 @@
 #ifndef AUDIO_LOAD_H
 #define AUDIO_LOAD_H
 
+#ifndef NO_AUDIO
+
 #include <PR/ultratypes.h>
 
 #include "internal.h"
@@ -108,6 +110,8 @@ void *func_sh_802f3764(s32 arg0, s32 idx, s32 *arg2);
 s32 func_sh_802f3024(s32 bankId, s32 instId, s32 arg2);
 void func_sh_802f30f4(s32 arg0, s32 arg1, s32 arg2, OSMesgQueue *arg3);
 void func_sh_802f3288(s32 idx);
+
+#endif
 
 #endif
 

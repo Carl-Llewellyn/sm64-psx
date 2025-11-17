@@ -39,8 +39,8 @@ s32 is_cap_ukiki_and_mario_has_normal_cap_on_head(void) {
 /**
  * Unused copy of geo_update_projectile_pos_from_parent. Perhaps a copy paste mistake.
  */
-Gfx *geo_update_projectile_pos_from_parent_copy(s32 run,UNUSED struct GraphNode *node, Mat4 mtx) {
-    Mat4 mtx2;
+Gfx *geo_update_projectile_pos_from_parent_copy(s32 run,UNUSED struct GraphNode *node, const ShortMatrix* mtxq) {
+    ShortMatrix mtx2q;
     struct Object* obj;
 
     if (run == TRUE) {
@@ -48,8 +48,8 @@ Gfx *geo_update_projectile_pos_from_parent_copy(s32 run,UNUSED struct GraphNode 
         obj = (struct Object*)gCurGraphNodeObject;
 
         if (obj->prevObj != NULL) {
-            create_transformation_from_matrices(mtx2, mtx, *gCurGraphNodeCamera->matrixPtr);
-            obj_update_pos_from_parent_transformation(mtx2, obj->prevObj);
+            create_transformation_from_matricesq(&mtx2q, mtxq, gCurGraphNodeCamera->matrixPtrq);
+            obj_update_pos_from_parent_transformationq(&mtx2q, obj->prevObj);
             obj_set_gfx_pos_from_pos(obj->prevObj);
         }
     }
@@ -61,7 +61,7 @@ Gfx *geo_update_projectile_pos_from_parent_copy(s32 run,UNUSED struct GraphNode 
  * Chooses random idle taunts and loops them a random number of times.
  */
 void idle_ukiki_taunt(void) {
-    o->oForwardVel = 0.0f;
+    QSETFIELD(o,  oForwardVel, q(0));
 
     if (o->oSubAction == UKIKI_SUB_ACT_TAUNT_NONE) {
         // Subaction is between 1 and 4.
@@ -125,14 +125,14 @@ void ukiki_act_idle(void) {
     idle_ukiki_taunt();
 
     if (is_cap_ukiki_and_mario_has_normal_cap_on_head()) {
-        if (o->oDistanceToMario > 700.0f && o->oDistanceToMario < 1000.0f) {
+        if (QFIELD(o, oDistanceToMario) > q(700.0) && QFIELD(o, oDistanceToMario) < q(1000.0)) {
             o->oAction = UKIKI_ACT_RUN;
-        } else if (o->oDistanceToMario <= 700.0f && 200.0f < o->oDistanceToMario) {
+        } else if (QFIELD(o, oDistanceToMario) <= q(700.0) && q(200) < QFIELD(o, oDistanceToMario)) {
             if (abs_angle_diff(o->oAngleToMario, o->oMoveAngleYaw) > 0x1000)    {
                 o->oAction = UKIKI_ACT_TURN_TO_MARIO;
             }
         }
-    } else if (o->oDistanceToMario < 300.0f) {
+    } else if (QFIELD(o, oDistanceToMario) < q(300.0)) {
         o->oAction = UKIKI_ACT_RUN;
     }
 
@@ -144,16 +144,16 @@ void ukiki_act_idle(void) {
     if (o->oUkikiTextState == UKIKI_TEXT_STOLE_CAP) {
         o->oMoveAngleYaw = gMarioObject->oMoveAngleYaw + 0x8000;
 
-        if (check_if_moving_over_floor(50.0f, 150.0f)) {
+        if (check_if_moving_over_floorq(q(50), q(150))) {
             o->oAction = UKIKI_ACT_JUMP;
         } else {
             o->oMoveAngleYaw = gMarioObject->oMoveAngleYaw + 0x4000;
 
-            if (check_if_moving_over_floor(50.0f, 150.0f)) {
+            if (check_if_moving_over_floorq(q(50), q(150))) {
                 o->oAction = UKIKI_ACT_JUMP;
             } else {
                 o->oMoveAngleYaw = gMarioObject->oMoveAngleYaw - 0x4000;
-                if (check_if_moving_over_floor(50.0f, 150.0f)) {
+                if (check_if_moving_over_floorq(q(50), q(150))) {
                     o->oAction = UKIKI_ACT_JUMP;
                 }
             }
@@ -163,7 +163,7 @@ void ukiki_act_idle(void) {
     }
 
     if (o->oBehParams2ndByte == UKIKI_CAP) {
-        if (o->oPosY < -1550.0f) {
+        if (FFIELD(o, oPosY) < -1550.0f) {
             o->oAction = UKIKI_ACT_RETURN_HOME;
         }
     }
@@ -178,10 +178,10 @@ void ukiki_act_return_home(void) {
 
     cur_obj_init_animation_with_sound(UKIKI_ANIM_RUN);
     o->oMoveAngleYaw = cur_obj_angle_to_home();
-    o->oForwardVel = 10.0f;
+    QSETFIELD(o,  oForwardVel, q(10));
 
     // If ukiki somehow walked home, go back to the idle action.
-    if (o->oPosY > -1550.0f) {
+    if (FFIELD(o, oPosY) > -1550.0f) {
         o->oAction = UKIKI_ACT_IDLE;
     }
 }
@@ -221,7 +221,7 @@ void ukiki_act_turn_to_mario(void) {
 
     // Initialize the action with a random fVel from 2-5.
     if (o->oTimer == 0) {
-        o->oForwardVel = random_float() * 3.0f + 2.0f;
+        FSETFIELD(o, oForwardVel, random_float() * 3.0f + 2.0f);
     }
 
     cur_obj_init_animation_with_sound(UKIKI_ANIM_TURN);
@@ -233,10 +233,10 @@ void ukiki_act_turn_to_mario(void) {
     }
 
     if (is_cap_ukiki_and_mario_has_normal_cap_on_head()){
-        if (o->oDistanceToMario > 500.0f) {
+        if (QFIELD(o, oDistanceToMario) > q(500.0)) {
             o->oAction = UKIKI_ACT_RUN;
         }
-    } else if (o->oDistanceToMario < 300.0f) {
+    } else if (QFIELD(o, oDistanceToMario) < q(300.0)) {
         o->oAction = UKIKI_ACT_RUN;
     }
 }
@@ -254,7 +254,7 @@ void ukiki_act_run(void) {
     }
 
     if (o->oTimer == 0) {
-        o->oUkikiChaseFleeRange = random_float() * 100.0f + 350.0f;
+        QSETFIELD(o, oUkikiChaseFleeRange, random_q32() * 100 + q(350));
     }
 
     cur_obj_init_animation_with_sound(UKIKI_ANIM_RUN);
@@ -265,15 +265,15 @@ void ukiki_act_run(void) {
     cur_obj_set_vel_from_mario_vel(20.0f, 0.9f);
 
     if (fleeMario) {
-        if (o->oDistanceToMario > o->oUkikiChaseFleeRange) {
+        if (QFIELD(o, oDistanceToMario) > QFIELD(o, oUkikiChaseFleeRange)) {
             o->oAction = UKIKI_ACT_TURN_TO_MARIO;
         }
-    } else if (o->oDistanceToMario < o->oUkikiChaseFleeRange) {
+    } else if (QFIELD(o, oDistanceToMario) < QFIELD(o, oUkikiChaseFleeRange)) {
         o->oAction = UKIKI_ACT_TURN_TO_MARIO;
     }
 
     if (fleeMario) {
-        if (o->oDistanceToMario < 200.0f) {
+        if (QFIELD(o, oDistanceToMario) < q(200)) {
             if((o->oMoveFlags & OBJ_MOVE_HIT_WALL) &&
                 is_mario_moving_fast_or_in_air(10)) {
                 o->oAction = UKIKI_ACT_JUMP;
@@ -293,7 +293,7 @@ void ukiki_act_run(void) {
  * over Mario when after reaching a wall or edge.
  */
 void ukiki_act_jump(void) {
-    o->oForwardVel = 10.0f;
+    QSETFIELD(o,  oForwardVel, q(10));
     cur_obj_become_intangible();
 
     if (o->oSubAction == 0) {
@@ -302,10 +302,10 @@ void ukiki_act_jump(void) {
         } else if (o->oMoveFlags & (OBJ_MOVE_MASK_ON_GROUND | OBJ_MOVE_AT_WATER_SURFACE
                                    | OBJ_MOVE_UNDERWATER_ON_GROUND)) {
             o->oSubAction++;
-            o->oVelY = 0.0f;
+            QSETFIELD(o,  oVelY, q(0));
         }
     } else {
-        o->oForwardVel = 0.0f;
+        QSETFIELD(o,  oForwardVel, q(0));
         cur_obj_init_animation_with_sound(UKIKI_ANIM_LAND);
         cur_obj_become_tangible();
 
@@ -339,14 +339,14 @@ static Trajectory sCageUkikiPath[] = {
  */
 void ukiki_act_go_to_cage(void) {
     struct Object* obj;
-    f32 latDistToCage = 0.0f;
+    q32 latDistToCageq = 0;
     s16 yawToCage = 0;
     obj = cur_obj_nearest_object_with_behavior(bhvUkikiCageChild);
 
     // Ultimately is checking the cage, as it points to the parent
     // of a dummy child object of the cage.
     if (obj != NULL) {
-        latDistToCage = lateral_dist_between_objects(o, obj->parentObj);
+        latDistToCageq = lateral_dist_between_objectsq(o, obj->parentObj);
         yawToCage = obj_angle_to_object(o, obj->parentObj);
     }
 
@@ -361,11 +361,11 @@ void ukiki_act_go_to_cage(void) {
             o->oPathedStartWaypoint = (struct Waypoint *) sCageUkikiPath;
 
             if (cur_obj_follow_path(0) != PATH_REACHED_END) {
-                o->oForwardVel = 10.0f;
+                QSETFIELD(o, oForwardVel, q(10));
                 cur_obj_rotate_yaw_toward(o->oPathedTargetYaw, 0x400);
-                o->oPosY = o->oFloorHeight;
+                QSETFIELD(o, oPosY, QFIELD(o, oFloorHeight));
             } else {
-                o->oForwardVel = 0.0f;
+                QSETFIELD(o, oForwardVel, 0);
                 o->oSubAction++;
             }
             break;
@@ -383,7 +383,7 @@ void ukiki_act_go_to_cage(void) {
         case UKIKI_SUB_ACT_CAGE_TALK_TO_MARIO:
             cur_obj_init_animation_with_sound(UKIKI_ANIM_HANDSTAND);
 
-            if (cur_obj_update_dialog_with_cutscene(MARIO_DIALOG_LOOK_DOWN, 
+            if (cur_obj_update_dialog_with_cutscene(MARIO_DIALOG_LOOK_DOWN,
                 DIALOG_FLAG_TURN_TO_MARIO, CUTSCENE_DIALOG, DIALOG_080)) {
                 o->oSubAction++;
             }
@@ -393,20 +393,20 @@ void ukiki_act_go_to_cage(void) {
             cur_obj_init_animation_with_sound(UKIKI_ANIM_RUN);
 
             if (cur_obj_rotate_yaw_toward(yawToCage, 0x400)) {
-                o->oForwardVel = 10.0f;
+                QSETFIELD(o, oForwardVel, q(10));
                 o->oSubAction++;
             }
             break;
 
         case UKIKI_SUB_ACT_CAGE_JUMP_TO_CAGE:
             cur_obj_set_y_vel_and_animation(55.0f, UKIKI_ANIM_JUMP);
-            o->oForwardVel = 36.0f;
+            QSETFIELD(o, oForwardVel, q(36));
             o->oSubAction++;
             break;
 
         case UKIKI_SUB_ACT_CAGE_LAND_ON_CAGE:
-            if (latDistToCage < 50.0f) {
-                o->oForwardVel = 0.0f;
+            if (latDistToCageq < 50.0f) {
+                QSETFIELD(o, oForwardVel, 0);
             }
 
             if (o->oMoveFlags & OBJ_MOVE_LANDED) {
@@ -415,7 +415,7 @@ void ukiki_act_go_to_cage(void) {
                 o->oSubAction++;
                 o->oUkikiCageSpinTimer = 32;
                 obj->parentObj->oUkikiCageNextAction = UKIKI_CAGE_ACT_SPIN;
-                o->oForwardVel = 0.0f;
+                QSETFIELD(o, oForwardVel, 0);
             }
             break;
 
@@ -430,7 +430,7 @@ void ukiki_act_go_to_cage(void) {
             break;
 
         case UKIKI_SUB_ACT_CAGE_DESPAWN:
-            if (o->oPosY < -1300.0f) {
+            if (IFIELD(o, oPosY) < -1300) {
                 obj_mark_for_deletion(o);
             }
             break;
@@ -514,7 +514,7 @@ UNUSED static void ukiki_blink_timer(void) {
  * Called by the main behavior function for the cage ukiki whenever it is held.
  */
 void cage_ukiki_held_loop(void) {
-    if (o->oPosY - o->oHomeY > -100.0f) {
+    if (QFIELD(o, oPosY) - QFIELD(o, oHomeY) > q(-100)) {
         switch(o->oUkikiTextState) {
             case UKIKI_TEXT_DEFAULT:
                 if (set_mario_npc_dialog(MARIO_DIALOG_LOOK_UP) == MARIO_DIALOG_STATUS_SPEAK) {
@@ -578,7 +578,7 @@ void cap_ukiki_held_loop(void) {
             break;
 
         case UKIKI_TEXT_HAS_CAP:
-            if (cur_obj_update_dialog(MARIO_DIALOG_LOOK_UP, 
+            if (cur_obj_update_dialog(MARIO_DIALOG_LOOK_UP,
                 (DIALOG_FLAG_TEXT_DEFAULT | DIALOG_FLAG_TIME_STOP_ENABLED), DIALOG_101, 0)) {
                 mario_retrieve_cap();
                 set_mario_npc_dialog(MARIO_DIALOG_STOP);

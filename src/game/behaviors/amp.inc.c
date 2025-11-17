@@ -21,17 +21,17 @@ static struct ObjectHitbox sAmpHitbox = {
  * Homing amp initialization function.
  */
 void bhv_homing_amp_init(void) {
-    o->oHomeX = o->oPosX;
-    o->oHomeY = o->oPosY;
-    o->oHomeZ = o->oPosZ;
-    o->oGravity = 0;
-    o->oFriction = 1.0;
-    o->oBuoyancy = 1.0;
-    o->oHomingAmpAvgY = o->oHomeY;
+    QSETFIELD(o,  oHomeX, QFIELD(o,  oPosX));
+    QSETFIELD(o,  oHomeY, QFIELD(o,  oPosY));
+    QSETFIELD(o,  oHomeZ, QFIELD(o,  oPosZ));
+    QSETFIELD(o, oGravity, q(0));
+    QSETFIELD(o,  oFriction, q(1));
+    QSETFIELD(o,  oBuoyancy, q(1));
+    QSETFIELD(o,  oHomingAmpAvgY, QFIELD(o,  oHomeY));
 
     // Homing amps start at 1/10th their normal size.
     // They grow when they "appear" to Mario.
-    cur_obj_scale(0.1f);
+    cur_obj_scaleq(q(0.1f));
 
     // Hide the amp (until Mario gets near).
     o->header.gfx.node.flags |= GRAPH_RENDER_INVISIBLE;
@@ -70,9 +70,9 @@ static void homing_amp_appear_loop(void) {
     // In Lakitu and Mario cam, it is usually very close to the current camera position.
     // In Fixed cam, it is the point behind Mario the camera will go to when transitioning
     // to Lakitu cam. Homing amps will point themselves towards this point when appearing.
-    f32 relativeTargetX = gLakituState.goalPos[0] - o->oPosX;
-    f32 relativeTargetZ = gLakituState.goalPos[2] - o->oPosZ;
-    s16 targetYaw = atan2s(relativeTargetZ, relativeTargetX);
+    q32 relativeTargetXq = gLakituState.goalPosq[0] - QFIELD(o, oPosX);
+    q32 relativeTargetZq = gLakituState.goalPosq[2] - QFIELD(o, oPosZ);
+    s16 targetYaw = atan2sq(relativeTargetZq, relativeTargetXq);
 
     o->oMoveAngleYaw = approach_s16_symmetric(o->oMoveAngleYaw, targetYaw, 0x1000);
 
@@ -81,7 +81,7 @@ static void homing_amp_appear_loop(void) {
     // evaluates to 0.1, which is the same as it was before. After 30 frames, it ends at
     // a scale factor of 0.97. The amp remains at 97% of its real height for 60 more frames.
     if (o->oTimer < 30) {
-        cur_obj_scale(0.1 + 0.9 * (f32)(o->oTimer / 30.0f));
+        cur_obj_scaleq(q(0.1) + q(o->oTimer) / 30 * 9 / 10);
     } else {
         o->oAnimState = 1;
     }
@@ -89,7 +89,7 @@ static void homing_amp_appear_loop(void) {
     // Once the timer becomes greater than 90, i.e. 91 frames have passed,
     // reset the amp's size and start chasing Mario.
     if (o->oTimer >= 91) {
-        cur_obj_scale(1.0f);
+        cur_obj_scaleq(q(1.0f));
         o->oAction = HOMING_AMP_ACT_CHASE;
         o->oAmpYPhase = 0;
     }
@@ -109,16 +109,16 @@ static void homing_amp_chase_loop(void) {
     // If the amp is locked on to Mario, start "chasing" him by moving
     // in a straight line at 15 units/second for 32 frames.
     if (o->oHomingAmpLockedOn == TRUE) {
-        o->oForwardVel = 15.0f;
+        QSETFIELD(o,  oForwardVel, q(15));
 
         // Move the amp's average Y (the Y value it oscillates around) to align with
         // Mario's head. Mario's graphics' Y + 150 is around the top of his head.
         // Note that the average Y will slowly go down to approach his head if the amp
         // is above his head, but if the amp is below it will instantly snap up.
-        if (o->oHomingAmpAvgY > gMarioObject->header.gfx.pos[1] + 150.0f) {
-            o->oHomingAmpAvgY -= 10.0f;
+        if(IFIELD(o, oHomingAmpAvgY) > gMarioObject->header.gfx.posi[1] + 150) {
+            QMODFIELD(o, oHomingAmpAvgY, -= q(10));
         } else {
-            o->oHomingAmpAvgY = gMarioObject->header.gfx.pos[1] + 150.0f;
+            ISETFIELD(o, oHomingAmpAvgY, gMarioObject->header.gfx.posi[1] + 150);
         }
 
         if (o->oTimer >= 31) {
@@ -127,26 +127,26 @@ static void homing_amp_chase_loop(void) {
     } else {
         // If the amp is not locked on to Mario, move forward at 10 units/second
         // while curving towards him.
-        o->oForwardVel = 10.0f;
+        QSETFIELD(o, oForwardVel, q(10));
 
         obj_turn_toward_object(o, gMarioObject, 16, 0x400);
 
         // The amp's average Y will approach Mario's graphical Y position + 250
         // at a rate of 10 units per frame. Interestingly, this is different from
         // the + 150 used while chasing him. Could this be a typo?
-        if (o->oHomingAmpAvgY < gMarioObject->header.gfx.pos[1] + 250.0f) {
-            o->oHomingAmpAvgY += 10.0f;
+        if(IFIELD(o, oHomingAmpAvgY) < gMarioObject->header.gfx.posi[1] + 250) {
+            QMODFIELD(o, oHomingAmpAvgY, += q(10));
         }
     }
 
     // The amp's position will sinusoidally oscillate 40 units around its average Y.
-    o->oPosY = o->oHomingAmpAvgY + sins(o->oAmpYPhase * 0x400) * 20.0f;
+    QSETFIELD(o, oPosY, QFIELD(o, oHomingAmpAvgY) + sinqs(o->oAmpYPhase * 0x400) * 20);
 
     // Handle attacks
     check_amp_attack();
 
     // Give up if Mario goes further than 1500 units from the amp's original position
-    if (!is_point_within_radius_of_mario(o->oHomeX, o->oHomeY, o->oHomeZ, 1500)) {
+    if (!is_point_within_radius_of_mario(IFIELD(o, oHomeX), IFIELD(o, oHomeY), IFIELD(o, oHomeZ), 1500)) {
         o->oAction = HOMING_AMP_ACT_GIVE_UP;
     }
 }
@@ -155,21 +155,21 @@ static void homing_amp_chase_loop(void) {
  * Give up on chasing Mario.
  */
 static void homing_amp_give_up_loop(void) {
-    UNUSED u8 filler[8];
+    //UNUSED u8 filler[8];
 
     // Move forward for 152 frames
-    o->oForwardVel = 15.0f;
+    QSETFIELD(o, oForwardVel, q(15));
 
     if (o->oTimer >= 151) {
         // Hide the amp and reset it back to its inactive state
-        o->oPosX = o->oHomeX;
-        o->oPosY = o->oHomeY;
-        o->oPosZ = o->oHomeZ;
+        QSETFIELD(o,  oPosX, QFIELD(o,  oHomeX));
+        QSETFIELD(o,  oPosY, QFIELD(o,  oHomeY));
+        QSETFIELD(o,  oPosZ, QFIELD(o,  oHomeZ));
         o->header.gfx.node.flags |= GRAPH_RENDER_INVISIBLE;
         o->oAction = HOMING_AMP_ACT_INACTIVE;
         o->oAnimState = 0;
-        o->oForwardVel = 0;
-        o->oHomingAmpAvgY = o->oHomeY;
+        QSETFIELD(o,  oForwardVel, q(0));
+        QSETFIELD(o,  oHomingAmpAvgY, QFIELD(o,  oHomeY));
     }
 }
 
@@ -179,7 +179,7 @@ static void homing_amp_give_up_loop(void) {
 static void amp_attack_cooldown_loop(void) {
     // Turn intangible and wait for 90 frames before chasing Mario again after hitting him.
     o->header.gfx.animInfo.animFrame += 2;
-    o->oForwardVel = 0;
+    QSETFIELD(o,  oForwardVel, q(0));
 
     cur_obj_become_intangible();
 
@@ -200,7 +200,7 @@ static void amp_attack_cooldown_loop(void) {
 void bhv_homing_amp_loop(void) {
     switch (o->oAction) {
         case HOMING_AMP_ACT_INACTIVE:
-            if (is_point_within_radius_of_mario(o->oHomeX, o->oHomeY, o->oHomeZ, 800) == TRUE) {
+            if (is_point_within_radius_of_mario(IFIELD(o, oHomeX), IFIELD(o, oHomeY), IFIELD(o, oHomeZ), 800)) {
                 // Make the amp start to appear, and un-hide it.
                 o->oAction = HOMING_AMP_ACT_APPEAR;
                 o->header.gfx.node.flags &= ~GRAPH_RENDER_INVISIBLE;
@@ -235,23 +235,23 @@ void bhv_homing_amp_loop(void) {
  * Circling amp initialization function.
  */
 void bhv_circling_amp_init(void) {
-    o->oHomeX = o->oPosX;
-    o->oHomeY = o->oPosY;
-    o->oHomeZ = o->oPosZ;
+    QSETFIELD(o,  oHomeX, QFIELD(o,  oPosX));
+    QSETFIELD(o,  oHomeY, QFIELD(o,  oPosY));
+    QSETFIELD(o,  oHomeZ, QFIELD(o,  oPosZ));
     o->oAnimState = 1;
 
     // Determine the radius of the circling amp's circle
     switch (o->oBehParams2ndByte) {
         case AMP_BP_ROT_RADIUS_200:
-            o->oAmpRadiusOfRotation = 200.0f;
+            QSETFIELD(o,  oAmpRadiusOfRotation, q(200));
             break;
 
         case AMP_BP_ROT_RADIUS_300:
-            o->oAmpRadiusOfRotation = 300.0f;
+            QSETFIELD(o,  oAmpRadiusOfRotation, q(300));
             break;
 
         case AMP_BP_ROT_RADIUS_400:
-            o->oAmpRadiusOfRotation = 400.0f;
+            QSETFIELD(o,  oAmpRadiusOfRotation, q(400));
             break;
 
         case AMP_BP_ROT_RADIUS_0:
@@ -271,10 +271,10 @@ void bhv_circling_amp_init(void) {
  */
 static void fixed_circling_amp_idle_loop(void) {
     // Turn towards Mario, in both yaw and pitch.
-    f32 xToMario = gMarioObject->header.gfx.pos[0] - o->oPosX;
-    f32 yToMario = gMarioObject->header.gfx.pos[1] + 120.0f - o->oPosY;
-    f32 zToMario = gMarioObject->header.gfx.pos[2] - o->oPosZ;
-    s16 vAngleToMario = atan2s(sqrtf(xToMario * xToMario + zToMario * zToMario), -yToMario);
+    s32 xToMarioi = gMarioObject->header.gfx.posi[0] - IFIELD(o, oPosX);
+    s32 yToMarioi = gMarioObject->header.gfx.posi[1] - IFIELD(o, oPosY) + 120;
+    s32 zToMarioi = gMarioObject->header.gfx.posi[2] - IFIELD(o, oPosZ);
+    s16 vAngleToMario = atan2sq(sqrtu(xToMarioi * xToMarioi + zToMarioi * zToMarioi), -yToMarioi);
 
     obj_turn_toward_object(o, gMarioObject, 19, 0x1000);
     o->oFaceAnglePitch = approach_s16_symmetric(o->oFaceAnglePitch, vAngleToMario, 0x1000);
@@ -284,7 +284,7 @@ static void fixed_circling_amp_idle_loop(void) {
     // It is slightly larger than the 0x400 figure used for homing amps, which makes
     // fixed amps oscillate slightly quicker.
     // Also, this uses the cosine, which starts at 1 instead of 0.
-    o->oPosY = o->oHomeY + coss(o->oAmpYPhase * 0x458) * 20.0f;
+    QSETFIELD(o, oPosY, QFIELD(o, oHomeY) + cosqs(o->oAmpYPhase * 0x458) * 20);
 
     // Handle attacks
     check_amp_attack();
@@ -306,9 +306,9 @@ static void circling_amp_idle_loop(void) {
     // twice that of the fixed amp. In other words, circling amps will
     // oscillate twice as fast. Also, unlike all other amps, circling
     // amps oscillate 60 units around their average Y instead of 40.
-    o->oPosX = o->oHomeX + sins(o->oMoveAngleYaw) * o->oAmpRadiusOfRotation;
-    o->oPosZ = o->oHomeZ + coss(o->oMoveAngleYaw) * o->oAmpRadiusOfRotation;
-    o->oPosY = o->oHomeY + coss(o->oAmpYPhase * 0x8B0) * 30.0f;
+    QSETFIELD(o, oPosX, QFIELD(o, oHomeX) + qmul(sinqs(o->oMoveAngleYaw), QFIELD(o, oAmpRadiusOfRotation)));
+    QSETFIELD(o, oPosZ, QFIELD(o, oHomeZ) + qmul(cosqs(o->oMoveAngleYaw), QFIELD(o, oAmpRadiusOfRotation)));
+    QSETFIELD(o, oPosY, QFIELD(o, oHomeY) + cosqs(o->oAmpYPhase * 0x8B0) * 30);
     o->oMoveAngleYaw += 0x400;
     o->oFaceAngleYaw = o->oMoveAngleYaw + 0x4000;
 

@@ -320,8 +320,8 @@ index 97c48dc1..b1453e44 100644
  /**
 @@ -7296,6 +7306,7 @@ BAD_RETURN(s32) cutscene_ending_peach_appear_closeup(struct Camera *c) {
      vec3f_set(c->pos, 179.f, 2463.f, -1216.f);
-     c->pos[1] = gCutsceneFocus->oPosY + 35.f;
-     vec3f_set(c->focus, gCutsceneFocus->oPosX, gCutsceneFocus->oPosY + 125.f, gCutsceneFocus->oPosZ);
+     c->pos[1] = FFIELD(gCutsceneFocus, oPosY) + 35.f;
+     vec3f_set(c->focus, FFIELD(gCutsceneFocus, oPosX), FFIELD(gCutsceneFocus, oPosY) + 125.f, FFIELD(gCutsceneFocus, oPosZ));
 +    skip_camera_interpolation();
  }
  
@@ -766,9 +766,9 @@ index 60d987f6..334a3722 100644
 --- a/src/game/object_helpers.c
 +++ b/src/game/object_helpers.c
 @@ -1549,6 +1549,7 @@ void cur_obj_set_pos_to_home(void) {
-     o->oPosX = o->oHomeX;
-     o->oPosY = o->oHomeY;
-     o->oPosZ = o->oHomeZ;
+     FSETFIELD(o, oPosX, FFIELD(o, oHomeX);
+     FSETFIELD(o, oPosY, FFIELD(o, oHomeY);
+     FSETFIELD(o, oPosZ, FFIELD(o, oHomeZ);
 +    o->header.gfx.skipInterpolationTimestamp = gGlobalTimer;
  }
  

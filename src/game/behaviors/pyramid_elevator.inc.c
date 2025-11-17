@@ -15,7 +15,7 @@ void bhv_pyramid_elevator_init(void) {
 
     for (i = 0; i < 10; i++) {
         ball = spawn_object(o, MODEL_TRAJECTORY_MARKER_BALL, bhvPyramidElevatorTrajectoryMarkerBall);
-        ball->oPosY = 4600 - i * 460;
+        FSETFIELD(ball, oPosY, 4600 - i * 460);
     }
 }
 
@@ -35,7 +35,7 @@ void bhv_pyramid_elevator_loop(void) {
          * After a certain amount of time, transition to a constant-velocity state.
          */
         case PYRAMID_ELEVATOR_START_MOVING:
-            o->oPosY = o->oHomeY - sins(o->oTimer * 0x1000) * 10.0f;
+            FSETFIELD(o, oPosY, FFIELD(o, oHomeY) - sins(o->oTimer * 0x1000) * 10.0f);
             if (o->oTimer == 8)
                 o->oAction = PYRAMID_ELEVATOR_CONSTANT_VELOCITY;
             break;
@@ -45,10 +45,10 @@ void bhv_pyramid_elevator_loop(void) {
          * track, transition to the final state.
          */
         case PYRAMID_ELEVATOR_CONSTANT_VELOCITY:
-            o->oVelY = -10.0f;
-            o->oPosY += o->oVelY;
-            if (o->oPosY < 128.0f) {
-                o->oPosY = 128.0f;
+            QSETFIELD(o,  oVelY, q(-10));
+            QMODFIELD(o, oPosY, += QFIELD(o, oVelY));
+            if (QFIELD(o, oPosY) < q(128.0f)) {
+                QSETFIELD(o,  oPosY, q(128));
                 o->oAction = PYRAMID_ELEVATOR_AT_BOTTOM;
             }
             break;
@@ -58,10 +58,10 @@ void bhv_pyramid_elevator_loop(void) {
          * Then, remain at the bottom of the track.
          */
         case PYRAMID_ELEVATOR_AT_BOTTOM:
-            o->oPosY = sins(o->oTimer * 0x1000) * 10.0f + 128.0f;
+            FSETFIELD(o, oPosY, sins(o->oTimer * 0x1000) * 10.0f + 128.0f);
             if (o->oTimer >= 8) {
-                o->oVelY = 0;
-                o->oPosY = 128.0f;
+                QSETFIELD(o,  oVelY, q(0));
+                QSETFIELD(o,  oPosY, q(128));
             }
             break;
     }
@@ -74,7 +74,7 @@ void bhv_pyramid_elevator_loop(void) {
 void bhv_pyramid_elevator_trajectory_marker_ball_loop(void) {
     struct Object *elevator;
 
-    cur_obj_scale(0.15f);
+    cur_obj_scaleq(q(0.15f));
     elevator = cur_obj_nearest_object_with_behavior(bhvPyramidElevator);
 
     if (elevator != NULL) {

@@ -1,15 +1,15 @@
 // king_bobomb.c.inc
 
 // Copy of geo_update_projectile_pos_from_parent
-Gfx *geo_update_held_mario_pos(s32 run, UNUSED struct GraphNode *node, Mat4 mtx) {
-    Mat4 sp20;
+Gfx *geo_update_held_mario_pos(s32 run, UNUSED struct GraphNode *node, const ShortMatrix* mtxq) {
+    ShortMatrix sp20;
     struct Object *sp1C;
 
     if (run == TRUE) {
         sp1C = (struct Object *) gCurGraphNodeObject;
         if (sp1C->prevObj != NULL) {
-            create_transformation_from_matrices(sp20, mtx, *gCurGraphNodeCamera->matrixPtr);
-            obj_update_pos_from_parent_transformation(sp20, sp1C->prevObj);
+            create_transformation_from_matricesq(&sp20, mtxq, gCurGraphNodeCamera->matrixPtrq);
+            obj_update_pos_from_parent_transformationq(&sp20, sp1C->prevObj);
             obj_set_gfx_pos_from_pos(sp1C->prevObj);
         }
     }
@@ -22,8 +22,8 @@ void bhv_bobomb_anchor_mario_loop(void) {
 
 void king_bobomb_act_0(void) {
 #ifndef VERSION_JP
-    o->oForwardVel = 0.0f;
-    o->oVelY = 0.0f;
+    QSETFIELD(o,  oForwardVel, q(0));
+    QSETFIELD(o,  oVelY, q(0));
 #endif
     if (o->oSubAction == 0) {
         cur_obj_become_intangible();
@@ -43,7 +43,7 @@ void king_bobomb_act_0(void) {
 }
 
 s32 mario_is_far_below_object(f32 arg0) {
-    if (arg0 < o->oPosY - gMarioObject->oPosY) {
+    if (arg0 < FFIELD(o, oPosY) - FFIELD(gMarioObject, oPosY)) {
         return TRUE;
     } else {
         return FALSE;
@@ -52,7 +52,7 @@ s32 mario_is_far_below_object(f32 arg0) {
 
 void king_bobomb_act_2(void) {
     cur_obj_become_tangible();
-    if (o->oPosY - o->oHomeY < -100.0f) { // Thrown off hill
+    if (FFIELD(o, oPosY) - FFIELD(o, oHomeY) < -100.0f) { // Thrown off hill
         o->oAction = 5;
         cur_obj_become_intangible();
     }
@@ -68,10 +68,10 @@ void king_bobomb_act_2(void) {
         } else
             cur_obj_init_animation_with_sound(11);
         if (o->oKingBobombUnk108 == 0) {
-            o->oForwardVel = 3.0f;
+            QSETFIELD(o,  oForwardVel, q(3));
             cur_obj_rotate_yaw_toward(o->oAngleToMario, 0x100);
         } else {
-            o->oForwardVel = 0.0f;
+            QSETFIELD(o,  oForwardVel, q(0));
             o->oKingBobombUnk108--;
         }
     }
@@ -85,7 +85,7 @@ void king_bobomb_act_2(void) {
 
 void king_bobomb_act_3(void) {
     if (o->oSubAction == 0) {
-        o->oForwardVel = 0;
+        QSETFIELD(o,  oForwardVel, q(0));
         o->oKingBobombUnk104 = 0;
         o->oKingBobombUnkFC = 0;
         if (o->oTimer == 0)
@@ -105,7 +105,7 @@ void king_bobomb_act_3(void) {
                 o->oKingBobombUnk108 = 35;
                 o->oInteractStatus &= ~(INT_STATUS_GRABBED_MARIO);
             } else {
-                o->oForwardVel = 3.0f;
+                QSETFIELD(o,  oForwardVel, q(3));
                 if (o->oKingBobombUnk104 > 20 && cur_obj_rotate_yaw_toward(0, 0x400)) {
                     o->oSubAction++;
                     cur_obj_init_animation_and_anim_frame(9, 22);
@@ -126,11 +126,11 @@ void king_bobomb_act_3(void) {
 }
 
 void king_bobomb_act_1(void) {
-    o->oForwardVel = 0;
-    o->oVelY = 0;
+    QSETFIELD(o,  oForwardVel, q(0));
+    QSETFIELD(o,  oVelY, q(0));
     cur_obj_init_animation_with_sound(11);
     o->oMoveAngleYaw = approach_s16_symmetric(o->oMoveAngleYaw, o->oAngleToMario, 512);
-    if (o->oDistanceToMario < 2500.0f)
+    if (QFIELD(o, oDistanceToMario) < q(2500.0))
         o->oAction = 2;
     if (mario_is_far_below_object(1200.0f)) {
         o->oAction = 0;
@@ -171,7 +171,7 @@ void king_bobomb_act_6(void) {
 
 void king_bobomb_act_7(void) {
     cur_obj_init_animation_with_sound(2);
-    if (cur_obj_update_dialog_with_cutscene(MARIO_DIALOG_LOOK_UP, 
+    if (cur_obj_update_dialog_with_cutscene(MARIO_DIALOG_LOOK_UP,
         DIALOG_FLAG_TEXT_DEFAULT, CUTSCENE_DIALOG, DIALOG_116)) {
         create_sound_spawner(SOUND_OBJ_KING_WHOMP_DEATH);
         cur_obj_hide();
@@ -182,7 +182,7 @@ void king_bobomb_act_7(void) {
 #ifndef VERSION_JP
         cur_obj_spawn_star_at_y_offset(2000.0f, 4500.0f, -4500.0f, 200.0f);
 #else
-        o->oPosY += 100.0f;
+        QMODFIELD(o, oPosY, += q(100));
         spawn_default_star(2000.0f, 4500.0f, -4500.0f);
 #endif
         o->oAction = 8;
@@ -195,11 +195,11 @@ void king_bobomb_act_8(void) {
 }
 
 void king_bobomb_act_4(void) { // bobomb been thrown
-    if (o->oPosY - o->oHomeY > -100.0f) { // not thrown off hill
+    if (FFIELD(o, oPosY) - FFIELD(o, oHomeY) > -100.0f) { // not thrown off hill
         if (o->oMoveFlags & OBJ_MOVE_LANDED) {
             o->oHealth--;
-            o->oForwardVel = 0;
-            o->oVelY = 0;
+            QSETFIELD(o,  oForwardVel, q(0));
+            QSETFIELD(o,  oVelY, q(0));
             cur_obj_play_sound_2(SOUND_OBJ_KING_BOBOMB);
             if (o->oHealth)
                 o->oAction = 6;
@@ -209,8 +209,8 @@ void king_bobomb_act_4(void) { // bobomb been thrown
     } else {
         if (o->oSubAction == 0) {
             if (o->oMoveFlags & OBJ_MOVE_ON_GROUND) {
-                o->oForwardVel = 0;
-                o->oVelY = 0;
+                QSETFIELD(o,  oForwardVel, q(0));
+                QSETFIELD(o,  oVelY, q(0));
                 o->oSubAction++;
             } else if (o->oMoveFlags & OBJ_MOVE_LANDED)
                 cur_obj_play_sound_2(SOUND_OBJ_KING_BOBOMB);
@@ -230,20 +230,22 @@ void king_bobomb_act_5(void) { // bobomb returns home
             o->oKingBobombUnkF8 = 1;
             cur_obj_init_animation_and_extend_if_at_end(8);
             o->oMoveAngleYaw =  cur_obj_angle_to_home();
-            if (o->oPosY < o->oHomeY)
-                o->oVelY = 100.0f;
+            if (QFIELD(o, oPosY) < QFIELD(o, oHomeY))
+                QSETFIELD(o,  oVelY, q(100));
             else {
-                arc_to_goal_pos(&o->oHomeX, &o->oPosX, 100.0f, -4.0f);
+				f32 homef[3] = {FFIELD(o, oHomeX), FFIELD(o, oHomeY), FFIELD(o, oHomeZ)};
+				f32 posf[3] = {FFIELD(o, oPosX), FFIELD(o, oPosY), FFIELD(o, oPosZ)};
+                arc_to_goal_pos(homef, posf, 100.0f, -4.0f);
                 o->oSubAction++;
             }
             break;
         case 1:
             cur_obj_init_animation_and_extend_if_at_end(8);
-            if (o->oVelY < 0 && o->oPosY < o->oHomeY) {
-                o->oPosY = o->oHomeY;
-                o->oVelY = 0;
-                o->oForwardVel = 0;
-                o->oGravity = -4.0f;
+            if (FFIELD(o, oVelY) < 0 && FFIELD(o, oPosY) < FFIELD(o, oHomeY)) {
+                QSETFIELD(o,  oPosY, QFIELD(o,  oHomeY));
+                QSETFIELD(o,  oVelY, q(0));
+                QSETFIELD(o,  oForwardVel, q(0));
+                QSETFIELD(o, oGravity, q(-4.0f));
                 o->oKingBobombUnkF8 = 0;
                 cur_obj_init_animation_with_sound(7);
                 cur_obj_play_sound_2(SOUND_OBJ_KING_BOBOMB);
@@ -264,7 +266,7 @@ void king_bobomb_act_5(void) { // bobomb returns home
                 o->oSubAction++;
             break;
         case 4:
-            if (cur_obj_update_dialog_with_cutscene(MARIO_DIALOG_LOOK_UP, 
+            if (cur_obj_update_dialog_with_cutscene(MARIO_DIALOG_LOOK_UP,
                 DIALOG_FLAG_TURN_TO_MARIO, CUTSCENE_DIALOG, DIALOG_128))
                 o->oAction = 2;
             break;
@@ -298,7 +300,7 @@ void king_bobomb_move(void) {
         cur_obj_move_using_fvel_and_gravity();
     cur_obj_call_action_function(sKingBobombActions);
     exec_anim_sound_state(sKingBobombSoundStates);
-    if (o->oDistanceToMario < 5000.0f)
+    if (QFIELD(o, oDistanceToMario) < q(5000.0))
         cur_obj_enable_rendering();
     else
         cur_obj_disable_rendering();
@@ -320,7 +322,7 @@ void bhv_king_bobomb_loop(void) {
         case HELD_DROPPED:
             cur_obj_get_thrown_or_placed(sp34, sp30, 4);
             cur_obj_become_intangible();
-            o->oPosY += 20.0f;
+            QMODFIELD(o, oPosY, += q(20));
             break;
     }
     o->oInteractStatus = 0;

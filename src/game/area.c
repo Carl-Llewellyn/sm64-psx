@@ -22,6 +22,7 @@
 #include "save_file.h"
 #include "level_table.h"
 #include "dialog_ids.h"
+#include <port/gfx/gfx.h>
 
 struct SpawnInfo gPlayerSpawnInfos[1];
 struct GraphNode *D_8033A160[0x100];
@@ -50,7 +51,7 @@ u8 gWarpTransRed = 0;
 u8 gWarpTransGreen = 0;
 u8 gWarpTransBlue = 0;
 s16 gCurrSaveFileNum = 1;
-s16 gCurrLevelNum = LEVEL_MIN;
+s16 gCurrLevelNum = LEVEL_CASTLE_COURTYARD; //LEVEL_MIN;
 
 /*
  * The following two tables are used in get_mario_spawn_type() to determine spawn type
@@ -99,7 +100,7 @@ void override_viewport_and_clip(Vp *a, Vp *b, u8 c, u8 d, u8 e) {
 void set_warp_transition_rgb(u8 red, u8 green, u8 blue) {
     u16 warpTransitionRGBA16 = ((red >> 3) << 11) | ((green >> 3) << 6) | ((blue >> 3) << 1) | 1;
 
-    gWarpTransFBSetColor = (warpTransitionRGBA16 << 16) | warpTransitionRGBA16;
+    gWarpTransFBSetColor = ((u32) warpTransitionRGBA16 << 16) | warpTransitionRGBA16;
     gWarpTransRed = red;
     gWarpTransGreen = green;
     gWarpTransBlue = blue;
@@ -110,7 +111,7 @@ void print_intro_text(void) {
     s32 language = eu_get_language();
 #endif
     if ((gGlobalTimer & 0x1F) < 20) {
-        if (gControllerBits == 0) {
+        if (gControllerPads[0].errnum != 0) {
 #ifdef VERSION_EU
             print_text_centered(SCREEN_WIDTH / 2, 20, gNoControllerMsg[language]);
 #else
@@ -140,14 +141,13 @@ u32 get_mario_spawn_type(struct Object *o) {
 }
 
 struct ObjectWarpNode *area_get_warp_node(u8 id) {
-    struct ObjectWarpNode *node = NULL;
-
-    for (node = gCurrentArea->warpNodes; node != NULL; node = node->next) {
+    for (struct ObjectWarpNode *node = gCurrentArea->warpNodes; node != NULL; node = node->next) {
         if (node->node.id == id) {
-            break;
+            return node;
         }
     }
-    return node;
+    //abortf("no!!!!");
+    return NULL;
 }
 
 struct ObjectWarpNode *area_get_warp_node_from_params(struct Object *o) {
@@ -160,11 +160,6 @@ void load_obj_warp_nodes(void) {
     struct ObjectWarpNode *sp24;
     struct Object *sp20 = (struct Object *) gObjParentGraphNode.children;
 
-#ifdef USE_SYSTEM_MALLOC
-    if (sp20 == NULL) {
-        return;
-    }
-#endif
     do {
         struct Object *sp1C = sp20;
 
@@ -174,8 +169,7 @@ void load_obj_warp_nodes(void) {
                 sp24->object = sp1C;
             }
         }
-    } while ((sp20 = (struct Object *) sp20->header.gfx.node.next)
-             != (struct Object *) gObjParentGraphNode.children);
+    } while ((sp20 = (struct Object *) sp20->header.gfx.node.next) != (struct Object *) gObjParentGraphNode.children);
 }
 
 void clear_areas(void) {
@@ -368,30 +362,15 @@ void play_transition_after_delay(s16 transType, s16 time, u8 red, u8 green, u8 b
 void render_game(void) {
     if (gCurrentArea != NULL && !gWarpTransition.pauseRendering) {
         geo_process_root(gCurrentArea->unk04, D_8032CE74, D_8032CE78, gFBSetColor);
-
-        gSPViewport(gDisplayListHead++, VIRTUAL_TO_PHYSICAL(&D_8032CF00));
-
-        gDPSetScissor(gDisplayListHead++, G_SC_NON_INTERLACE, 0, BORDER_HEIGHT, SCREEN_WIDTH,
-                      SCREEN_HEIGHT - BORDER_HEIGHT);
         render_hud();
 
-        gDPSetScissor(gDisplayListHead++, G_SC_NON_INTERLACE, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
         render_text_labels();
         do_cutscene_handler();
         print_displaying_credits_entry();
 
-        gDPSetScissor(gDisplayListHead++, G_SC_NON_INTERLACE, 0, BORDER_HEIGHT, SCREEN_WIDTH,
-                      SCREEN_HEIGHT - BORDER_HEIGHT);
         gMenuOptSelectIndex = render_menus_and_dialogs();
         if (gMenuOptSelectIndex != MENU_OPT_NONE) {
             gSaveOptSelectIndex = gMenuOptSelectIndex;
-        }
-
-        if (D_8032CE78 != NULL) {
-            make_viewport_clip_rect(D_8032CE78);
-        } else {
-            gDPSetScissor(gDisplayListHead++, G_SC_NON_INTERLACE, 0, BORDER_HEIGHT, SCREEN_WIDTH,
-                          SCREEN_HEIGHT - BORDER_HEIGHT);
         }
 
         if (gWarpTransition.isActive) {
@@ -411,11 +390,11 @@ void render_game(void) {
         }
     } else {
         render_text_labels();
-        if (D_8032CE78 != NULL) {
-            clear_viewport(D_8032CE78, gWarpTransFBSetColor);
-        } else {
-            clear_frame_buffer(gWarpTransFBSetColor);
-        }
+        //if (D_8032CE78 != NULL) {
+        //    clear_viewport(D_8032CE78, gWarpTransFBSetColor);
+        //} else {
+        //    clear_frame_buffer(gWarpTransFBSetColor);
+        //}
     }
 
     D_8032CE74 = NULL;

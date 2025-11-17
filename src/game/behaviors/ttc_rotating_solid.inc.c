@@ -45,7 +45,7 @@ void bhv_ttc_rotating_solid_update(void) {
             if (--o->oTTCRotatingSolidSoundTimer == 0) {
                 cur_obj_play_sound_2(SOUND_GENERAL2_ROTATING_BLOCK_ALERT);
             }
-        } else if (o->oTTCRotatingSolidVelY > 0.0f && o->oPosY >= o->oHomeY) {
+        } else if (FFIELD(o, oTTCRotatingSolidVelY) > 0.0f && FFIELD(o, oPosY) >= FFIELD(o, oHomeY)) {
             // 4. Rotate
             s32 targetRoll =
                 (s32)((f32) o->oTTCRotatingSolidNumTurns / o->oTTCRotatingSolidNumSides * 0x10000);
@@ -67,13 +67,13 @@ void bhv_ttc_rotating_solid_update(void) {
             }
         } else {
             // 2. Move vertically with vel -4.5, -4.0, ... until reached back home
-            o->oTTCRotatingSolidVelY += 0.5f;
-            if ((o->oPosY += o->oTTCRotatingSolidVelY) >= o->oHomeY) {
-                o->oPosY = o->oHomeY;
+            QMODFIELD(o, oTTCRotatingSolidVelY, += q(0.5));
+            if (QMODFIELD(o, oPosY, += QFIELD(o, oTTCRotatingSolidVelY)) >= QFIELD(o, oHomeY)) {
+                QSETFIELD(o, oPosY, QFIELD(o, oHomeY));
                 o->oTTCRotatingSolidSoundTimer = 6;
             }
         }
     } else {
-        o->oTTCRotatingSolidVelY = -5.0f;
+        QSETFIELD(o,  oTTCRotatingSolidVelY, q(-5));
     }
 }

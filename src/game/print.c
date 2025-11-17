@@ -6,6 +6,7 @@
 #include "memory.h"
 #include "print.h"
 #include "segment2.h"
+#include <port/gfx/gfx.h>
 
 /**
  * This file handles printing and formatting the colorful text that
@@ -352,12 +353,10 @@ s8 char_to_glyph_index(char c) {
 /**
  * Adds an individual glyph to be rendered.
  */
-void add_glyph_texture(s8 glyphIndex) {
+const u8* get_glyph_texture(s8 glyphIndex) {
     const u8 *const *glyphs = segmented_to_virtual(main_hud_lut);
 
-    gDPPipeSync(gDisplayListHead++);
-    gDPSetTextureImage(gDisplayListHead++, G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, glyphs[glyphIndex]);
-    gSPDisplayList(gDisplayListHead++, dl_hud_img_load_tex_block);
+	return segmented_to_virtual(glyphs[glyphIndex]);
 }
 
 #ifndef WIDESCREEN
@@ -386,20 +385,9 @@ void clip_to_bounds(s32 *x, s32 *y) {
 /**
  * Renders the glyph that's set at the given position.
  */
-void render_textrect(s32 x, s32 y, s32 pos) {
-    s32 rectBaseX = x + pos * 12;
-    s32 rectBaseY = 224 - y;
-    s32 rectX;
-    s32 rectY;
-
-#ifndef WIDESCREEN
-    // For widescreen we must allow drawing outside the usual area
-    clip_to_bounds(&rectBaseX, &rectBaseY);
-#endif
-    rectX = rectBaseX;
-    rectY = rectBaseY;
-    gSPTextureRectangle(gDisplayListHead++, rectX << 2, rectY << 2, (rectX + 15) << 2,
-                        (rectY + 15) << 2, G_TX_RENDERTILE, 0, 0, 4 << 10, 1 << 10);
+void render_textrect(s32 x, s32 y, s32 pos, const u8* pixels) {
+    gfx_emit_tex((void*) pixels);
+	gfx_emit_sprite(x + pos * 12, 224 - y);
 }
 
 /**
@@ -410,23 +398,11 @@ void render_text_labels(void) {
     s32 i;
     s32 j;
     s8 glyphIndex;
-    Mtx *mtx;
+    //Mtx *mtx;
 
     if (sTextLabelsCount == 0) {
         return;
     }
-
-    mtx = alloc_display_list(sizeof(*mtx));
-
-    if (mtx == NULL) {
-        sTextLabelsCount = 0;
-        return;
-    }
-
-    guOrtho(mtx, 0.0f, SCREEN_WIDTH, 0.0f, SCREEN_HEIGHT, -10.0f, 10.0f, 1.0f);
-    gSPPerspNormalize((Gfx *) (gDisplayListHead++), 0xFFFF);
-    gSPMatrix(gDisplayListHead++, VIRTUAL_TO_PHYSICAL(mtx), G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
-    gSPDisplayList(gDisplayListHead++, dl_hud_img_begin);
 
     for (i = 0; i < sTextLabelsCount; i++) {
         for (j = 0; j < sTextLabels[i]->length; j++) {
@@ -437,26 +413,19 @@ void render_text_labels(void) {
                 // Beta Key was removed by EU, so glyph slot reused.
                 // This produces a colorful Ü.
                 if (glyphIndex == GLYPH_BETA_KEY) {
-                    add_glyph_texture(GLYPH_U);
-                    render_textrect(sTextLabels[i]->x, sTextLabels[i]->y, j);
-
-                    add_glyph_texture(GLYPH_UMLAUT);
-                    render_textrect(sTextLabels[i]->x, sTextLabels[i]->y + 3, j);
+                    render_textrect(sTextLabels[i]->x, sTextLabels[i]->y, j, get_glyph_texture(GLYPH_U));
+                    render_textrect(sTextLabels[i]->x, sTextLabels[i]->y + 3, j, get_glyph_texture(GLYPH_UMLAUT));
                 } else {
-                    add_glyph_texture(glyphIndex);
-                    render_textrect(sTextLabels[i]->x, sTextLabels[i]->y, j);
+                    render_textrect(sTextLabels[i]->x, sTextLabels[i]->y, j, get_glyph_texture(glyphIndex));
                 }
 #else
-                add_glyph_texture(glyphIndex);
-                render_textrect(sTextLabels[i]->x, sTextLabels[i]->y, j);
+                render_textrect(sTextLabels[i]->x, sTextLabels[i]->y, j, get_glyph_texture(glyphIndex));
 #endif
             }
         }
 
         mem_pool_free(gEffectsMemoryPool, sTextLabels[i]);
     }
-
-    gSPDisplayList(gDisplayListHead++, dl_hud_img_end);
 
     sTextLabelsCount = 0;
 }

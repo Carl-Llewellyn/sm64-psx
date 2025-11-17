@@ -6,17 +6,17 @@ s32 arc_to_goal_pos(Vec3f a0, Vec3f a1, f32 yVel, f32 gravity) {
     f32 planarDist = sqrtf(dx * dx + dz * dz);
     s32 time;
     o->oMoveAngleYaw = atan2s(dz, dx);
-    o->oVelY = yVel;
-    o->oGravity = gravity;
-    time = -2.0f / o->oGravity * yVel - 1.0f;
-    o->oForwardVel = planarDist / time;
+    FSETFIELD(o, oVelY, yVel);
+    FSETFIELD(o, oGravity, gravity);
+    time = -2.0f / FFIELD(o, oGravity) * yVel - 1.0f;
+    FSETFIELD(o, oForwardVel, planarDist / time);
     return time;
 }
 
 void grand_star_zero_velocity(void) {
-    o->oGravity = 0.0f;
-    o->oVelY = 0.0f;
-    o->oForwardVel = 0.0f;
+    QSETFIELD(o, oGravity, q(0.0f));
+    QSETFIELD(o,  oVelY, q(0));
+    QSETFIELD(o,  oForwardVel, q(0));
 }
 
 void bhv_grand_star_loop(void) {
@@ -36,19 +36,20 @@ void bhv_grand_star_loop(void) {
         if (o->oTimer == 0) {
             cur_obj_play_sound_2(SOUND_GENERAL_GRAND_STAR);
             cutscene_object(CUTSCENE_STAR_SPAWN, o);
-            o->oGrandStarUnk108 = arc_to_goal_pos(sp28, &o->oPosX, 80.0f, -2.0f);
+			f32 posf[3] = {FFIELD(o, oPosX), FFIELD(o, oPosZ), FFIELD(o, oPosZ)};
+            o->oGrandStarUnk108 = arc_to_goal_pos(sp28, posf, 80.0f, -2.0f);
         }
         cur_obj_move_using_fvel_and_gravity();
         if (o->oSubAction == 0) {
-            if (o->oPosY < o->oHomeY) {
-                o->oPosY = o->oHomeY;
-                o->oVelY = 60.0f;
-                o->oForwardVel = 0.0f;
+            if (QFIELD(o, oPosY) < QFIELD(o, oHomeY)) {
+                QSETFIELD(o,  oPosY, QFIELD(o,  oHomeY));
+                QSETFIELD(o,  oVelY, q(60));
+                QSETFIELD(o,  oForwardVel, q(0));
                 o->oSubAction++;
                 cur_obj_play_sound_2(SOUND_GENERAL_GRAND_STAR_JUMP);
             }
-        } else if (o->oVelY < 0.0f && o->oPosY < o->oHomeY + 200.0f) {
-            o->oPosY = o->oHomeY + 200.0f;
+        } else if (FFIELD(o, oVelY) < 0.0f && FFIELD(o, oPosY) < FFIELD(o, oHomeY) + 200.0f) {
+            FSETFIELD(o, oPosY, FFIELD(o, oHomeY) + 200.0f);
             grand_star_zero_velocity();
             gObjCutsceneDone = 1;
             set_mario_npc_dialog(MARIO_DIALOG_STOP);
@@ -67,6 +68,6 @@ void bhv_grand_star_loop(void) {
     if (o->oAngleVelYaw > 0x400)
         o->oAngleVelYaw -= 0x100;
     o->oFaceAngleYaw += o->oAngleVelYaw;
-    cur_obj_scale(2.0f);
-    o->oGraphYOffset = 110.0f;
+    cur_obj_scaleq(q(2.0f));
+    QSETFIELD(o, oGraphYOffset, q(110));
 }

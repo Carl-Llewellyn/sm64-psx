@@ -61,7 +61,7 @@ void bhv_hidden_blue_coin_loop(void) {
  */
 void bhv_blue_coin_switch_loop(void) {
     // The switch's model is 1/3 size.
-    cur_obj_scale(3.0f);
+    cur_obj_scaleq(q(3.0f));
 
     switch (o->oAction) {
         case BLUE_COIN_SWITCH_ACT_IDLE:
@@ -73,9 +73,9 @@ void bhv_blue_coin_switch_loop(void) {
                     o->oAction++;
 
                     // Recede at a rate of 20 units/frame.
-                    o->oVelY = -20.0f;
+                    QSETFIELD(o,  oVelY, q(-20));
                     // Set gravity to 0 so it doesn't accelerate when receding.
-                    o->oGravity = 0.0f;
+                    QSETFIELD(o, oGravity, q(0.0f));
 
                     cur_obj_play_sound_2(SOUND_GENERAL_SWITCH_DOOR_OPEN);
                 }
@@ -95,7 +95,7 @@ void bhv_blue_coin_switch_loop(void) {
                 // Set to BLUE_COIN_SWITCH_ACT_TICKING
                 o->oAction++;
                 // ???
-                o->oPosY = gMarioObject->oPosY - 40.0f;
+                QSETFIELD(o, oPosY, QFIELD(gMarioObject, oPosY) - q(40));
 
                 // Spawn particles. There's a function that calls this same function
                 // with the same arguments, spawn_mist_particles, why didn't they just call that?

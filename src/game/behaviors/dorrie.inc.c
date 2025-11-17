@@ -1,18 +1,18 @@
 
 void dorrie_raise_head(void) {
     s16 startAngle;
-    f32 xzDisp;
-    f32 yDisp;
+    q32 xzDispq;
+    q32 yDispq;
 
     startAngle = o->oDorrieNeckAngle;
 
-    o->oDorrieNeckAngle -= (s16) absf(370.0f * sins(o->oDorrieHeadRaiseSpeed));
+    o->oDorrieNeckAngle -= (s16) ABS(370 * sinqs(o->oDorrieHeadRaiseSpeed));
 
-    xzDisp = 440.0f * (coss(o->oDorrieNeckAngle) - coss(startAngle));
-    yDisp = 440.0f * (sins(o->oDorrieNeckAngle) - sins(startAngle));
+    xzDispq = 440 * (cosqs(o->oDorrieNeckAngle) - cosqs(startAngle));
+    yDispq = 440 * (sinqs(o->oDorrieNeckAngle) - sinqs(startAngle));
 
-    set_mario_pos(gMarioObject->oPosX + xzDisp * sins(o->oMoveAngleYaw), gMarioObject->oPosY - yDisp,
-                  gMarioObject->oPosZ + xzDisp * coss(o->oMoveAngleYaw));
+    set_mario_posi(IFIELD(gMarioObject, oPosX) + qtrunc(qmul(xzDispq, sinqs(o->oMoveAngleYaw))), IFIELD(gMarioObject, oPosY) - qtrunc(yDispq),
+                  IFIELD(gMarioObject, oPosZ) + qtrunc(qmul(xzDispq, cosqs(o->oMoveAngleYaw))));
 }
 
 void dorrie_act_move(void) {
@@ -25,18 +25,18 @@ void dorrie_act_move(void) {
     o->oDorrieNeckAngle = -0x26F4;
     cur_obj_init_animation_with_sound(1);
 
-    if (o->oDorrieForwardDistToMario < 320.0f && o->oDorrieGroundPounded) {
+    if (FFIELD(o, oDorrieForwardDistToMario) < 320.0f && o->oDorrieGroundPounded) {
         cur_obj_play_sound_2(SOUND_OBJ_DORRIE);
         o->collisionData = segmented_to_virtual(dorrie_seg6_collision_0600FBB8);
         o->oAction = DORRIE_ACT_LOWER_HEAD;
-        o->oForwardVel = 0.0f;
+        QSETFIELD(o,  oForwardVel, q(0));
         o->oDorrieYawVel = 0;
     } else {
         if (gMarioObject->platform == o) {
             targetYaw = gMarioObject->oFaceAngleYaw;
             targetSpeed = 10;
         } else {
-            circularTurn = 0x4000 - atan2s(2000.0f, o->oDorrieDistToHome - 2000.0f);
+            circularTurn = 0x4000 - atan2s(2000.0f, FFIELD(o, oDorrieDistToHome) - 2000.0f);
             if ((s16)(o->oMoveAngleYaw - o->oDorrieAngleToHome) < 0) {
                 circularTurn = -circularTurn;
             }
@@ -45,7 +45,7 @@ void dorrie_act_move(void) {
             targetSpeed = 5;
         }
 
-        obj_forward_vel_approach(targetSpeed, 0.5f);
+        obj_forward_vel_approachq(q(targetSpeed), q(0.5));
         o->oDorrieYawVel =
             approach_s16_symmetric(o->oDorrieYawVel, (s16)(targetYaw - o->oMoveAngleYaw) / 50, 5);
         o->oMoveAngleYaw += o->oDorrieYawVel;
@@ -68,19 +68,19 @@ void dorrie_act_lower_head(void) {
         if (o->oTimer > 150) {
             dorrie_begin_head_raise(FALSE);
         } else if (gMarioObject->platform == o) {
-            if (o->oDorrieForwardDistToMario > 830.0f 
+            if (FFIELD(o, oDorrieForwardDistToMario) > 830.0f
                 && set_mario_npc_dialog(MARIO_DIALOG_LOOK_UP) == MARIO_DIALOG_STATUS_START) {
                 dorrie_begin_head_raise(TRUE);
-            } else if (o->oDorrieForwardDistToMario > 320.0f) {
+            } else if (QFIELD(o, oDorrieForwardDistToMario) > q(320.0f)) {
                 o->oTimer = 0;
             }
         }
 #else
         if (gMarioObject->platform == o) {
-            if (o->oDorrieOffsetY == -17.0f && o->oDorrieForwardDistToMario > 780.0f
+            if (FFIELD(o, oDorrieOffsetY) == -17.0f && FFIELD(o, oDorrieForwardDistToMario) > 780.0f
                 && set_mario_npc_dialog(MARIO_DIALOG_LOOK_UP) == MARIO_DIALOG_STATUS_START) {
                 dorrie_begin_head_raise(TRUE);
-            } else if (o->oDorrieForwardDistToMario > 320.0f) {
+            } else if (QFIELD(o, oDorrieForwardDistToMario) > q(320.0f)) {
                 o->oTimer = 0;
             }
         } else if (o->oTimer > 150) {
@@ -117,45 +117,45 @@ void bhv_dorrie_update(void) {
     f32 maxOffsetY;
 
     if (!(o->activeFlags & ACTIVE_FLAG_IN_DIFFERENT_ROOM)) {
-        o->oDorrieForwardDistToMario = o->oDistanceToMario * coss(o->oAngleToMario - o->oMoveAngleYaw);
+        FSETFIELD(o, oDorrieForwardDistToMario, FFIELD(o, oDistanceToMario) * coss(o->oAngleToMario - o->oMoveAngleYaw));
 
         obj_perform_position_op(0);
         cur_obj_move_using_fvel_and_gravity();
 
         o->oDorrieAngleToHome = cur_obj_angle_to_home();
-        o->oDorrieDistToHome = cur_obj_lateral_dist_to_home();
+        FSETFIELD(o, oDorrieDistToHome, cur_obj_lateral_dist_to_home());
 
         // Shift dorrie's bounds to account for her neck
         boundsShift =
             440.0f * coss(o->oDorrieNeckAngle) * coss(o->oMoveAngleYaw - o->oDorrieAngleToHome);
 
-        if (clamp_f32(&o->oDorrieDistToHome, 1650.0f + boundsShift, 2300.0f + boundsShift)) {
-            o->oPosX = o->oHomeX - o->oDorrieDistToHome * sins(o->oDorrieAngleToHome);
-            o->oPosZ = o->oHomeZ - o->oDorrieDistToHome * coss(o->oDorrieAngleToHome);
+        if (CLAMP_F32_FIELD(o, oDorrieDistToHome, 1650.0f + boundsShift, 2300.0f + boundsShift)) {
+            FSETFIELD(o, oPosX, FFIELD(o, oHomeX) - FFIELD(o, oDorrieDistToHome) * sins(o->oDorrieAngleToHome));
+            FSETFIELD(o, oPosZ, FFIELD(o, oHomeZ) - FFIELD(o, oDorrieDistToHome) * coss(o->oDorrieAngleToHome));
         }
 
         o->oDorrieGroundPounded = cur_obj_is_mario_ground_pounding_platform();
 
         if (gMarioObject->platform == o) {
             maxOffsetY = -17.0f;
-            if (o->oDorrieOffsetY >= 0.0f) {
+            if (QFIELD(o, oDorrieOffsetY) >= 0) {
                 if (o->oDorrieGroundPounded) {
-                    o->oDorrieVelY = -15.0f;
+                    QSETFIELD(o,  oDorrieVelY, q(-15));
                 } else {
-                    o->oDorrieVelY = -6.0f;
+                    QSETFIELD(o,  oDorrieVelY, q(-6));
                 }
             }
         } else {
             maxOffsetY = 0.0f;
         }
 
-        o->oDorrieOffsetY += o->oDorrieVelY;
-        approach_f32_ptr(&o->oDorrieVelY, 3.0f, 1.0f);
-        if (o->oDorrieVelY > 0.0f && o->oDorrieOffsetY > maxOffsetY) {
-            o->oDorrieOffsetY = maxOffsetY;
+        QMODFIELD(o, oDorrieOffsetY, += QFIELD(o, oDorrieVelY));
+        APPROACH_F32_FIELD(o, oDorrieVelY, 3.0f, 1.0f);
+        if (FFIELD(o, oDorrieVelY) > 0.0f && FFIELD(o, oDorrieOffsetY) > maxOffsetY) {
+            FSETFIELD(o, oDorrieOffsetY, maxOffsetY);
         }
 
-        o->oPosY = o->oHomeY + o->oDorrieOffsetY;
+        QSETFIELD(o, oPosY, QFIELD(o, oHomeY) + QFIELD(o, oDorrieOffsetY));
 
         switch (o->oAction) {
             case DORRIE_ACT_MOVE:

@@ -9,7 +9,7 @@ void bhv_sparkle_spawn_loop(void) {
     struct Object *sparkle = try_to_spawn_object(0, 1.0f, o, MODEL_SPARKLES_ANIMATION, bhvSparkle);
     if (sparkle != NULL) {
         obj_translate_xyz_random(sparkle, 90.0f);
-        obj_scale_random(sparkle, 1.0f, 0.0f);
+        obj_scale_randomq(sparkle, ONE, 0);
     }
     if (o->oTimer > 1) {
         obj_mark_for_deletion(o);

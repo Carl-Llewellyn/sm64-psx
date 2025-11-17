@@ -24,7 +24,7 @@
 #define OBJECT_FIELD_U32(index)           rawData.asU32[index]
 #define OBJECT_FIELD_S32(index)           rawData.asS32[index]
 #define OBJECT_FIELD_S16(index, subIndex) rawData.asS16[index][subIndex]
-#define OBJECT_FIELD_F32(index)           rawData.asF32[index]
+#define OBJECT_FIELD_F32(index)           (index)
 #if !IS_64_BIT
 #define OBJECT_FIELD_S16P(index)          rawData.asS16P[index]
 #define OBJECT_FIELD_S32P(index)          rawData.asS32P[index]
@@ -47,6 +47,26 @@
 #define OBJECT_FIELD_CVPTR(index)         ptrData.asConstVoidPtr[index]
 #endif
 #endif
+
+#define FIXED_POINT_FIELDS
+#ifdef FIXED_POINT_FIELDS
+#define QFIELD(obj, field) (obj->rawData.asQ32[field])
+#define QSETFIELD(obj, field, val) (obj->rawData.asQ32[field] = val)
+#define QMODFIELD(obj, field, op) (obj->rawData.asQ32[field] op)
+#define FFIELD(obj, field) (qtof(obj->rawData.asQ32[field]))
+#define FSETFIELD(obj, field, val) ({obj->rawData.asQ32[field] = q(val); val;})
+#define FMODFIELD(obj, field, op) ({f32 v = qtof(obj->rawData.asQ32[field]); v op; obj->rawData.asQ32[field] = q(v);})
+#else
+#define QFIELD(obj, field) (ftoq(obj->rawData.asF32[field]))
+#define QSETFIELD(obj, field, val) ({obj->rawData.asF32[field] = qtof(val); val;})
+#define QMODFIELD(obj, field, op) ({q32 v = q(obj->rawData.asF32[field]); v op; obj->rawData.asF32[field] = qtof(v);})
+#define FFIELD(obj, field) (obj->rawData.asF32[field])
+#define FSETFIELD(obj, field, val) (obj->rawData.asF32[field] = val)
+#define FMODFIELD(obj, field, op) (obj->rawData.asF32[field] op)
+#endif
+
+#define IFIELD(obj, field) qtrunc(QFIELD(obj, field))
+#define ISETFIELD(obj, field, value) QSETFIELD(obj, field, q(value))
 
 // 0x088 (0x00), the first field, is object-specific and defined below the common fields.
 /* Common fields */
@@ -238,7 +258,7 @@
 #define /*0x0F8*/ oBooBaseScale             OBJECT_FIELD_F32(0x1C)
 #define /*0x0FC*/ oBooOscillationTimer      OBJECT_FIELD_S32(0x1D)
 #define /*0x100*/ oBooMoveYawDuringHit      OBJECT_FIELD_S32(0x1E)
-#define /*0x104*/ oBooMoveYawBeforeHit      OBJECT_FIELD_F32(0x1F)
+#define /*0x104*/ oBooMoveYawBeforeHit      OBJECT_FIELD_S32(0x1F)
 #define /*0x108*/ oBooParentBigBoo          OBJECT_FIELD_OBJ(0x20)
 #define /*0x10C*/ oBooNegatedAggressiveness OBJECT_FIELD_F32(0x21)
 #define /*0x110*/ oBooInitialMoveYaw        OBJECT_FIELD_S32(0x22)

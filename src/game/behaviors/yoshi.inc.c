@@ -2,13 +2,13 @@
 
 // X/Z coordinates of Yoshi's homes that he switches between.
 // Note that this doesn't contain the Y coordinate since the castle roof is flat,
-// so o->oHomeY is never updated.
+// so FFIELD(o, oHomeY) is never updated.
 static s16 sYoshiHomeLocations[] = { 0, -5625, -1364, -5912, -1403, -4609, -1004, -5308 };
 
 void bhv_yoshi_init(void) {
-    o->oGravity = 2.0f;
-    o->oFriction = 0.9f;
-    o->oBuoyancy = 1.3f;
+    QSETFIELD(o, oGravity, q(2.0f));
+    QSETFIELD(o,  oFriction, q(0.9));
+    QSETFIELD(o,  oBuoyancy, q(1.3));
     o->oInteractionSubtype = INT_SUBTYPE_NPC;
 
     if (save_file_get_total_star_count(gCurrSaveFileNum - 1, COURSE_MIN - 1, COURSE_MAX - 1) < 120
@@ -21,10 +21,10 @@ void yoshi_walk_loop(void) {
     UNUSED s16 sp26;
     s16 sp24 = o->header.gfx.animInfo.animFrame;
 
-    o->oForwardVel = 10.0f;
+    QSETFIELD(o,  oForwardVel, q(10));
     sp26 = object_step();
     o->oMoveAngleYaw = approach_s16_symmetric(o->oMoveAngleYaw, o->oYoshiTargetYaw, 0x500);
-    if (is_point_close_to_object(o, o->oHomeX, 3174.0f, o->oHomeZ, 200))
+    if (is_point_close_to_object(o, FFIELD(o, oHomeX), 3174.0f, FFIELD(o, oHomeZ), 200))
         o->oAction = YOSHI_ACT_IDLE;
 
     cur_obj_init_animation(1);
@@ -34,7 +34,7 @@ void yoshi_walk_loop(void) {
     if (o->oInteractStatus == INT_STATUS_INTERACTED)
         o->oAction = YOSHI_ACT_TALK;
 
-    if (o->oPosY < 2100.0f) {
+    if (QFIELD(o, oPosY) < q(2100.0f)) {
         create_respawner(MODEL_YOSHI, bhvYoshi, 3000);
         o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
     }
@@ -53,9 +53,9 @@ void yoshi_idle_loop(void) {
             o->oYoshiChosenHome = chosenHome;
         }
 
-        o->oHomeX = sYoshiHomeLocations[o->oYoshiChosenHome * 2];
-        o->oHomeZ = sYoshiHomeLocations[o->oYoshiChosenHome * 2 + 1];
-        o->oYoshiTargetYaw = atan2s(o->oHomeZ - o->oPosZ, o->oHomeX - o->oPosX);
+        FSETFIELD(o, oHomeX, sYoshiHomeLocations[o->oYoshiChosenHome * 2]);
+        FSETFIELD(o, oHomeZ, sYoshiHomeLocations[o->oYoshiChosenHome * 2 + 1]);
+        o->oYoshiTargetYaw = atan2s(FFIELD(o, oHomeZ) - FFIELD(o, oPosZ), FFIELD(o, oHomeX) - FFIELD(o, oPosX));
         o->oAction = YOSHI_ACT_WALK;
     }
 
@@ -67,9 +67,9 @@ void yoshi_idle_loop(void) {
     if (gPlayerCameraState->cameraEvent == CAM_EVENT_START_ENDING ||
         gPlayerCameraState->cameraEvent == CAM_EVENT_START_END_WAVING) {
         o->oAction = YOSHI_ACT_CREDITS;
-        o->oPosX = -1798.0f;
-        o->oPosY = 3174.0f;
-        o->oPosZ = -3644.0f;
+        QSETFIELD(o,  oPosX, q(-1798));
+        QSETFIELD(o,  oPosY, q(3174));
+        QSETFIELD(o,  oPosZ, q(-3644));
     }
 }
 
@@ -81,9 +81,9 @@ void yoshi_talk_loop(void) {
             if (cutscene_object_with_dialog(CUTSCENE_DIALOG, o, DIALOG_161)) {
                 o->activeFlags &= ~ACTIVE_FLAG_INITIATED_TIME_STOP;
                 o->oInteractStatus = 0;
-                o->oHomeX = sYoshiHomeLocations[2];
-                o->oHomeZ = sYoshiHomeLocations[3];
-                o->oYoshiTargetYaw = atan2s(o->oHomeZ - o->oPosZ, o->oHomeX - o->oPosX);
+                FSETFIELD(o, oHomeX, sYoshiHomeLocations[2]);
+                FSETFIELD(o, oHomeZ, sYoshiHomeLocations[3]);
+                o->oYoshiTargetYaw = atan2s(FFIELD(o, oHomeZ) - FFIELD(o, oPosZ), FFIELD(o, oHomeX) - FFIELD(o, oPosX));
                 o->oAction = YOSHI_ACT_GIVE_PRESENT;
             }
         }
@@ -97,18 +97,18 @@ void yoshi_talk_loop(void) {
 void yoshi_walk_and_jump_off_roof_loop(void) {
     s16 sp26 = o->header.gfx.animInfo.animFrame;
 
-    o->oForwardVel = 10.0f;
+    QSETFIELD(o,  oForwardVel, q(10));
     object_step();
     cur_obj_init_animation(1);
     if (o->oTimer == 0)
         cutscene_object(CUTSCENE_STAR_SPAWN, o);
 
     o->oMoveAngleYaw = approach_s16_symmetric(o->oMoveAngleYaw, o->oYoshiTargetYaw, 0x500);
-    if (is_point_close_to_object(o, o->oHomeX, 3174.0f, o->oHomeZ, 200)) {
+    if (is_point_close_to_object(o, FFIELD(o, oHomeX), 3174.0f, FFIELD(o, oHomeZ), 200)) {
         cur_obj_init_animation(2);
         cur_obj_play_sound_2(SOUND_GENERAL_ENEMY_ALERT1);
-        o->oForwardVel = 50.0f;
-        o->oVelY = 40.0f;
+        QSETFIELD(o,  oForwardVel, q(50));
+        QSETFIELD(o,  oVelY, q(40));
         o->oMoveAngleYaw = -0x3FFF;
         o->oAction = YOSHI_ACT_FINISH_JUMPING_AND_DESPAWN;
     }
@@ -121,8 +121,8 @@ void yoshi_walk_and_jump_off_roof_loop(void) {
 void yoshi_finish_jumping_and_despawn_loop(void) {
     cur_obj_extend_animation_if_at_end();
     obj_move_xyz_using_fvel_and_yaw(o);
-    o->oVelY -= 2.0;
-    if (o->oPosY < 2100.0f) {
+    QMODFIELD(o, oVelY, -= q(2));
+	if (QFIELD(o, oPosY) < q(2100)) {
         set_mario_npc_dialog(MARIO_DIALOG_STOP);
         gObjCutsceneDone = TRUE;
         sYoshiDead = TRUE;

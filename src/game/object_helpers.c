@@ -26,6 +26,8 @@
 #include "rendering_graph_node.h"
 #include "spawn_object.h"
 #include "spawn_sound.h"
+#include <port/gfx/gfx.h>
+#include "object_fields.h"
 
 static s8 sBbhStairJiggleOffsets[] = { -8, 8, -4, 4 };
 static s16 sPowersOfTwo[] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
@@ -35,15 +37,15 @@ static s32 clear_move_flag(u32 *, s32);
 
 #define o gCurrentObject
 
-Gfx *geo_update_projectile_pos_from_parent(s32 callContext, UNUSED struct GraphNode *node, Mat4 mtx) {
-    Mat4 sp20;
+Gfx *geo_update_projectile_pos_from_parent(s32 callContext, UNUSED struct GraphNode *node, const ShortMatrix* mtxq) {
+    ShortMatrix sp20q;
     struct Object *sp1C;
 
     if (callContext == GEO_CONTEXT_RENDER) {
         sp1C = (struct Object *) gCurGraphNodeObject; // TODO: change global type to Object pointer
         if (sp1C->prevObj) {
-            create_transformation_from_matrices(sp20, mtx, *gCurGraphNodeCamera->matrixPtr);
-            obj_update_pos_from_parent_transformation(sp20, sp1C->prevObj);
+            create_transformation_from_matricesq(&sp20q, mtxq, gCurGraphNodeCamera->matrixPtrq);
+            obj_update_pos_from_parent_transformationq(&sp20q, sp1C->prevObj);
             obj_set_gfx_pos_from_pos(sp1C->prevObj);
         }
     }
@@ -183,7 +185,7 @@ Gfx *geo_switch_area(s32 callContext, struct GraphNode *node) {
         } else {
             gFindFloorIncludeSurfaceIntangible = TRUE;
 
-            find_floor(gMarioObject->oPosX, gMarioObject->oPosY, gMarioObject->oPosZ, &sp20);
+            find_floorq(QFIELD(gMarioObject, oPosX), QFIELD(gMarioObject, oPosY), QFIELD(gMarioObject, oPosZ), &sp20);
 
             if (sp20) {
                 gMarioCurrentRoom = sp20->room;
@@ -202,65 +204,45 @@ Gfx *geo_switch_area(s32 callContext, struct GraphNode *node) {
     return NULL;
 }
 
-void obj_update_pos_from_parent_transformation(Mat4 a0, struct Object *a1) {
-    f32 spC = a1->oParentRelativePosX;
-    f32 sp8 = a1->oParentRelativePosY;
-    f32 sp4 = a1->oParentRelativePosZ;
+void obj_update_pos_from_parent_transformationq(const ShortMatrix* a0, struct Object* a1) {
+	q32 spCq = QFIELD(a1, oParentRelativePosX);
+    q32 sp8q = QFIELD(a1, oParentRelativePosY);
+    q32 sp4q = QFIELD(a1, oParentRelativePosZ);
 
-    a1->oPosX = spC * a0[0][0] + sp8 * a0[1][0] + sp4 * a0[2][0] + a0[3][0];
-    a1->oPosY = spC * a0[0][1] + sp8 * a0[1][1] + sp4 * a0[2][1] + a0[3][1];
-    a1->oPosZ = spC * a0[0][2] + sp8 * a0[1][2] + sp4 * a0[2][2] + a0[3][2];
+    QSETFIELD(a1, oPosX, qmul(spCq, (q32) a0->m[0][0]) + qmul(sp8q, (q32) a0->m[1][0]) + qmul(sp4q, (q32) a0->m[2][0]) + q(a0->t[0]));
+    QSETFIELD(a1, oPosY, qmul(spCq, (q32) a0->m[0][1]) + qmul(sp8q, (q32) a0->m[1][1]) + qmul(sp4q, (q32) a0->m[2][1]) + q(a0->t[1]));
+    QSETFIELD(a1, oPosZ, qmul(spCq, (q32) a0->m[0][2]) + qmul(sp8q, (q32) a0->m[1][2]) + qmul(sp4q, (q32) a0->m[2][2]) + q(a0->t[2]));
 }
 
-void obj_apply_scale_to_matrix(struct Object *obj, Mat4 dst, Mat4 src) {
-    dst[0][0] = src[0][0] * obj->header.gfx.scale[0];
-    dst[1][0] = src[1][0] * obj->header.gfx.scale[1];
-    dst[2][0] = src[2][0] * obj->header.gfx.scale[2];
-    dst[3][0] = src[3][0];
-
-    dst[0][1] = src[0][1] * obj->header.gfx.scale[0];
-    dst[1][1] = src[1][1] * obj->header.gfx.scale[1];
-    dst[2][1] = src[2][1] * obj->header.gfx.scale[2];
-    dst[3][1] = src[3][1];
-
-    dst[0][2] = src[0][2] * obj->header.gfx.scale[0];
-    dst[1][2] = src[1][2] * obj->header.gfx.scale[1];
-    dst[2][2] = src[2][2] * obj->header.gfx.scale[2];
-    dst[3][2] = src[3][2];
-
-    dst[0][3] = src[0][3];
-    dst[1][3] = src[1][3];
-    dst[2][3] = src[2][3];
-    dst[3][3] = src[3][3];
+void obj_apply_scale_to_mtxq(struct Object *obj, ShortMatrix* dstq, ShortMatrix* srcq) {
+	for(int i = 0; i < 3; i++) {
+		dstq->m[i][0] = qmul((q32) srcq->m[i][0], obj->header.gfx.scaleq[i]);
+		dstq->m[i][1] = qmul((q32) srcq->m[i][1], obj->header.gfx.scaleq[i]);
+		dstq->m[i][2] = qmul((q32) srcq->m[i][2], obj->header.gfx.scaleq[i]);
+		dstq->t[i] = srcq->t[i];
+	}
 }
 
-void create_transformation_from_matrices(Mat4 a0, Mat4 a1, Mat4 a2) {
-    f32 spC, sp8, sp4;
+void create_transformation_from_matricesq(ShortMatrix* a0, const ShortMatrix* a1, const ShortMatrix* a2) {
+    q32 spCq = (q32) a2->t[0] * (q32) a2->m[0][0] + (q32) a2->t[1] * (q32) a2->m[0][1] + (q32) a2->t[2] * (q32) a2->m[0][2];
+    q32 sp8q = (q32) a2->t[0] * (q32) a2->m[1][0] + (q32) a2->t[1] * (q32) a2->m[1][1] + (q32) a2->t[2] * (q32) a2->m[1][2];
+    q32 sp4q = (q32) a2->t[0] * (q32) a2->m[2][0] + (q32) a2->t[1] * (q32) a2->m[2][1] + (q32) a2->t[2] * (q32) a2->m[2][2];
 
-    spC = a2[3][0] * a2[0][0] + a2[3][1] * a2[0][1] + a2[3][2] * a2[0][2];
-    sp8 = a2[3][0] * a2[1][0] + a2[3][1] * a2[1][1] + a2[3][2] * a2[1][2];
-    sp4 = a2[3][0] * a2[2][0] + a2[3][1] * a2[2][1] + a2[3][2] * a2[2][2];
+    a0->m[0][0] = qmul((q32) a1->m[0][0], (q32) a2->m[0][0]) + qmul((q32) a1->m[0][1], (q32) a2->m[0][1]) + qmul((q32) a1->m[0][2], (q32) a2->m[0][2]);
+    a0->m[0][1] = qmul((q32) a1->m[0][0], (q32) a2->m[1][0]) + qmul((q32) a1->m[0][1], (q32) a2->m[1][1]) + qmul((q32) a1->m[0][2], (q32) a2->m[1][2]);
+    a0->m[0][2] = qmul((q32) a1->m[0][0], (q32) a2->m[2][0]) + qmul((q32) a1->m[0][1], (q32) a2->m[2][1]) + qmul((q32) a1->m[0][2], (q32) a2->m[2][2]);
 
-    a0[0][0] = a1[0][0] * a2[0][0] + a1[0][1] * a2[0][1] + a1[0][2] * a2[0][2];
-    a0[0][1] = a1[0][0] * a2[1][0] + a1[0][1] * a2[1][1] + a1[0][2] * a2[1][2];
-    a0[0][2] = a1[0][0] * a2[2][0] + a1[0][1] * a2[2][1] + a1[0][2] * a2[2][2];
+    a0->m[1][0] = qmul((q32) a1->m[1][0], (q32) a2->m[0][0]) + qmul((q32) a1->m[1][1], (q32) a2->m[0][1]) + qmul((q32) a1->m[1][2], (q32) a2->m[0][2]);
+    a0->m[1][1] = qmul((q32) a1->m[1][0], (q32) a2->m[1][0]) + qmul((q32) a1->m[1][1], (q32) a2->m[1][1]) + qmul((q32) a1->m[1][2], (q32) a2->m[1][2]);
+    a0->m[1][2] = qmul((q32) a1->m[1][0], (q32) a2->m[2][0]) + qmul((q32) a1->m[1][1], (q32) a2->m[2][1]) + qmul((q32) a1->m[1][2], (q32) a2->m[2][2]);
 
-    a0[1][0] = a1[1][0] * a2[0][0] + a1[1][1] * a2[0][1] + a1[1][2] * a2[0][2];
-    a0[1][1] = a1[1][0] * a2[1][0] + a1[1][1] * a2[1][1] + a1[1][2] * a2[1][2];
-    a0[1][2] = a1[1][0] * a2[2][0] + a1[1][1] * a2[2][1] + a1[1][2] * a2[2][2];
+    a0->m[2][0] = qmul((q32) a1->m[2][0], (q32) a2->m[0][0]) + qmul((q32) a1->m[2][1], (q32) a2->m[0][1]) + qmul((q32) a1->m[2][2], (q32) a2->m[0][2]);
+    a0->m[2][1] = qmul((q32) a1->m[2][0], (q32) a2->m[1][0]) + qmul((q32) a1->m[2][1], (q32) a2->m[1][1]) + qmul((q32) a1->m[2][2], (q32) a2->m[1][2]);
+    a0->m[2][2] = qmul((q32) a1->m[2][0], (q32) a2->m[2][0]) + qmul((q32) a1->m[2][1], (q32) a2->m[2][1]) + qmul((q32) a1->m[2][2], (q32) a2->m[2][2]);
 
-    a0[2][0] = a1[2][0] * a2[0][0] + a1[2][1] * a2[0][1] + a1[2][2] * a2[0][2];
-    a0[2][1] = a1[2][0] * a2[1][0] + a1[2][1] * a2[1][1] + a1[2][2] * a2[1][2];
-    a0[2][2] = a1[2][0] * a2[2][0] + a1[2][1] * a2[2][1] + a1[2][2] * a2[2][2];
-
-    a0[3][0] = a1[3][0] * a2[0][0] + a1[3][1] * a2[0][1] + a1[3][2] * a2[0][2] - spC;
-    a0[3][1] = a1[3][0] * a2[1][0] + a1[3][1] * a2[1][1] + a1[3][2] * a2[1][2] - sp8;
-    a0[3][2] = a1[3][0] * a2[2][0] + a1[3][1] * a2[2][1] + a1[3][2] * a2[2][2] - sp4;
-
-    a0[0][3] = 0;
-    a0[1][3] = 0;
-    a0[2][3] = 0;
-    a0[3][3] = 1.0f;
+    a0->t[0] = qtrunc(a1->t[0] * (q32) a2->m[0][0] + a1->t[1] * (q32) a2->m[0][1] + a1->t[2] * (q32) a2->m[0][2] - spCq);
+    a0->t[1] = qtrunc(a1->t[0] * (q32) a2->m[1][0] + a1->t[1] * (q32) a2->m[1][1] + a1->t[2] * (q32) a2->m[1][2] - sp8q);
+    a0->t[2] = qtrunc(a1->t[0] * (q32) a2->m[2][0] + a1->t[1] * (q32) a2->m[2][1] + a1->t[2] * (q32) a2->m[2][2] - sp4q);
 }
 
 void obj_set_held_state(struct Object *obj, const BehaviorScript *heldBehavior) {
@@ -284,26 +266,28 @@ void obj_set_held_state(struct Object *obj, const BehaviorScript *heldBehavior) 
     }
 }
 
-f32 lateral_dist_between_objects(struct Object *obj1, struct Object *obj2) {
-    f32 dx = obj1->oPosX - obj2->oPosX;
-    f32 dz = obj1->oPosZ - obj2->oPosZ;
+q32 lateral_dist_between_objectsq(struct Object *obj1, struct Object *obj2) {
+    s32 dxi = IFIELD(obj1, oPosX) - IFIELD(obj2, oPosX);
+    s32 dzi = IFIELD(obj1, oPosZ) - IFIELD(obj2, oPosZ);
 
-    return sqrtf(dx * dx + dz * dz);
+    return q(sqrtu(dxi * dxi + dzi * dzi));
 }
 
-f32 dist_between_objects(struct Object *obj1, struct Object *obj2) {
-    f32 dx = obj1->oPosX - obj2->oPosX;
-    f32 dy = obj1->oPosY - obj2->oPosY;
-    f32 dz = obj1->oPosZ - obj2->oPosZ;
+q32 dist_between_objectsq(struct Object *obj1, struct Object *obj2) {
+	// divide and multiply it later to avoid overflow. is this the best approach? idk
+    s32 dxi = IFIELD(obj1, oPosX) - IFIELD(obj2, oPosX);
+    s32 dyi = IFIELD(obj1, oPosY) - IFIELD(obj2, oPosY);
+    s32 dzi = IFIELD(obj1, oPosZ) - IFIELD(obj2, oPosZ);
 
-    return sqrtf(dx * dx + dy * dy + dz * dz);
+    return q(sqrtu64((s64) dxi * dxi + (s64) dyi * dyi + (s64) dzi * dzi));
 }
 
 void cur_obj_forward_vel_approach_upward(f32 target, f32 increment) {
-    if (o->oForwardVel >= target) {
-        o->oForwardVel = target;
+	f32 vel = FFIELD(o, oForwardVel);
+    if (vel >= target) {
+        FSETFIELD(o, oForwardVel, target);
     } else {
-        o->oForwardVel += increment;
+        FSETFIELD(o, oForwardVel, vel + increment);
     }
 }
 
@@ -313,6 +297,26 @@ s32 approach_f32_signed(f32 *value, f32 target, f32 increment) {
     *value += increment;
 
     if (increment >= 0.0f) {
+        if (*value > target) {
+            *value = target;
+            reachedTarget = TRUE;
+        }
+    } else {
+        if (*value < target) {
+            *value = target;
+            reachedTarget = TRUE;
+        }
+    }
+
+    return reachedTarget;
+}
+
+s32 approach_q32_signed(q32 *value, q32 target, q32 increment) {
+    s32 reachedTarget = FALSE;
+
+    *value += increment;
+
+    if (increment >= 0) {
         if (*value > target) {
             *value = target;
             reachedTarget = TRUE;
@@ -367,6 +371,26 @@ s16 approach_s16_symmetric(s16 value, s16 target, s16 increment) {
     return value;
 }
 
+q32 approach_q32_symmetric(q32 valueq, q32 targetq, q32 incrementq) {
+    s16 dist = targetq - valueq;
+
+    if (dist >= 0) {
+        if (dist > incrementq) {
+            valueq += incrementq;
+        } else {
+            valueq = targetq;
+        }
+    } else {
+        if (dist < -incrementq) {
+            valueq -= incrementq;
+        } else {
+            valueq = targetq;
+        }
+    }
+
+    return valueq;
+}
+
 s32 cur_obj_rotate_yaw_toward(s16 target, s16 increment) {
     s16 startYaw;
 
@@ -381,43 +405,43 @@ s32 cur_obj_rotate_yaw_toward(s16 target, s16 increment) {
 }
 
 s16 obj_angle_to_object(struct Object *obj1, struct Object *obj2) {
-    f32 z1, x1, z2, x2;
+    q32 z1q, x1q, z2q, x2q;
     s16 angle;
 
-    z1 = obj1->oPosZ; z2 = obj2->oPosZ; // ordering of instructions..
-    x1 = obj1->oPosX; x2 = obj2->oPosX;
+    z1q = QFIELD(obj1, oPosZ); z2q = QFIELD(obj2, oPosZ); // ordering of instructions..
+    x1q = QFIELD(obj1, oPosX); x2q = QFIELD(obj2, oPosX);
 
-    angle = atan2s(z2 - z1, x2 - x1);
+    angle = atan2sq(z2q - z1q, x2q - x1q);
     return angle;
 }
 
 s16 obj_turn_toward_object(struct Object *obj, struct Object *target, s16 angleIndex, s16 turnAmount) {
-    f32 a, b, c, d;
-    UNUSED s32 unused;
     s16 targetAngle, startAngle;
 
     switch (angleIndex) {
         case O_MOVE_ANGLE_PITCH_INDEX:
-        case O_FACE_ANGLE_PITCH_INDEX:
-            a = target->oPosX - obj->oPosX;
-            c = target->oPosZ - obj->oPosZ;
-            a = sqrtf(a * a + c * c);
+        case O_FACE_ANGLE_PITCH_INDEX: {
+            s32 ai = IFIELD(target, oPosX) - IFIELD(obj, oPosX);
+            s32 ci = IFIELD(target, oPosZ) - IFIELD(obj, oPosZ);
+            ai = sqrtu(ai * ai + ci * ci);
 
-            b = -obj->oPosY;
-            d = -target->oPosY;
+            s32 bi = -IFIELD(obj, oPosY);
+            s32 di = -IFIELD(target, oPosY);
 
-            targetAngle = atan2s(a, d - b);
+            targetAngle = atan2sq(ai, di - bi);
             break;
+        }
 
         case O_MOVE_ANGLE_YAW_INDEX:
-        case O_FACE_ANGLE_YAW_INDEX:
-            a = obj->oPosZ;
-            c = target->oPosZ;
-            b = obj->oPosX;
-            d = target->oPosX;
+        case O_FACE_ANGLE_YAW_INDEX: {
+            q32 a = IFIELD(obj, oPosZ);
+            q32 c = IFIELD(target, oPosZ);
+            q32 b = IFIELD(obj, oPosX);
+            q32 d = IFIELD(target, oPosX);
 
-            targetAngle = atan2s(c - a, d - b);
+            targetAngle = atan2sq(c - a, d - b);
             break;
+        }
     }
 
     startAngle = o->rawData.asU32[angleIndex];
@@ -426,15 +450,15 @@ s16 obj_turn_toward_object(struct Object *obj, struct Object *target, s16 angleI
 }
 
 void obj_set_parent_relative_pos(struct Object *obj, s16 relX, s16 relY, s16 relZ) {
-    obj->oParentRelativePosX = relX;
-    obj->oParentRelativePosY = relY;
-    obj->oParentRelativePosZ = relZ;
+    ISETFIELD(obj, oParentRelativePosX, relX);
+    ISETFIELD(obj, oParentRelativePosY, relY);
+    ISETFIELD(obj, oParentRelativePosZ, relZ);
 }
 
 void obj_set_pos(struct Object *obj, s16 x, s16 y, s16 z) {
-    obj->oPosX = x;
-    obj->oPosY = y;
-    obj->oPosZ = z;
+    ISETFIELD(obj, oPosX, x);
+    ISETFIELD(obj, oPosY, y);
+    ISETFIELD(obj, oPosZ, z);
 }
 
 void obj_set_angle(struct Object *obj, s16 pitch, s16 yaw, s16 roll) {
@@ -492,16 +516,16 @@ struct Object *spawn_water_droplet(struct Object *parent, struct WaterDropletPar
 
     if (params->flags & WATER_DROPLET_FLAG_RAND_ANGLE_INCR_PLUS_8000) {
         newObj->oMoveAngleYaw = (s16)(newObj->oMoveAngleYaw + 0x8000)
-                                + (s16) random_f32_around_zero(params->moveAngleRange);
+                                + (s16) random_s16_around_zero(params->moveAngleRange);
     }
 
     if (params->flags & WATER_DROPLET_FLAG_RAND_ANGLE_INCR) {
         newObj->oMoveAngleYaw =
-            (s16) newObj->oMoveAngleYaw + (s16) random_f32_around_zero(params->moveAngleRange);
+            (s16) newObj->oMoveAngleYaw + (s16) random_s16_around_zero(params->moveAngleRange);
     }
 
     if (params->flags & WATER_DROPLET_FLAG_SET_Y_TO_WATER_LEVEL) {
-        newObj->oPosY = find_water_level(newObj->oPosX, newObj->oPosZ);
+        QSETFIELD(newObj, oPosY, find_water_levelq(QFIELD(newObj, oPosX), QFIELD(newObj, oPosZ)));
     }
 
     if (params->flags & WATER_DROPLET_FLAG_RAND_OFFSET_XZ) {
@@ -512,8 +536,8 @@ struct Object *spawn_water_droplet(struct Object *parent, struct WaterDropletPar
         obj_translate_xyz_random(newObj, params->moveRange);
     }
 
-    newObj->oForwardVel = random_float() * params->randForwardVelScale + params->randForwardVelOffset;
-    newObj->oVelY = random_float() * params->randYVelScale + params->randYVelOffset;
+    QSETFIELD(newObj, oForwardVel, qmul(random_q32(), q(params->randForwardVelScale)) + q(params->randForwardVelOffset));
+    QSETFIELD(newObj, oVelY, qmul(random_q32(), q(params->randYVelScale)) + q(params->randYVelOffset));
 
     randomScale = random_float() * params->randSizeScale + params->randSizeOffset;
     obj_scale(newObj, randomScale);
@@ -551,15 +575,9 @@ struct Object *try_to_spawn_object(s16 offsetY, f32 scale, struct Object *parent
                                    const BehaviorScript *behavior) {
     struct Object *obj;
 
-    if (
-#ifdef USE_SYSTEM_MALLOC
-        TRUE
-#else
-        gFreeObjectList.next != NULL
-#endif
-    ) {
+    if (gFreeObjectList.next != NULL) {
         obj = spawn_object(parent, model, behavior);
-        obj->oPosY += offsetY;
+        QMODFIELD(obj, oPosY, += offsetY);
         obj_scale(obj, scale);
         return obj;
     } else {
@@ -606,13 +624,13 @@ struct Object *spawn_object_relative_with_scale(s16 behaviorParam, s16 relativeP
 }
 
 void cur_obj_move_using_vel(void) {
-    o->oPosX += o->oVelX;
-    o->oPosY += o->oVelY;
-    o->oPosZ += o->oVelZ;
+    QMODFIELD(o, oPosX, += QFIELD(o, oVelX));
+    QMODFIELD(o, oPosY, += QFIELD(o, oVelY));
+    QMODFIELD(o, oPosZ, += QFIELD(o, oVelZ));
 }
 
 void obj_copy_graph_y_offset(struct Object *dst, struct Object *src) {
-    dst->oGraphYOffset = src->oGraphYOffset;
+    QSETFIELD(dst, oGraphYOffset, QFIELD(src, oGraphYOffset));
 }
 
 void obj_copy_pos_and_angle(struct Object *dst, struct Object *src) {
@@ -621,9 +639,9 @@ void obj_copy_pos_and_angle(struct Object *dst, struct Object *src) {
 }
 
 void obj_copy_pos(struct Object *dst, struct Object *src) {
-    dst->oPosX = src->oPosX;
-    dst->oPosY = src->oPosY;
-    dst->oPosZ = src->oPosZ;
+    QSETFIELD(dst, oPosX, QFIELD(src, oPosX));
+    QSETFIELD(dst, oPosY, QFIELD(src, oPosY));
+    QSETFIELD(dst, oPosZ, QFIELD(src, oPosZ));
 }
 
 void obj_copy_angle(struct Object *dst, struct Object *src) {
@@ -637,9 +655,9 @@ void obj_copy_angle(struct Object *dst, struct Object *src) {
 }
 
 void obj_set_gfx_pos_from_pos(struct Object *obj) {
-    obj->header.gfx.pos[0] = obj->oPosX;
-    obj->header.gfx.pos[1] = obj->oPosY;
-    obj->header.gfx.pos[2] = obj->oPosZ;
+    obj->header.gfx.posi[0] = IFIELD(obj, oPosX);
+    obj->header.gfx.posi[1] = IFIELD(obj, oPosY);
+    obj->header.gfx.posi[2] = IFIELD(obj, oPosZ);
 }
 
 void obj_init_animation(struct Object *obj, s32 animIndex) {
@@ -647,76 +665,38 @@ void obj_init_animation(struct Object *obj, s32 animIndex) {
     geo_obj_init_animation(&obj->header.gfx, &anims[animIndex]);
 }
 
-/**
- * Multiply a vector by a matrix of the form
- * | ? ? ? 0 |
- * | ? ? ? 0 |
- * | ? ? ? 0 |
- * | 0 0 0 1 |
- * i.e. a matrix representing a linear transformation over 3 space.
- */
-void linear_mtxf_mul_vec3f(Mat4 m, Vec3f dst, Vec3f v) {
-    s32 i;
-    for (i = 0; i < 3; i++) {
-        dst[i] = m[0][i] * v[0] + m[1][i] * v[1] + m[2][i] * v[2];
-    }
-}
-
-/**
- * Multiply a vector by the transpose of a matrix of the form
- * | ? ? ? 0 |
- * | ? ? ? 0 |
- * | ? ? ? 0 |
- * | 0 0 0 1 |
- * i.e. a matrix representing a linear transformation over 3 space.
- */
-void linear_mtxf_transpose_mul_vec3f(Mat4 m, Vec3f dst, Vec3f v) {
-    s32 i;
-    for (i = 0; i < 3; i++) {
-        dst[i] = m[i][0] * v[0] + m[i][1] * v[1] + m[i][2] * v[2];
-    }
-}
-
 void obj_apply_scale_to_transform(struct Object *obj) {
-    f32 scaleX = obj->header.gfx.scale[0];
-    f32 scaleY = obj->header.gfx.scale[1];
-    f32 scaleZ = obj->header.gfx.scale[2];
-
-    obj->transform[0][0] *= scaleX;
-    obj->transform[0][1] *= scaleX;
-    obj->transform[0][2] *= scaleX;
-
-    obj->transform[1][0] *= scaleY;
-    obj->transform[1][1] *= scaleY;
-    obj->transform[1][2] *= scaleY;
-
-    obj->transform[2][0] *= scaleZ;
-    obj->transform[2][1] *= scaleZ;
-    obj->transform[2][2] *= scaleZ;
+	for(int i = 0; i < 3; i++) {
+		q32 scaleq = obj->header.gfx.scaleq[i];
+		obj->transformq.m[i][0] = qmul((q32) obj->transformq.m[i][0], scaleq);
+		obj->transformq.m[i][1] = qmul((q32) obj->transformq.m[i][1], scaleq);
+		obj->transformq.m[i][2] = qmul((q32) obj->transformq.m[i][2], scaleq);
+	}
 }
 
 void obj_copy_scale(struct Object *dst, struct Object *src) {
-    dst->header.gfx.scale[0] = src->header.gfx.scale[0];
-    dst->header.gfx.scale[1] = src->header.gfx.scale[1];
-    dst->header.gfx.scale[2] = src->header.gfx.scale[2];
+    dst->header.gfx.scaleq[0] = src->header.gfx.scaleq[0];
+    dst->header.gfx.scaleq[1] = src->header.gfx.scaleq[1];
+    dst->header.gfx.scaleq[2] = src->header.gfx.scaleq[2];
 }
 
-void obj_scale_xyz(struct Object *obj, f32 xScale, f32 yScale, f32 zScale) {
-    obj->header.gfx.scale[0] = xScale;
-    obj->header.gfx.scale[1] = yScale;
-    obj->header.gfx.scale[2] = zScale;
+void obj_scale_xyzq(struct Object *obj, q32 xScaleq, q32 yScaleq, q32 zScaleq) {
+    obj->header.gfx.scaleq[0] = xScaleq;
+    obj->header.gfx.scaleq[1] = yScaleq;
+    obj->header.gfx.scaleq[2] = zScaleq;
 }
 
 void obj_scale(struct Object *obj, f32 scale) {
-    obj->header.gfx.scale[0] = scale;
-    obj->header.gfx.scale[1] = scale;
-    obj->header.gfx.scale[2] = scale;
+	q32 scaleq = q(scale);
+    obj->header.gfx.scaleq[0] = scaleq;
+    obj->header.gfx.scaleq[1] = scaleq;
+    obj->header.gfx.scaleq[2] = scaleq;
 }
 
-void cur_obj_scale(f32 scale) {
-    o->header.gfx.scale[0] = scale;
-    o->header.gfx.scale[1] = scale;
-    o->header.gfx.scale[2] = scale;
+void cur_obj_scaleq(q32 scaleq) {
+    o->header.gfx.scaleq[0] = scaleq;
+    o->header.gfx.scaleq[1] = scaleq;
+    o->header.gfx.scaleq[2] = scaleq;
 }
 
 void cur_obj_init_animation(s32 animIndex) {
@@ -779,9 +759,9 @@ void cur_obj_set_pos_relative(struct Object *other, f32 dleft, f32 dy, f32 dforw
 
     o->oMoveAngleYaw = other->oMoveAngleYaw;
 
-    o->oPosX = other->oPosX + dx;
-    o->oPosY = other->oPosY + dy;
-    o->oPosZ = other->oPosZ + dz;
+    QSETFIELD(o, oPosX, QFIELD(other, oPosX) + dx);
+    QSETFIELD(o, oPosY, QFIELD(other, oPosY) + dy);
+    QSETFIELD(o, oPosZ, QFIELD(other, oPosZ) + dz);
 }
 
 void cur_obj_set_pos_relative_to_parent(f32 dleft, f32 dy, f32 dforward) {
@@ -795,10 +775,10 @@ void cur_obj_enable_rendering_2(void) {
 void cur_obj_unused_init_on_floor(void) {
     cur_obj_enable_rendering();
 
-    o->oPosY = find_floor_height(o->oPosX, o->oPosY, o->oPosZ);
-    if (o->oPosY < FLOOR_LOWER_LIMIT_MISC) {
+    QSETFIELD(o, oPosY, find_floor_heightq(QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ)));
+    if (QFIELD(o, oPosY) < q(FLOOR_LOWER_LIMIT_MISC)) {
         cur_obj_set_pos_relative_to_parent(0, 0, -70);
-        o->oPosY = find_floor_height(o->oPosX, o->oPosY, o->oPosZ);
+        QSETFIELD(o, oPosY, find_floor_heightq(QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ)));
     }
 }
 
@@ -848,7 +828,7 @@ struct Object *cur_obj_find_nearest_object_with_behavior(const BehaviorScript *b
     struct Object *closestObj = NULL;
     struct Object *obj;
     struct ObjectNode *listHead;
-    f32 minDist = 0x20000;
+    s32 minDist = 0x20000;
 
     listHead = &gObjectLists[get_object_list_from_behavior(behaviorAddr)];
     obj = (struct Object *) listHead->next;
@@ -856,7 +836,7 @@ struct Object *cur_obj_find_nearest_object_with_behavior(const BehaviorScript *b
     while (obj != (struct Object *) listHead) {
         if (obj->behavior == behaviorAddr) {
             if (obj->activeFlags != ACTIVE_FLAG_DEACTIVATED && obj != o) {
-                f32 objDist = dist_between_objects(o, obj);
+                s32 objDist = qtrunc(dist_between_objectsq(o, obj));
                 if (objDist < minDist) {
                     closestObj = obj;
                     minDist = objDist;
@@ -911,7 +891,7 @@ s32 count_objects_with_behavior(const BehaviorScript *behavior) {
     return count;
 }
 
-struct Object *cur_obj_find_nearby_held_actor(const BehaviorScript *behavior, f32 maxDist) {
+struct Object *cur_obj_find_nearby_held_actor(const BehaviorScript *behavior, s32 maxDist) {
     const BehaviorScript *behaviorAddr = segmented_to_virtual(behavior);
     struct ObjectNode *listHead;
     struct Object *obj;
@@ -927,7 +907,7 @@ struct Object *cur_obj_find_nearby_held_actor(const BehaviorScript *behavior, f3
                 // This includes the dropped and thrown states. By combining instant
                 // release, this allows us to activate mama penguin remotely
                 if (obj->oHeldState != HELD_FREE) {
-                    if (dist_between_objects(o, obj) < maxDist) {
+                    if (qtrunc(dist_between_objectsq(o, obj)) < maxDist) {
                         foundObj = obj;
                         break;
                     }
@@ -957,9 +937,9 @@ void cur_obj_set_vel_from_mario_vel(f32 f12, f32 f14) {
     f32 sp0 = f12 * f14;
 
     if (sp4 < sp0) {
-        o->oForwardVel = sp0;
+        FSETFIELD(o, oForwardVel, sp0);
     } else {
-        o->oForwardVel = sp4 * f14;
+        FSETFIELD(o, oForwardVel, sp4 * f14);
     }
 }
 
@@ -1055,14 +1035,14 @@ s32 mario_is_dive_sliding(void) {
 }
 
 void cur_obj_set_y_vel_and_animation(f32 yVel, s32 animIndex) {
-    o->oVelY = yVel;
+    FSETFIELD(o, oVelY, yVel);
     cur_obj_init_animation_with_sound(animIndex);
 }
 
 void cur_obj_unrender_set_action_and_anim(s32 animIndex, s32 action) {
     cur_obj_become_intangible();
     cur_obj_disable_rendering();
-    
+
     // only set animation if non-negative value
     if (animIndex >= 0) {
         cur_obj_init_animation_with_sound(animIndex);
@@ -1073,21 +1053,21 @@ void cur_obj_unrender_set_action_and_anim(s32 animIndex, s32 action) {
 
 static void cur_obj_move_after_thrown_or_dropped(f32 forwardVel, f32 velY) {
     o->oMoveFlags = 0;
-    o->oFloorHeight = find_floor_height(o->oPosX, o->oPosY + 160.0f, o->oPosZ);
+    QSETFIELD(o, oFloorHeight, find_floor_heightq(QFIELD(o, oPosX), QFIELD(o, oPosY) + q(160), QFIELD(o, oPosZ)));
 
-    if (o->oFloorHeight > o->oPosY) {
-        o->oPosY = o->oFloorHeight;
-    } else if (o->oFloorHeight < FLOOR_LOWER_LIMIT_MISC) {
+    if (QFIELD(o, oFloorHeight) > QFIELD(o, oPosY)) {
+        QSETFIELD(o, oPosY, QFIELD(o, oFloorHeight));
+    } else if (QFIELD(o, oFloorHeight) < q(FLOOR_LOWER_LIMIT_MISC)) {
         //! OoB failsafe
         obj_copy_pos(o, gMarioObject);
-        o->oFloorHeight = find_floor_height(o->oPosX, o->oPosY, o->oPosZ);
+        QSETFIELD(o, oFloorHeight, find_floor_heightq(QFIELD(o, oPosX), QFIELD(o, oPosY) + q(160), QFIELD(o, oPosZ)));
     }
 
-    o->oForwardVel = forwardVel;
-    o->oVelY = velY;
+    FSETFIELD(o, oForwardVel, forwardVel);
+    FSETFIELD(o, oVelY, velY);
 
-    if (o->oForwardVel != 0) {
-        cur_obj_move_y(/*gravity*/ -4.0f, /*bounciness*/ -0.1f, /*buoyancy*/ 2.0f);
+    if (QFIELD(o, oForwardVel) != 0) {
+        cur_obj_move_yq(/*gravity*/ q(-4), /*bounciness*/ q(-0.1), /*buoyancy*/ q(2));
     }
 }
 
@@ -1169,52 +1149,53 @@ void obj_become_tangible(struct Object *obj) {
 
 void cur_obj_update_floor_height(void) {
     struct Surface *floor;
-    o->oFloorHeight = find_floor(o->oPosX, o->oPosY, o->oPosZ, &floor);
+    QSETFIELD(o, oFloorHeight, find_floorq(QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ), &floor));
 }
 
 struct Surface *cur_obj_update_floor_height_and_get_floor(void) {
     struct Surface *floor;
-    o->oFloorHeight = find_floor(o->oPosX, o->oPosY, o->oPosZ, &floor);
+    QSETFIELD(o, oFloorHeight, find_floorq(QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ), &floor));
     return floor;
 }
 
-static void apply_drag_to_value(f32 *value, f32 dragStrength) {
-    f32 decel;
+static void apply_drag_to_valueq(q32 *valueq, q32 dragStrengthq) {
+    q32 decelq;
 
-    if (*value != 0) {
+    if (*valueq != 0) {
         //! Can overshoot if |*value| > 1/(dragStrength * 0.0001)
-        decel = (*value) * (*value) * (dragStrength * 0.0001L);
+        decelq = qmul3(*valueq, *valueq, dragStrengthq / 10000);
 
-        if (*value > 0) {
-            *value -= decel;
-            if (*value < 0.001L) {
-                *value = 0;
+        if (*valueq > 0) {
+            *valueq -= decelq;
+            if (*valueq < q(0.001)) {
+                *valueq = 0;
             }
         } else {
-            *value += decel;
-            if (*value > -0.001L) {
-                *value = 0;
+            *valueq += decelq;
+            if (*valueq > q(-0.001)) {
+                *valueq = 0;
             }
         }
     }
 }
 
-void cur_obj_apply_drag_xz(f32 dragStrength) {
-    apply_drag_to_value(&o->oVelX, dragStrength);
-    apply_drag_to_value(&o->oVelZ, dragStrength);
+void cur_obj_apply_drag_xzq(q32 dragStrengthq) {
+	q32 velXq = QFIELD(o, oVelX);
+	q32 velZq = QFIELD(o, oVelZ);
+    apply_drag_to_valueq(&velXq, dragStrengthq);
+    apply_drag_to_valueq(&velZq, dragStrengthq);
+	QSETFIELD(o, oVelX, velXq);
+	QSETFIELD(o, oVelZ, velZq);
 }
 
-static s32 cur_obj_move_xz(f32 steepSlopeNormalY, s32 careAboutEdgesAndSteepSlopes) {
+static s32 cur_obj_move_xzq(q32 steepSlopeNormalYq, s32 careAboutEdgesAndSteepSlopes) {
     struct Surface *intendedFloor;
 
-    f32 intendedX = o->oPosX + o->oVelX;
-    f32 intendedZ = o->oPosZ + o->oVelZ;
+    q32 intendedXq = QFIELD(o, oPosX) + QFIELD(o, oVelX);
+    q32 intendedZq = QFIELD(o, oPosZ) + QFIELD(o, oVelZ);
 
-    f32 intendedFloorHeight = find_floor(intendedX, o->oPosY, intendedZ, &intendedFloor);
-    f32 deltaFloorHeight = intendedFloorHeight - o->oFloorHeight;
-
-    UNUSED f32 unused;
-    UNUSED f32 ny;
+    q32 intendedFloorHeightq = find_floorq(intendedXq, QFIELD(o, oPosY), intendedZq, &intendedFloor);
+    q32 deltaFloorHeightq = intendedFloorHeightq - QFIELD(o, oFloorHeight);
 
     o->oMoveFlags &= ~OBJ_MOVE_HIT_EDGE;
 
@@ -1225,36 +1206,36 @@ static s32 cur_obj_move_xz(f32 steepSlopeNormalY, s32 careAboutEdgesAndSteepSlop
         }
     }
 
-    if (intendedFloorHeight < FLOOR_LOWER_LIMIT_MISC) {
+    if (intendedFloorHeightq < q(FLOOR_LOWER_LIMIT_MISC)) {
         // Don't move into OoB
         o->oMoveFlags |= OBJ_MOVE_HIT_EDGE;
         return FALSE;
-    } else if (deltaFloorHeight < 5.0f) {
+    } else if (deltaFloorHeightq < q(5)) {
         if (!careAboutEdgesAndSteepSlopes) {
             // If we don't care about edges or steep slopes, okay to move
-            o->oPosX = intendedX;
-            o->oPosZ = intendedZ;
+            QSETFIELD(o, oPosX, intendedXq);
+            QSETFIELD(o, oPosZ, intendedZq);
             return TRUE;
-        } else if (deltaFloorHeight < -50.0f && (o->oMoveFlags & OBJ_MOVE_ON_GROUND)) {
+        } else if (deltaFloorHeightq < q(-50) && (o->oMoveFlags & OBJ_MOVE_ON_GROUND)) {
             // Don't walk off an edge
             o->oMoveFlags |= OBJ_MOVE_HIT_EDGE;
             return FALSE;
-        } else if (intendedFloor->normal.y > steepSlopeNormalY) {
+        } else if ((q32) intendedFloor->compressed_normal.y * QONE / COMPRESSED_NORMAL_ONE > steepSlopeNormalYq) {
             // Allow movement onto a slope, provided it's not too steep
-            o->oPosX = intendedX;
-            o->oPosZ = intendedZ;
+            QSETFIELD(o, oPosX, intendedXq);
+            QSETFIELD(o, oPosZ, intendedZq);
             return TRUE;
         } else {
             // We are likely trying to move onto a steep downward slope
             o->oMoveFlags |= OBJ_MOVE_HIT_EDGE;
             return FALSE;
         }
-    } else if ((ny = intendedFloor->normal.y) > steepSlopeNormalY || o->oPosY > intendedFloorHeight) {
+    } else if ((q32) intendedFloor->compressed_normal.y * QONE / COMPRESSED_NORMAL_ONE > steepSlopeNormalYq || QFIELD(o, oPosY) > intendedFloorHeightq) {
         // Allow movement upward, provided either:
         // - The target floor is flat enough (e.g. walking up stairs)
         // - We are above the target floor (most likely in the air)
-        o->oPosX = intendedX;
-        o->oPosZ = intendedZ;
+        QSETFIELD(o, oPosX, intendedXq);
+        QSETFIELD(o, oPosZ, intendedZq);
         //! Returning FALSE but moving anyway (not exploitable; return value is
         //  never used)
     }
@@ -1264,26 +1245,26 @@ static s32 cur_obj_move_xz(f32 steepSlopeNormalY, s32 careAboutEdgesAndSteepSlop
 }
 
 static void cur_obj_move_update_underwater_flags(void) {
-    f32 decelY = (f32)(sqrtf(o->oVelY * o->oVelY) * (o->oDragStrength * 7.0f)) / 100.0L;
+    q32 decelYq = (qmul(sqrtq(qmul(QFIELD(o, oVelY), QFIELD(o, oVelY))), (QFIELD(o, oDragStrength) * 7))) / 100;
 
-    if (o->oVelY > 0) {
-        o->oVelY -= decelY;
+    if (QFIELD(o, oVelY) > 0) {
+        QSETFIELD(o, oVelY, QFIELD(o, oVelY) - decelYq);
     } else {
-        o->oVelY += decelY;
+        QSETFIELD(o, oVelY, QFIELD(o, oVelY) + decelYq);
     }
 
-    if (o->oPosY < o->oFloorHeight) {
-        o->oPosY = o->oFloorHeight;
+    if (QFIELD(o, oPosY) < QFIELD(o, oFloorHeight)) {
+        QSETFIELD(o, oPosY, QFIELD(o, oFloorHeight));
         o->oMoveFlags |= OBJ_MOVE_UNDERWATER_ON_GROUND;
     } else {
         o->oMoveFlags |= OBJ_MOVE_UNDERWATER_OFF_GROUND;
     }
 }
 
-static void cur_obj_move_update_ground_air_flags(UNUSED f32 gravity, f32 bounciness) {
+static void cur_obj_move_update_ground_air_flagsq(q32 bouncinessq) {
     o->oMoveFlags &= ~OBJ_MOVE_BOUNCE;
 
-    if (o->oPosY < o->oFloorHeight) {
+    if (QFIELD(o, oPosY) < QFIELD(o, oFloorHeight)) {
         // On the first frame that we touch the ground, set OBJ_MOVE_LANDED.
         // On subsequent frames, set OBJ_MOVE_ON_GROUND
         if (!(o->oMoveFlags & OBJ_MOVE_ON_GROUND)) {
@@ -1294,13 +1275,13 @@ static void cur_obj_move_update_ground_air_flags(UNUSED f32 gravity, f32 bouncin
             }
         }
 
-        o->oPosY = o->oFloorHeight;
+        QSETFIELD(o, oPosY, QFIELD(o, oFloorHeight));
 
-        if (o->oVelY < 0.0f) {
-            o->oVelY *= bounciness;
+        if (QFIELD(o, oVelY) < 0) {
+            QSETFIELD(o, oVelY, qmul(QFIELD(o, oVelY), bouncinessq));
         }
 
-        if (o->oVelY > 5.0f) {
+        if (QFIELD(o, oVelY) > q(5)) {
             //! This overestimates since velY could be > 5 here
             //! without bounce (e.g. jump into misa).
             o->oMoveFlags |= OBJ_MOVE_BOUNCE;
@@ -1315,43 +1296,43 @@ static void cur_obj_move_update_ground_air_flags(UNUSED f32 gravity, f32 bouncin
     o->oMoveFlags &= ~OBJ_MOVE_MASK_IN_WATER;
 }
 
-static f32 cur_obj_move_y_and_get_water_level(f32 gravity, f32 buoyancy) {
-    f32 waterLevel;
+static q32 cur_obj_move_y_and_get_water_levelq(q32 gravityq, q32 buoyancyq) {
+    q32 waterLevelq;
 
-    o->oVelY += gravity + buoyancy;
-    if (o->oVelY < -78.0f) {
-        o->oVelY = -78.0f;
+    QSETFIELD(o, oVelY, QFIELD(o, oVelY) + gravityq + buoyancyq);
+    if (QFIELD(o, oVelY) < q(-78)) {
+        QSETFIELD(o, oVelY, q(-78));
     }
 
-    o->oPosY += o->oVelY;
+    QSETFIELD(o, oPosY, QFIELD(o, oPosY) + QFIELD(o, oVelY));
     if (o->activeFlags & ACTIVE_FLAG_UNK10) {
-        waterLevel = FLOOR_LOWER_LIMIT;
+        waterLevelq = q(FLOOR_LOWER_LIMIT);
     } else {
-        waterLevel = find_water_level(o->oPosX, o->oPosZ);
+        waterLevelq = find_water_levelq(QFIELD(o, oPosX), QFIELD(o, oPosZ));
     }
 
-    return waterLevel;
+    return waterLevelq;
 }
 
-void cur_obj_move_y(f32 gravity, f32 bounciness, f32 buoyancy) {
-    f32 waterLevel;
+void cur_obj_move_yq(q32 gravityq, q32 bouncinessq, q32 buoyancyq) {
+    q32 waterLevelq;
 
     o->oMoveFlags &= ~OBJ_MOVE_LEFT_GROUND;
 
     if (o->oMoveFlags & OBJ_MOVE_AT_WATER_SURFACE) {
-        if (o->oVelY > 5.0f) {
+        if (QFIELD(o, oVelY) > q(5)) {
             o->oMoveFlags &= ~OBJ_MOVE_MASK_IN_WATER;
             o->oMoveFlags |= OBJ_MOVE_LEAVING_WATER;
         }
     }
 
     if (!(o->oMoveFlags & OBJ_MOVE_MASK_IN_WATER)) {
-        waterLevel = cur_obj_move_y_and_get_water_level(gravity, 0.0f);
-        if (o->oPosY > waterLevel) {
+        waterLevelq = cur_obj_move_y_and_get_water_levelq(gravityq, 0);
+        if (QFIELD(o, oPosY) > waterLevelq) {
             //! We only handle floor collision if the object does not enter
             //  water. This allows e.g. coins to clip through floors if they
             //  enter water on the same frame.
-            cur_obj_move_update_ground_air_flags(gravity, bounciness);
+            cur_obj_move_update_ground_air_flagsq(bouncinessq);
         } else {
             o->oMoveFlags |= OBJ_MOVE_ENTERED_WATER;
             o->oMoveFlags &= ~OBJ_MOVE_MASK_ON_GROUND;
@@ -1359,16 +1340,16 @@ void cur_obj_move_y(f32 gravity, f32 bounciness, f32 buoyancy) {
     } else {
         o->oMoveFlags &= ~OBJ_MOVE_ENTERED_WATER;
 
-        waterLevel = cur_obj_move_y_and_get_water_level(gravity, buoyancy);
-        if (o->oPosY < waterLevel) {
+        waterLevelq = cur_obj_move_y_and_get_water_levelq(gravityq, buoyancyq);
+        if (QFIELD(o, oPosY) < waterLevelq) {
             cur_obj_move_update_underwater_flags();
         } else {
-            if (o->oPosY < o->oFloorHeight) {
-                o->oPosY = o->oFloorHeight;
+            if (QFIELD(o, oPosY) < QFIELD(o, oFloorHeight)) {
+                QSETFIELD(o, oPosY, QFIELD(o, oFloorHeight));
                 o->oMoveFlags &= ~OBJ_MOVE_MASK_IN_WATER;
             } else {
-                o->oPosY = waterLevel;
-                o->oVelY = 0.0f;
+                QSETFIELD(o, oPosY, waterLevelq);
+                QSETFIELD(o, oVelY, 0);
                 o->oMoveFlags &= ~(OBJ_MOVE_UNDERWATER_OFF_GROUND | OBJ_MOVE_UNDERWATER_ON_GROUND);
                 o->oMoveFlags |= OBJ_MOVE_AT_WATER_SURFACE;
             }
@@ -1396,8 +1377,12 @@ static s32 clear_move_flag(u32 *bitSet, s32 flag) {
 }
 
 void cur_obj_unused_resolve_wall_collisions(f32 offsetY, f32 radius) {
-    if (radius > 0.1L) {
-        f32_find_wall_collision(&o->oPosX, &o->oPosY, &o->oPosZ, offsetY, radius);
+    if (radius > 0.1f) {
+		Vec3q oposq = {QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ)};
+        q32_find_wall_collision(&oposq[0], &oposq[1], &oposq[2], offsetY, radius);
+		QSETFIELD(o, oPosX, oposq[0]);
+		QSETFIELD(o, oPosY, oposq[1]);
+		QSETFIELD(o, oPosZ, oposq[2]);
     }
 }
 
@@ -1416,24 +1401,24 @@ s16 abs_angle_diff(s16 x0, s16 x1) {
 }
 
 void cur_obj_move_xz_using_fvel_and_yaw(void) {
-    o->oVelX = o->oForwardVel * sins(o->oMoveAngleYaw);
-    o->oVelZ = o->oForwardVel * coss(o->oMoveAngleYaw);
+    QSETFIELD(o, oVelX, qmul(QFIELD(o, oForwardVel), sinqs(o->oMoveAngleYaw)));
+    QSETFIELD(o, oVelZ, qmul(QFIELD(o, oForwardVel), cosqs(o->oMoveAngleYaw)));
 
-    o->oPosX += o->oVelX;
-    o->oPosZ += o->oVelZ;
+    QMODFIELD(o, oPosX, += QFIELD(o, oVelX));
+    QMODFIELD(o, oPosZ, += QFIELD(o, oVelZ));
 }
 
 void cur_obj_move_y_with_terminal_vel(void) {
-    if (o->oVelY < -70.0f) {
-        o->oVelY = -70.0f;
+    if (QFIELD(o, oVelY) < q(-70)) {
+        QSETFIELD(o, oVelY, q(-70));
     }
 
-    o->oPosY += o->oVelY;
+    QMODFIELD(o, oPosY, += QFIELD(o, oVelY));
 }
 
 void cur_obj_compute_vel_xz(void) {
-    o->oVelX = o->oForwardVel * sins(o->oMoveAngleYaw);
-    o->oVelZ = o->oForwardVel * coss(o->oMoveAngleYaw);
+    QSETFIELD(o, oVelX, qmul(QFIELD(o, oForwardVel), sinqs(o->oMoveAngleYaw)));
+    QSETFIELD(o, oVelZ, qmul(QFIELD(o, oForwardVel), cosqs(o->oMoveAngleYaw)));
 }
 
 f32 increment_velocity_toward_range(f32 value, f32 center, f32 zeroThreshold, f32 increment) {
@@ -1490,8 +1475,8 @@ s32 obj_has_behavior(struct Object *obj, const BehaviorScript *behavior) {
 
 f32 cur_obj_lateral_dist_from_mario_to_home(void) {
     f32 dist;
-    f32 dx = o->oHomeX - gMarioObject->oPosX;
-    f32 dz = o->oHomeZ - gMarioObject->oPosZ;
+    f32 dx = FFIELD(o, oHomeX) - FFIELD(gMarioObject, oPosX);
+    f32 dz = FFIELD(o, oHomeZ) - FFIELD(gMarioObject, oPosZ);
 
     dist = sqrtf(dx * dx + dz * dz);
     return dist;
@@ -1499,27 +1484,27 @@ f32 cur_obj_lateral_dist_from_mario_to_home(void) {
 
 f32 cur_obj_lateral_dist_to_home(void) {
     f32 dist;
-    f32 dx = o->oHomeX - o->oPosX;
-    f32 dz = o->oHomeZ - o->oPosZ;
+    f32 dx = FFIELD(o, oHomeX) - FFIELD(o, oPosX);
+    f32 dz = FFIELD(o, oHomeZ) - FFIELD(o, oPosZ);
 
     dist = sqrtf(dx * dx + dz * dz);
     return dist;
 }
 
-s32 cur_obj_outside_home_square(f32 halfLength) {
-    if (o->oHomeX - halfLength > o->oPosX) {
+s32 cur_obj_outside_home_squareq(q32 halfLengthq) {
+    if (QFIELD(o, oHomeX) - halfLengthq > QFIELD(o, oPosX)) {
         return TRUE;
     }
 
-    if (o->oHomeX + halfLength < o->oPosX) {
+    if (QFIELD(o, oHomeX) + halfLengthq < QFIELD(o, oPosX)) {
         return TRUE;
     }
 
-    if (o->oHomeZ - halfLength > o->oPosZ) {
+    if (QFIELD(o, oHomeZ) - halfLengthq > QFIELD(o, oPosZ)) {
         return TRUE;
     }
 
-    if (o->oHomeZ + halfLength < o->oPosZ) {
+    if (QFIELD(o, oHomeZ) + halfLengthq < QFIELD(o, oPosZ)) {
         return TRUE;
     }
 
@@ -1527,19 +1512,19 @@ s32 cur_obj_outside_home_square(f32 halfLength) {
 }
 
 s32 cur_obj_outside_home_rectangle(f32 minX, f32 maxX, f32 minZ, f32 maxZ) {
-    if (o->oHomeX + minX > o->oPosX) {
+    if (QFIELD(o, oHomeX) + ftoq(minX) > QFIELD(o, oPosX)) {
         return TRUE;
     }
 
-    if (o->oHomeX + maxX < o->oPosX) {
+    if (QFIELD(o, oHomeX) + ftoq(maxX) < QFIELD(o, oPosX)) {
         return TRUE;
     }
 
-    if (o->oHomeZ + minZ > o->oPosZ) {
+    if (QFIELD(o, oHomeZ) + ftoq(minZ) > QFIELD(o, oPosZ)) {
         return TRUE;
     }
 
-    if (o->oHomeZ + maxZ < o->oPosZ) {
+    if (QFIELD(o, oHomeZ) + ftoq(maxZ) < QFIELD(o, oPosZ)) {
         return TRUE;
     }
 
@@ -1547,24 +1532,24 @@ s32 cur_obj_outside_home_rectangle(f32 minX, f32 maxX, f32 minZ, f32 maxZ) {
 }
 
 void cur_obj_set_pos_to_home(void) {
-    o->oPosX = o->oHomeX;
-    o->oPosY = o->oHomeY;
-    o->oPosZ = o->oHomeZ;
+    QSETFIELD(o, oPosX, QFIELD(o, oHomeX));
+    QSETFIELD(o, oPosY, QFIELD(o, oHomeY));
+    QSETFIELD(o, oPosZ, QFIELD(o, oHomeZ));
 }
 
 void cur_obj_set_pos_to_home_and_stop(void) {
     cur_obj_set_pos_to_home();
 
-    o->oForwardVel = 0;
-    o->oVelY = 0;
+    QSETFIELD(o, oForwardVel, 0);
+    QSETFIELD(o, oVelY, 0);
 }
 
-void cur_obj_shake_y(f32 amount) {
+void cur_obj_shake_yq(q32 amountq) {
     //! Technically could cause a bit of drift, but not much
     if (o->oTimer % 2 == 0) {
-        o->oPosY += amount;
+        QMODFIELD(o, oPosY, += amountq);
     } else {
-        o->oPosY -= amount;
+        QMODFIELD(o, oPosY, -= amountq);
     }
 }
 
@@ -1575,7 +1560,7 @@ void cur_obj_start_cam_event(UNUSED struct Object *obj, s32 cameraEvent) {
 
 // unused, self explanatory, maybe oInteractStatus originally had TRUE/FALSE statements
 void set_mario_interact_true_if_in_range(UNUSED s32 arg0, UNUSED s32 arg1, f32 range) {
-    if (o->oDistanceToMario < range) {
+    if (QFIELD(o, oDistanceToMario) < q(range)) {
         gMarioObject->oInteractStatus = TRUE;
     }
 }
@@ -1585,26 +1570,26 @@ void obj_set_billboard(struct Object *obj) {
 }
 
 void cur_obj_set_hitbox_radius_and_height(f32 radius, f32 height) {
-    o->hitboxRadius = radius;
-    o->hitboxHeight = height;
+    o->hitboxRadius_s16 = radius;
+    o->hitboxHeight_s16 = height;
 }
 
 void cur_obj_set_hurtbox_radius_and_height(f32 radius, f32 height) {
-    o->hurtboxRadius = radius;
-    o->hurtboxHeight = height;
+    o->hurtboxRadius_s16 = radius;
+    o->hurtboxHeight_s16 = height;
 }
 
 static void obj_spawn_loot_coins(struct Object *obj, s32 numCoins, f32 sp30,
                                     const BehaviorScript *coinBehavior,
                                     s16 posJitter, s16 model) {
     s32 i;
-    f32 spawnHeight;
+    q32 spawnHeightq;
     struct Surface *floor;
     struct Object *coin;
 
-    spawnHeight = find_floor(obj->oPosX, obj->oPosY, obj->oPosZ, &floor);
-    if (obj->oPosY - spawnHeight > 100.0f) {
-        spawnHeight = obj->oPosY;
+    spawnHeightq = find_floorq(QFIELD(obj, oPosX), QFIELD(obj, oPosY), QFIELD(obj, oPosZ), &floor);
+    if (QFIELD(obj, oPosY) - spawnHeightq > q(100)) {
+        spawnHeightq = QFIELD(obj, oPosY);
     }
 
     for (i = 0; i < numCoins; i++) {
@@ -1616,8 +1601,8 @@ static void obj_spawn_loot_coins(struct Object *obj, s32 numCoins, f32 sp30,
 
         coin = spawn_object(obj, model, coinBehavior);
         obj_translate_xz_random(coin, posJitter);
-        coin->oPosY = spawnHeight;
-        coin->oCoinUnk110 = sp30;
+        QSETFIELD(coin, oPosY, spawnHeightq);
+        FSETFIELD(coin, oCoinUnk110, sp30);
     }
 }
 
@@ -1638,19 +1623,19 @@ void cur_obj_spawn_loot_coin_at_mario_pos(void) {
     o->oNumLootCoins--;
 
     coin = spawn_object(o, MODEL_YELLOW_COIN, bhvSingleCoinGetsSpawned);
-    coin->oVelY = 30.0f;
+    QSETFIELD(coin, oVelY, q(30));
 
     obj_copy_pos(coin, gMarioObject);
 }
 
 f32 cur_obj_abs_y_dist_to_home(void) {
-    f32 dist = o->oHomeY - o->oPosY;
+    q32 dist = QFIELD(o, oHomeY) - QFIELD(o, oPosY);
 
     if (dist < 0) {
         dist = -dist;
     }
 
-    return dist;
+    return qtof(dist);
 }
 
 s32 cur_obj_advance_looping_anim(void) {
@@ -1673,22 +1658,22 @@ s32 cur_obj_advance_looping_anim(void) {
 
 static s32 cur_obj_detect_steep_floor(s16 steepAngleDegrees) {
     struct Surface *intendedFloor;
-    f32 intendedX, intendedFloorHeight, intendedZ;
-    f32 deltaFloorHeight;
-    f32 steepNormalY = coss((s16)(steepAngleDegrees * (0x10000 / 360)));
+    q32 intendedXq, intendedFloorHeightq, intendedZq;
+    q32 deltaFloorHeightq;
+    q32 steepNormalYq = q(coss((s16)(steepAngleDegrees * (0x10000 / 360))));
 
-    if (o->oForwardVel != 0.0f) {
-        intendedX = o->oPosX + o->oVelX;
-        intendedZ = o->oPosZ + o->oVelZ;
-        intendedFloorHeight = find_floor(intendedX, o->oPosY, intendedZ, &intendedFloor);
-        deltaFloorHeight = intendedFloorHeight - o->oFloorHeight;
+    if (QFIELD(o, oForwardVel) != 0) {
+        intendedXq = QFIELD(o, oPosX) + QFIELD(o, oVelX);
+        intendedZq = QFIELD(o, oPosZ) + QFIELD(o, oVelZ);
+        intendedFloorHeightq = find_floorq(intendedXq, QFIELD(o, oPosY), intendedZq, &intendedFloor);
+        deltaFloorHeightq = intendedFloorHeightq - QFIELD(o, oFloorHeight);
 
-        if (intendedFloorHeight < FLOOR_LOWER_LIMIT_MISC) {
+        if (intendedFloorHeightq < q(FLOOR_LOWER_LIMIT_MISC)) {
             o->oWallAngle = o->oMoveAngleYaw + 0x8000;
             return 2;
-        } else if (intendedFloor->normal.y < steepNormalY && deltaFloorHeight > 0
-                   && intendedFloorHeight > o->oPosY) {
-            o->oWallAngle = atan2s(intendedFloor->normal.z, intendedFloor->normal.x);
+        } else if ((q32) intendedFloor->compressed_normal.y * QONE / COMPRESSED_NORMAL_ONE < steepNormalYq && deltaFloorHeightq > 0
+                   && intendedFloorHeightq > QFIELD(o, oPosY)) {
+            o->oWallAngle = atan2sq((q32) intendedFloor->compressed_normal.z * QONE / COMPRESSED_NORMAL_ONE, (q32) intendedFloor->compressed_normal.x * QONE / COMPRESSED_NORMAL_ONE);
             return 1;
         } else {
             return 0;
@@ -1703,24 +1688,24 @@ s32 cur_obj_resolve_wall_collisions(void) {
     struct Surface *wall;
     struct WallCollisionData collisionData;
 
-    f32 offsetY = 10.0f;
-    f32 radius = o->oWallHitboxRadius;
+    q32 offsetYq = q(10);
+    q32 radiusq = QFIELD(o, oWallHitboxRadius);
 
-    if (radius > 0.1L) {
-        collisionData.offsetY = offsetY;
-        collisionData.radius = radius;
-        collisionData.x = (s16) o->oPosX;
-        collisionData.y = (s16) o->oPosY;
-        collisionData.z = (s16) o->oPosZ;
+    if (radiusq > q(0.1)) {
+        collisionData.offsetYq = offsetYq;
+        collisionData.radiusq = radiusq;
+        collisionData.xq = q((s16) FFIELD(o, oPosX));
+        collisionData.yq = q((s16) FFIELD(o, oPosY));
+        collisionData.zq = q((s16) FFIELD(o, oPosZ));
 
         numCollisions = find_wall_collisions(&collisionData);
         if (numCollisions != 0) {
-            o->oPosX = collisionData.x;
-            o->oPosY = collisionData.y;
-            o->oPosZ = collisionData.z;
+            QSETFIELD(o, oPosX, collisionData.xq);
+            QSETFIELD(o, oPosY, collisionData.yq);
+            QSETFIELD(o, oPosZ, collisionData.zq);
             wall = collisionData.walls[collisionData.numWalls - 1];
 
-            o->oWallAngle = atan2s(wall->normal.z, wall->normal.x);
+            o->oWallAngle = atan2sq((q32) wall->compressed_normal.z * QONE / COMPRESSED_NORMAL_ONE, (q32) wall->compressed_normal.x * QONE / COMPRESSED_NORMAL_ONE);
             if (abs_angle_diff(o->oWallAngle, o->oMoveAngleYaw) > 0x4000) {
                 return TRUE;
             } else {
@@ -1766,7 +1751,7 @@ static void cur_obj_update_floor_and_resolve_wall_collisions(s16 steepSlopeDegre
         cur_obj_update_floor();
         o->oMoveFlags &= ~(OBJ_MOVE_HIT_WALL | OBJ_MOVE_MASK_IN_WATER);
 
-        if (o->oPosY > o->oFloorHeight) {
+        if (QFIELD(o, oPosY) > QFIELD(o, oFloorHeight)) {
             o->oMoveFlags |= OBJ_MOVE_IN_AIR;
         }
     } else {
@@ -1777,7 +1762,7 @@ static void cur_obj_update_floor_and_resolve_wall_collisions(s16 steepSlopeDegre
 
         cur_obj_update_floor();
 
-        if (o->oPosY > o->oFloorHeight) {
+        if (QFIELD(o, oPosY) > QFIELD(o, oFloorHeight)) {
             o->oMoveFlags |= OBJ_MOVE_IN_AIR;
         }
 
@@ -1792,11 +1777,10 @@ void cur_obj_update_floor_and_walls(void) {
 }
 
 void cur_obj_move_standard(s16 steepSlopeAngleDegrees) {
-    f32 gravity = o->oGravity;
-    f32 bounciness = o->oBounciness;
-    f32 buoyancy = o->oBuoyancy;
-    f32 dragStrength = o->oDragStrength;
-    f32 steepSlopeNormalY;
+    q32 gravityq = QFIELD(o, oGravity);
+    q32 bouncinessq = QFIELD(o, oBounciness);
+    q32 buoyancyq = QFIELD(o, oBuoyancy);
+    q32 dragStrengthq = QFIELD(o, oDragStrength);
     s32 careAboutEdgesAndSteepSlopes = FALSE;
     s32 negativeSpeed = FALSE;
 
@@ -1813,34 +1797,34 @@ void cur_obj_move_standard(s16 steepSlopeAngleDegrees) {
             // clang-format on
         }
 
-        steepSlopeNormalY = coss(steepSlopeAngleDegrees * (0x10000 / 360));
+        q32 steepSlopeNormalYq = q(coss(steepSlopeAngleDegrees * (0x10000 / 360)));
 
         cur_obj_compute_vel_xz();
-        cur_obj_apply_drag_xz(dragStrength);
+        cur_obj_apply_drag_xzq(dragStrengthq);
 
-        cur_obj_move_xz(steepSlopeNormalY, careAboutEdgesAndSteepSlopes);
-        cur_obj_move_y(gravity, bounciness, buoyancy);
+        cur_obj_move_xzq(steepSlopeNormalYq, careAboutEdgesAndSteepSlopes);
+        cur_obj_move_yq(gravityq, bouncinessq, buoyancyq);
 
-        if (o->oForwardVel < 0.0f) {
+        if (QFIELD(o, oForwardVel) < 0) {
             negativeSpeed = TRUE;
         }
-        o->oForwardVel = sqrtf(sqr(o->oVelX) + sqr(o->oVelZ));
+        FSETFIELD(o, oForwardVel, sqrtf(sqr(FFIELD(o, oVelX)) + sqr(FFIELD(o, oVelZ))));
         if (negativeSpeed == TRUE) {
-            o->oForwardVel = -o->oForwardVel;
+            QSETFIELD(o, oForwardVel, -QFIELD(o, oForwardVel));
         }
     }
 }
 
 static s32 cur_obj_within_12k_bounds(void) {
-    if (o->oPosX < -12000.0f || 12000.0f < o->oPosX) {
+    if (QFIELD(o, oPosX) < q(-12000) || q(12000) < QFIELD(o, oPosX)) {
         return FALSE;
     }
 
-    if (o->oPosY < -12000.0f || 12000.0f < o->oPosY) {
+    if (QFIELD(o, oPosY) < q(-12000) || q(12000) < QFIELD(o, oPosY)) {
         return FALSE;
     }
 
-    if (o->oPosZ < -12000.0f || 12000.0f < o->oPosZ) {
+    if (QFIELD(o, oPosZ) < q(-12000) || q(12000) < QFIELD(o, oPosZ)) {
         return FALSE;
     }
 
@@ -1849,10 +1833,10 @@ static s32 cur_obj_within_12k_bounds(void) {
 
 void cur_obj_move_using_vel_and_gravity(void) {
     if (cur_obj_within_12k_bounds()) {
-        o->oPosX += o->oVelX;
-        o->oPosZ += o->oVelZ;
-        o->oVelY += o->oGravity; //! No terminal velocity
-        o->oPosY += o->oVelY;
+        QMODFIELD(o, oPosX, += QFIELD(o, oVelX));
+        QMODFIELD(o, oPosZ, += QFIELD(o, oVelZ));
+        QMODFIELD(o, oVelY, += QFIELD(o, oGravity)); //! No terminal velocity
+        QMODFIELD(o, oPosY, += QFIELD(o, oVelY));
     }
 }
 
@@ -1871,24 +1855,24 @@ void obj_set_pos_relative(struct Object *obj, struct Object *other, f32 dleft, f
 
     obj->oMoveAngleYaw = other->oMoveAngleYaw;
 
-    obj->oPosX = other->oPosX + dx;
-    obj->oPosY = other->oPosY + dy;
-    obj->oPosZ = other->oPosZ + dz;
+    FSETFIELD(obj, oPosX, FFIELD(other, oPosX) + dx);
+    FSETFIELD(obj, oPosY, FFIELD(other, oPosY) + dy);
+    FSETFIELD(obj, oPosZ, FFIELD(other, oPosZ) + dz);
 }
 
 s16 cur_obj_angle_to_home(void) {
     s16 angle;
-    f32 dx = o->oHomeX - o->oPosX;
-    f32 dz = o->oHomeZ - o->oPosZ;
+    q32 dxq = QFIELD(o, oHomeX) - QFIELD(o, oPosX);
+    q32 dzq = QFIELD(o, oHomeZ) - QFIELD(o, oPosZ);
 
-    angle = atan2s(dz, dx);
+    angle = atan2sq(dzq, dxq);
     return angle;
 }
 
 void obj_set_gfx_pos_at_obj_pos(struct Object *obj1, struct Object *obj2) {
-    obj1->header.gfx.pos[0] = obj2->oPosX;
-    obj1->header.gfx.pos[1] = obj2->oPosY + obj2->oGraphYOffset;
-    obj1->header.gfx.pos[2] = obj2->oPosZ;
+    obj1->header.gfx.posi[0] = IFIELD(obj2, oPosX);
+    obj1->header.gfx.posi[1] = qtrunc(QFIELD(obj2, oPosY) + QFIELD(obj2, oGraphYOffset));
+    obj1->header.gfx.posi[2] = IFIELD(obj2, oPosZ);
 
     obj1->header.gfx.angle[0] = obj2->oMoveAnglePitch & 0xFFFF;
     obj1->header.gfx.angle[1] = obj2->oMoveAngleYaw & 0xFFFF;
@@ -1900,31 +1884,44 @@ void obj_set_gfx_pos_at_obj_pos(struct Object *obj1, struct Object *obj2) {
  * coordinates, and then add it to the vector at posIndex.
  */
 void obj_translate_local(struct Object *obj, s16 posIndex, s16 localTranslateIndex) {
-    f32 dx = obj->rawData.asF32[localTranslateIndex + 0];
-    f32 dy = obj->rawData.asF32[localTranslateIndex + 1];
-    f32 dz = obj->rawData.asF32[localTranslateIndex + 2];
+#ifdef FIXED_POINT_FIELDS
+    q32 dxq = obj->rawData.asQ32[localTranslateIndex + 0];
+    q32 dyq = obj->rawData.asQ32[localTranslateIndex + 1];
+    q32 dzq = obj->rawData.asQ32[localTranslateIndex + 2];
+
+    obj->rawData.asQ32[posIndex + 0] +=
+        qmul((q32) obj->transformq.m[0][0], dxq) + qmul((q32) obj->transformq.m[1][0], dyq) + qmul((q32) obj->transformq.m[2][0], dzq);
+    obj->rawData.asQ32[posIndex + 1] +=
+        qmul((q32) obj->transformq.m[0][1], dxq) + qmul((q32) obj->transformq.m[1][1], dyq) + qmul((q32) obj->transformq.m[2][1], dzq);
+    obj->rawData.asQ32[posIndex + 2] +=
+        qmul((q32) obj->transformq.m[0][2], dxq) + qmul((q32) obj->transformq.m[1][2], dyq) + qmul((q32) obj->transformq.m[2][2], dzq);
+#else
+    q32 dxq = q(obj->rawData.asF32[localTranslateIndex + 0]);
+    q32 dyq = q(obj->rawData.asF32[localTranslateIndex + 1]);
+    q32 dzq = q(obj->rawData.asF32[localTranslateIndex + 2]);
 
     obj->rawData.asF32[posIndex + 0] +=
-        obj->transform[0][0] * dx + obj->transform[1][0] * dy + obj->transform[2][0] * dz;
+        qtof(qmul((q32) obj->transformq.m[0][0], dxq) + qmul((q32) obj->transformq.m[1][0], dyq) + qmul((q32) obj->transformq.m[2][0], dzq));
     obj->rawData.asF32[posIndex + 1] +=
-        obj->transform[0][1] * dx + obj->transform[1][1] * dy + obj->transform[2][1] * dz;
+        qtof(qmul((q32) obj->transformq.m[0][1], dxq) + qmul((q32) obj->transformq.m[1][1], dyq) + qmul((q32) obj->transformq.m[2][1], dzq));
     obj->rawData.asF32[posIndex + 2] +=
-        obj->transform[0][2] * dx + obj->transform[1][2] * dy + obj->transform[2][2] * dz;
+        qtof(qmul((q32) obj->transformq.m[0][2], dxq) + qmul((q32) obj->transformq.m[1][2], dyq) + qmul((q32) obj->transformq.m[2][2], dzq));
+#endif
 }
 
 void obj_build_transform_from_pos_and_angle(struct Object *obj, s16 posIndex, s16 angleIndex) {
-    f32 translate[3];
+    s16 translate[3];
     s16 rotation[3];
 
-    translate[0] = obj->rawData.asF32[posIndex + 0];
-    translate[1] = obj->rawData.asF32[posIndex + 1];
-    translate[2] = obj->rawData.asF32[posIndex + 2];
+    translate[0] = qtrunc(obj->rawData.asQ32[posIndex + 0]);
+    translate[1] = qtrunc(obj->rawData.asQ32[posIndex + 1]);
+    translate[2] = qtrunc(obj->rawData.asQ32[posIndex + 2]);
 
     rotation[0] = obj->rawData.asS32[angleIndex + 0];
     rotation[1] = obj->rawData.asS32[angleIndex + 1];
     rotation[2] = obj->rawData.asS32[angleIndex + 2];
 
-    mtxf_rotate_zxy_and_translate(obj->transform, translate, rotation);
+    obj->transformq = mtx_rotation_zxy_and_translation(translate, rotation);
 }
 
 void obj_set_throw_matrix_from_transform(struct Object *obj) {
@@ -1933,11 +1930,11 @@ void obj_set_throw_matrix_from_transform(struct Object *obj) {
         obj_apply_scale_to_transform(obj);
     }
 
-    obj->header.gfx.throwMatrix = &obj->transform;
+    obj->header.gfx.throwMatrixq = &obj->transformq;
 
     //! Sets scale of gCurrentObject instead of obj. Not exploitable since this
     //  function is only called with obj = gCurrentObject
-    cur_obj_scale(1.0f);
+    cur_obj_scaleq(q(1.0f));
 }
 
 void obj_build_transform_relative_to_parent(struct Object *obj) {
@@ -1945,26 +1942,27 @@ void obj_build_transform_relative_to_parent(struct Object *obj) {
 
     obj_build_transform_from_pos_and_angle(obj, O_PARENT_RELATIVE_POS_INDEX, O_FACE_ANGLE_INDEX);
     obj_apply_scale_to_transform(obj);
-    mtxf_mul(obj->transform, obj->transform, parent->transform);
+    obj->transformq = mtx_mul(&obj->transformq, &parent->transformq);
 
-    obj->oPosX = obj->transform[3][0];
-    obj->oPosY = obj->transform[3][1];
-    obj->oPosZ = obj->transform[3][2];
+    ISETFIELD(obj, oPosX, obj->transformq.t[0]);
+    ISETFIELD(obj, oPosY, obj->transformq.t[1]);
+    ISETFIELD(obj, oPosZ, obj->transformq.t[2]);
 
-    obj->header.gfx.throwMatrix = &obj->transform;
+	// TODO
+    //obj->header.gfx.throwMatrix = &obj->transform;
 
     //! Sets scale of gCurrentObject instead of obj. Not exploitable since this
     //  function is only called with obj = gCurrentObject
-    cur_obj_scale(1.0f);
+    cur_obj_scaleq(q(1.0f));
 }
 
 void obj_create_transform_from_self(struct Object *obj) {
     obj->oFlags &= ~OBJ_FLAG_TRANSFORM_RELATIVE_TO_PARENT;
     obj->oFlags |= OBJ_FLAG_SET_THROW_MATRIX_FROM_TRANSFORM;
 
-    obj->transform[3][0] = obj->oPosX;
-    obj->transform[3][1] = obj->oPosY;
-    obj->transform[3][2] = obj->oPosZ;
+    obj->transformq.t[0] = IFIELD(obj, oPosX);
+    obj->transformq.t[1] = IFIELD(obj, oPosY);
+    obj->transformq.t[2] = IFIELD(obj, oPosZ);
 }
 
 void cur_obj_rotate_move_angle_using_vel(void) {
@@ -1989,10 +1987,9 @@ s32 cur_obj_follow_path(UNUSED s32 unusedArg) {
     struct Waypoint *startWaypoint;
     struct Waypoint *lastWaypoint;
     struct Waypoint *targetWaypoint;
-    f32 prevToNextX, prevToNextY, prevToNextZ;
-    UNUSED s32 sp2C;
-    f32 objToNextXZ;
-    f32 objToNextX, objToNextY, objToNextZ;
+    s32 prevToNextXi, prevToNextYi, prevToNextZi;
+    s32 objToNextXZi;
+    s32 objToNextXi, objToNextYi, objToNextZi;
 
     if (o->oPathedPrevWaypointFlags == 0) {
         o->oPathedPrevWaypoint = o->oPathedStartWaypoint;
@@ -2010,20 +2007,20 @@ s32 cur_obj_follow_path(UNUSED s32 unusedArg) {
 
     o->oPathedPrevWaypointFlags = lastWaypoint->flags | WAYPOINT_FLAGS_INITIALIZED;
 
-    prevToNextX = targetWaypoint->pos[0] - lastWaypoint->pos[0];
-    prevToNextY = targetWaypoint->pos[1] - lastWaypoint->pos[1];
-    prevToNextZ = targetWaypoint->pos[2] - lastWaypoint->pos[2];
+    prevToNextXi = targetWaypoint->pos[0] - lastWaypoint->pos[0];
+    prevToNextYi = targetWaypoint->pos[1] - lastWaypoint->pos[1];
+    prevToNextZi = targetWaypoint->pos[2] - lastWaypoint->pos[2];
 
-    objToNextX = targetWaypoint->pos[0] - o->oPosX;
-    objToNextY = targetWaypoint->pos[1] - o->oPosY;
-    objToNextZ = targetWaypoint->pos[2] - o->oPosZ;
-    objToNextXZ = sqrtf(sqr(objToNextX) + sqr(objToNextZ));
+    objToNextXi = targetWaypoint->pos[0] - IFIELD(o, oPosX);
+    objToNextYi = targetWaypoint->pos[1] - IFIELD(o, oPosY);
+    objToNextZi = targetWaypoint->pos[2] - IFIELD(o, oPosZ);
+    objToNextXZi = sqrtu(sqr(objToNextXi) + sqr(objToNextZi));
 
-    o->oPathedTargetYaw = atan2s(objToNextZ, objToNextX);
-    o->oPathedTargetPitch = atan2s(objToNextXZ, -objToNextY);
+    o->oPathedTargetYaw = atan2sq(objToNextZi, objToNextXi);
+    o->oPathedTargetPitch = atan2sq(objToNextXZi, -objToNextYi);
 
     // If dot(prevToNext, objToNext) <= 0 (i.e. reached other side of target waypoint)
-    if (prevToNextX * objToNextX + prevToNextY * objToNextY + prevToNextZ * objToNextZ <= 0.0f) {
+    if (prevToNextXi * objToNextXi + prevToNextYi * objToNextYi + prevToNextZi * objToNextZi <= 0) {
         o->oPathedPrevWaypoint = targetWaypoint;
         if ((targetWaypoint + 1)->flags == WAYPOINT_FLAGS_END) {
             return PATH_REACHED_END;
@@ -2049,39 +2046,43 @@ f32 random_f32_around_zero(f32 diameter) {
     return random_float() * diameter - diameter / 2;
 }
 
-void obj_scale_random(struct Object *obj, f32 rangeLength, f32 minScale) {
-    f32 scale = random_float() * rangeLength + minScale;
-    obj_scale_xyz(obj, scale, scale, scale);
+s16 random_s16_around_zero(s16 diameter) {
+    return random_u16() % diameter - diameter / 2;
+}
+
+void obj_scale_randomq(struct Object *obj, q32 rangeLengthq, q32 minScaleq) {
+    q32 scaleq = qmul(random_q32(), rangeLengthq) + minScaleq;
+    obj_scale_xyzq(obj, scaleq, scaleq, scaleq);
 }
 
 void obj_translate_xyz_random(struct Object *obj, f32 rangeLength) {
-    obj->oPosX += random_float() * rangeLength - rangeLength * 0.5f;
-    obj->oPosY += random_float() * rangeLength - rangeLength * 0.5f;
-    obj->oPosZ += random_float() * rangeLength - rangeLength * 0.5f;
+    FMODFIELD(obj, oPosX, += random_float() * rangeLength - rangeLength * 0.5f);
+    FMODFIELD(obj, oPosY, += random_float() * rangeLength - rangeLength * 0.5f);
+    FMODFIELD(obj, oPosZ, += random_float() * rangeLength - rangeLength * 0.5f);
 }
 
 void obj_translate_xz_random(struct Object *obj, f32 rangeLength) {
-    obj->oPosX += random_float() * rangeLength - rangeLength * 0.5f;
-    obj->oPosZ += random_float() * rangeLength - rangeLength * 0.5f;
+    FMODFIELD(obj, oPosX, += random_float() * rangeLength - rangeLength * 0.5f);
+    FMODFIELD(obj, oPosZ, += random_float() * rangeLength - rangeLength * 0.5f);
 }
 
 static void obj_build_vel_from_transform(struct Object *obj) {
-    f32 up = obj->oUpVel;
-    f32 left = obj->oLeftVel;
-    f32 forward = obj->oForwardVel;
+    q32 upq = QFIELD(obj, oUpVel);
+    q32 leftq = QFIELD(obj, oLeftVel);
+    q32 forwardq = QFIELD(obj, oForwardVel);
 
     //! Typo, up and left should be swapped
-    obj->oVelX = obj->transform[0][0] * up + obj->transform[1][0] * left + obj->transform[2][0] * forward;
-    obj->oVelY = obj->transform[0][1] * up + obj->transform[1][1] * left + obj->transform[2][1] * forward;
-    obj->oVelZ = obj->transform[0][2] * up + obj->transform[1][2] * left + obj->transform[2][2] * forward;
+    QSETFIELD(obj, oVelX, qmul((q32) obj->transformq.m[0][0], leftq) + qmul((q32) obj->transformq.m[1][0], upq) + qmul((q32) obj->transformq.m[2][0], forwardq));
+    QSETFIELD(obj, oVelY, qmul((q32) obj->transformq.m[0][1], leftq) + qmul((q32) obj->transformq.m[1][1], upq) + qmul((q32) obj->transformq.m[2][1], forwardq));
+    QSETFIELD(obj, oVelZ, qmul((q32) obj->transformq.m[0][2], leftq) + qmul((q32) obj->transformq.m[1][2], upq) + qmul((q32) obj->transformq.m[2][2], forwardq));
 }
 
 void cur_obj_set_pos_via_transform(void) {
     obj_build_transform_from_pos_and_angle(o, O_PARENT_RELATIVE_POS_INDEX, O_MOVE_ANGLE_INDEX);
     obj_build_vel_from_transform(o);
-    o->oPosX += o->oVelX;
-    o->oPosY += o->oVelY;
-    o->oPosZ += o->oVelZ;
+    QMODFIELD(o, oPosX, += QFIELD(o, oVelX));
+    QMODFIELD(o, oPosY, += QFIELD(o, oVelY));
+    QMODFIELD(o, oPosZ, += QFIELD(o, oVelZ));
 }
 
 s16 cur_obj_reflect_move_angle_off_wall(void) {
@@ -2092,7 +2093,6 @@ s16 cur_obj_reflect_move_angle_off_wall(void) {
 void cur_obj_spawn_particles(struct SpawnParticlesInfo *info) {
     struct Object *particle;
     s32 i;
-    f32 scale;
     s32 numParticles = info->count;
 
     // If there are a lot of objects already, limit the number of particles
@@ -2107,20 +2107,20 @@ void cur_obj_spawn_particles(struct SpawnParticlesInfo *info) {
     }
 
     for (i = 0; i < numParticles; i++) {
-        scale = random_float() * (info->sizeRange * 0.1f) + info->sizeBase * 0.1f;
+        q32 scaleq = qmul(random_q32(), q(info->sizeRange) / 10) + q(info->sizeBase) / 10;
 
         particle = spawn_object(o, info->model, bhvWhitePuffExplosion);
 
         particle->oBehParams2ndByte = info->behParam;
         particle->oMoveAngleYaw = random_u16();
-        particle->oGravity = info->gravity;
-        particle->oDragStrength = info->dragStrength;
+        ISETFIELD(particle, oGravity, info->gravity);
+        ISETFIELD(particle, oDragStrength, info->dragStrength);
 
-        particle->oPosY += info->offsetY;
-        particle->oForwardVel = random_float() * info->forwardVelRange + info->forwardVelBase;
-        particle->oVelY = random_float() * info->velYRange + info->velYBase;
+        QMODFIELD(particle, oPosY, += q(info->offsetY));
+        QSETFIELD(particle, oForwardVel, random_q32() * info->forwardVelRange + q(info->forwardVelBase));
+        QSETFIELD(particle, oVelY, random_q32() * info->velYRange + q(info->velYBase));
 
-        obj_scale_xyz(particle, scale, scale, scale);
+        obj_scale_xyzq(particle, scaleq, scaleq, scaleq);
     }
 }
 
@@ -2136,11 +2136,11 @@ void obj_set_hitbox(struct Object *obj, struct ObjectHitbox *hitbox) {
         cur_obj_become_tangible();
     }
 
-    obj->hitboxRadius = obj->header.gfx.scale[0] * hitbox->radius;
-    obj->hitboxHeight = obj->header.gfx.scale[1] * hitbox->height;
-    obj->hurtboxRadius = obj->header.gfx.scale[0] * hitbox->hurtboxRadius;
-    obj->hurtboxHeight = obj->header.gfx.scale[1] * hitbox->hurtboxHeight;
-    obj->hitboxDownOffset = obj->header.gfx.scale[1] * hitbox->downOffset;
+    obj->hitboxRadius_s16 = qtrunc(obj->header.gfx.scaleq[0] * hitbox->radius);
+    obj->hitboxHeight_s16 = qtrunc(obj->header.gfx.scaleq[1] * hitbox->height);
+    obj->hurtboxRadius_s16 = qtrunc(obj->header.gfx.scaleq[0] * hitbox->hurtboxRadius);
+    obj->hurtboxHeight_s16 = qtrunc(obj->header.gfx.scaleq[1] * hitbox->hurtboxHeight);
+    obj->hitboxDownOffset_s16 = qtrunc(obj->header.gfx.scaleq[1] * hitbox->downOffset);
 }
 
 s32 signum_positive(s32 x) {
@@ -2152,11 +2152,9 @@ s32 signum_positive(s32 x) {
 }
 
 f32 absf(f32 x) {
-    if (x >= 0) {
-        return x;
-    } else {
-        return -x;
-    }
+	union {f32 f; u32 u;} decomposed = {.f = x};
+	decomposed.u &= 0x7FFFFFFF;
+    return decomposed.f;
 }
 
 s32 absi(s32 x) {
@@ -2204,44 +2202,41 @@ void spawn_mist_particles_with_sound(u32 sp18) {
     create_sound_spawner(sp18);
 }
 
-void cur_obj_push_mario_away(f32 radius) {
-    f32 marioRelX = gMarioObject->oPosX - o->oPosX;
-    f32 marioRelZ = gMarioObject->oPosZ - o->oPosZ;
-    f32 marioDist = sqrtf(sqr(marioRelX) + sqr(marioRelZ));
+void cur_obj_push_mario_away(s32 radiusi) {
+    s32 marioRelXi = IFIELD(gMarioObject, oPosX) - IFIELD(o, oPosX);
+    s32 marioRelZi = IFIELD(gMarioObject, oPosZ) - IFIELD(o, oPosZ);
+    s32 marioDisti = sqrtu(sqr(marioRelXi) + sqr(marioRelZi));
 
-    if (marioDist < radius) {
+    if (marioDisti < radiusi) {
         //! If this function pushes Mario out of bounds, it will trigger Mario's
         //  oob failsafe
-        gMarioStates[0].pos[0] += (radius - marioDist) / radius * marioRelX;
-        gMarioStates[0].pos[2] += (radius - marioDist) / radius * marioRelZ;
+        gMarioStates[0].pos[0] += (radiusi - marioDisti) * marioRelXi / radiusi;
+        gMarioStates[0].pos[2] += (radiusi - marioDisti) * marioRelZi / radiusi;
     }
 }
 
-void cur_obj_push_mario_away_from_cylinder(f32 radius, f32 extentY) {
-    f32 marioRelY = gMarioObject->oPosY - o->oPosY;
+void cur_obj_push_mario_away_from_cylinder(s32 radiusi, s32 extentYi) {
+    s32 marioRelYi = IFIELD(gMarioObject, oPosY) - IFIELD(o, oPosY);
 
-    if (marioRelY < 0.0f) {
-        marioRelY = -marioRelY;
+    if (marioRelYi < 0) {
+        marioRelYi = -marioRelYi;
     }
 
-    if (marioRelY < extentY) {
-        cur_obj_push_mario_away(radius);
+    if (marioRelYi < extentYi) {
+        cur_obj_push_mario_away(radiusi);
     }
 }
 
 void bhv_dust_smoke_loop(void) {
-    o->oPosX += o->oVelX;
-    o->oPosY += o->oVelY;
-    o->oPosZ += o->oVelZ;
+    QMODFIELD(o, oPosX, += QFIELD(o, oVelX));
+    QMODFIELD(o, oPosY, += QFIELD(o, oVelY));
+    QMODFIELD(o, oPosZ, += QFIELD(o, oVelZ));
 
     if (o->oSmokeTimer == 10) {
         obj_mark_for_deletion(o);
     }
 
     o->oSmokeTimer++;
-}
-
-UNUSED static void stub_obj_helpers_2(void) {
 }
 
 s32 cur_obj_set_direction_table(s8 *a0) {
@@ -2267,34 +2262,28 @@ s32 cur_obj_progress_direction_table(void) {
     return spF;
 }
 
-void stub_obj_helpers_3(UNUSED s32 sp0, UNUSED s32 sp4) {
-}
-
 void cur_obj_scale_over_time(s32 a0, s32 a1, f32 sp10, f32 sp14) {
     f32 sp4 = sp14 - sp10;
     f32 sp0 = (f32) o->oTimer / a1;
 
     if (a0 & 0x01) {
-        o->header.gfx.scale[0] = sp4 * sp0 + sp10;
+        o->header.gfx.scaleq[0] = q(sp4 * sp0 + sp10);
     }
 
     if (a0 & 0x02) {
-        o->header.gfx.scale[1] = sp4 * sp0 + sp10;
+        o->header.gfx.scaleq[1] = q(sp4 * sp0 + sp10);
     }
 
     if (a0 & 0x04) {
-        o->header.gfx.scale[2] = sp4 * sp0 + sp10;
+        o->header.gfx.scaleq[2] = q(sp4 * sp0 + sp10);
     }
 }
 
 void cur_obj_set_pos_to_home_with_debug(void) {
-    o->oPosX = o->oHomeX + gDebugInfo[5][0];
-    o->oPosY = o->oHomeY + gDebugInfo[5][1];
-    o->oPosZ = o->oHomeZ + gDebugInfo[5][2];
-    cur_obj_scale(gDebugInfo[5][3] / 100.0f + 1.0l);
-}
-
-void stub_obj_helpers_4(void) {
+    QSETFIELD(o, oPosX, QFIELD(o, oHomeX) + q(gDebugInfo[5][0]));
+    QSETFIELD(o, oPosY, QFIELD(o, oHomeY) + q(gDebugInfo[5][1]));
+    QSETFIELD(o, oPosZ, QFIELD(o, oHomeZ) + q(gDebugInfo[5][2]));
+    cur_obj_scaleq(ONE + q(gDebugInfo[5][3]) / 100);
 }
 
 s32 cur_obj_is_mario_on_platform(void) {
@@ -2307,9 +2296,9 @@ s32 cur_obj_is_mario_on_platform(void) {
 
 s32 cur_obj_shake_y_until(s32 cycles, s32 amount) {
     if (o->oTimer % 2 != 0) {
-        o->oPosY -= amount;
+        QMODFIELD(o, oPosY, -= q(amount));
     } else {
-        o->oPosY += amount;
+        QMODFIELD(o, oPosY, += q(amount));
     }
 
     if (o->oTimer == cycles * 2) {
@@ -2324,7 +2313,7 @@ s32 jiggle_bbh_stair(s32 a0) {
         return TRUE;
     }
 
-    o->oPosY += sBbhStairJiggleOffsets[a0];
+    QMODFIELD(o, oPosY, += q(sBbhStairJiggleOffsets[a0]));
     return FALSE;
 }
 
@@ -2353,12 +2342,12 @@ s32 bit_shift_left(s32 a0) {
 }
 
 s32 cur_obj_mario_far_away(void) {
-    f32 dx = o->oHomeX - gMarioObject->oPosX;
-    f32 dy = o->oHomeY - gMarioObject->oPosY;
-    f32 dz = o->oHomeZ - gMarioObject->oPosZ;
+    f32 dx = FFIELD(o, oHomeX) - FFIELD(gMarioObject, oPosX);
+    f32 dy = FFIELD(o, oHomeY) - FFIELD(gMarioObject, oPosY);
+    f32 dz = FFIELD(o, oHomeZ) - FFIELD(gMarioObject, oPosZ);
     f32 marioDistToHome = sqrtf(dx * dx + dy * dy + dz * dz);
 
-    if (o->oDistanceToMario > 2000.0f && marioDistToHome > 2000.0f) {
+    if (QFIELD(o, oDistanceToMario) > q(2000) && marioDistToHome > 2000.0f) {
         return TRUE;
     } else {
         return FALSE;
@@ -2397,7 +2386,7 @@ void bhv_init_room(void) {
     f32 floorHeight;
 
     if (is_item_in_array(gCurrLevelNum, sLevelsWithRooms)) {
-        floorHeight = find_floor(o->oPosX, o->oPosY, o->oPosZ, &floor);
+        floorHeight = qtof(find_floorq(QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ), &floor));
 
         if (floor != NULL) {
             if (floor->room != 0) {
@@ -2405,7 +2394,7 @@ void bhv_init_room(void) {
             } else {
                 // Floor probably belongs to a platform object. Try looking
                 // underneath it
-                find_floor(o->oPosX, floorHeight - 100.0f, o->oPosZ, &floor);
+                find_floorq(QFIELD(o, oPosX), q(floorHeight) - q(100), QFIELD(o, oPosZ), &floor);
                 if (floor != NULL) {
                     //! Technically possible that the room could still be 0 here
                     o->oRoom = floor->room;
@@ -2490,8 +2479,8 @@ void cur_obj_if_hit_wall_bounce_away(void) {
     }
 }
 
-s32 cur_obj_hide_if_mario_far_away_y(f32 distY) {
-    if (absf(o->oPosY - gMarioObject->oPosY) < distY) {
+s32 cur_obj_hide_if_mario_far_away_yq(q32 distYq) {
+    if (ABS(QFIELD(o, oPosY) - QFIELD(gMarioObject, oPosY)) < distYq) {
         cur_obj_unhide();
         return FALSE;
     } else {
@@ -2500,7 +2489,7 @@ s32 cur_obj_hide_if_mario_far_away_y(f32 distY) {
     }
 }
 
-Gfx *geo_offset_klepto_held_object(s32 callContext, struct GraphNode *node, UNUSED Mat4 mtx) {
+Gfx *geo_offset_klepto_held_object(s32 callContext, struct GraphNode *node, UNUSED const ShortMatrix* mtxq) {
     if (callContext == GEO_CONTEXT_RENDER) {
         ((struct GraphNodeTranslationRotation *) node->next)->translation[0] = 300;
         ((struct GraphNodeTranslationRotation *) node->next)->translation[1] = 300;
@@ -2548,12 +2537,12 @@ void clear_time_stop_flags(s32 flags) {
 }
 
 s32 cur_obj_can_mario_activate_textbox(f32 radius, f32 height, UNUSED s32 unused) {
-    if (o->oDistanceToMario < 1500.0f) {
-        f32 latDistToMario = lateral_dist_between_objects(o, gMarioObject);
-        UNUSED s16 angleFromMario = obj_angle_to_object(gMarioObject, o);
+    if (QFIELD(o, oDistanceToMario) < q(1500)) {
+        q32 latDistToMarioq = lateral_dist_between_objectsq(o, gMarioObject);
+        //UNUSED s16 angleFromMario = obj_angle_to_object(gMarioObject, o);
 
-        if (latDistToMario < radius && o->oPosY < gMarioObject->oPosY + 160.0f
-            && gMarioObject->oPosY < o->oPosY + height && !(gMarioStates[0].action & ACT_FLAG_AIR)
+        if (latDistToMarioq < q(radius) && QFIELD(o, oPosY) < QFIELD(gMarioObject, oPosY) + q(160)
+            && QFIELD(gMarioObject, oPosY) < QFIELD(o, oPosY) + q(height) && !(gMarioStates[0].action & ACT_FLAG_AIR)
             && mario_ready_to_speak()) {
             return TRUE;
         }
@@ -2760,30 +2749,31 @@ s32 cur_obj_has_model(u16 modelID) {
 
 void cur_obj_align_gfx_with_floor(void) {
     struct Surface *floor;
-    Vec3f floorNormal;
-    Vec3f position;
+    Vec3q floorNormalq;
+    Vec3q positionq;
 
-    position[0] = o->oPosX;
-    position[1] = o->oPosY;
-    position[2] = o->oPosZ;
+    positionq[0] = QFIELD(o, oPosX);
+    positionq[1] = QFIELD(o, oPosY);
+    positionq[2] = QFIELD(o, oPosZ);
 
-    find_floor(position[0], position[1], position[2], &floor);
+    find_floorq(positionq[0], positionq[1], positionq[2], &floor);
     if (floor != NULL) {
-        floorNormal[0] = floor->normal.x;
-        floorNormal[1] = floor->normal.y;
-        floorNormal[2] = floor->normal.z;
+        floorNormalq[0] = (q32) floor->compressed_normal.x * QONE / COMPRESSED_NORMAL_ONE;
+        floorNormalq[1] = (q32) floor->compressed_normal.y * QONE / COMPRESSED_NORMAL_ONE;
+        floorNormalq[2] = (q32) floor->compressed_normal.z * QONE / COMPRESSED_NORMAL_ONE;
 
-        mtxf_align_terrain_normal(o->transform, floorNormal, position, o->oFaceAngleYaw);
-        o->header.gfx.throwMatrix = &o->transform;
+        mtx_align_terrain_normal(&o->transformq, floorNormalq, positionq, o->oFaceAngleYaw);
+		// TODO
+        //o->header.gfx.throwMatrix = &o->transform;
     }
 }
 
 s32 mario_is_within_rectangle(s16 minX, s16 maxX, s16 minZ, s16 maxZ) {
-    if (gMarioObject->oPosX < minX || maxX < gMarioObject->oPosX) {
+    if (IFIELD(gMarioObject, oPosX) < minX || maxX < IFIELD(gMarioObject, oPosX)) {
         return FALSE;
     }
 
-    if (gMarioObject->oPosZ < minZ || maxZ < gMarioObject->oPosZ) {
+    if (IFIELD(gMarioObject, oPosZ) < minZ || maxZ < IFIELD(gMarioObject, oPosZ)) {
         return FALSE;
     }
 
@@ -2791,7 +2781,7 @@ s32 mario_is_within_rectangle(s16 minX, s16 maxX, s16 minZ, s16 maxZ) {
 }
 
 void cur_obj_shake_screen(s32 shake) {
-    set_camera_shake_from_point(shake, o->oPosX, o->oPosY, o->oPosZ);
+    set_camera_shake_from_pointq(shake, QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ));
 }
 
 s32 obj_attack_collided_from_other_object(struct Object *obj) {
@@ -2913,9 +2903,9 @@ void cur_obj_spawn_loot_blue_coin(void) {
 
 #ifndef VERSION_JP
 void cur_obj_spawn_star_at_y_offset(f32 targetX, f32 targetY, f32 targetZ, f32 offsetY) {
-    f32 objectPosY = o->oPosY;
-    o->oPosY += offsetY + gDebugInfo[5][0];
+    q32 objectPosYq = QFIELD(o, oPosY);
+    QMODFIELD(o, oPosY, += q(offsetY) + q(gDebugInfo[5][0]));
     spawn_default_star(targetX, targetY, targetZ);
-    o->oPosY = objectPosY;
+    QSETFIELD(o, oPosY, objectPosYq);
 }
 #endif

@@ -16,8 +16,8 @@ void bhv_beta_bowser_anchor_loop(void) {
     // and 300 units in front of him.
     cur_obj_set_pos_relative(gMarioObject, 0, 30.0f, 300.0f);
 
-    o->hitboxRadius = gDebugInfo[4][0] + 100;
-    o->hitboxHeight = gDebugInfo[4][1] + 300;
+    o->hitboxRadius_s16 = gDebugInfo[4][0] + 100;
+    o->hitboxHeight_s16 = gDebugInfo[4][1] + 300;
 
     obj_attack_collided_from_other_object(o);
 }

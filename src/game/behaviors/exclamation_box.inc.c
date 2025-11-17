@@ -68,15 +68,15 @@ void exclamation_box_act_2(void) {
         cur_obj_unhide();
         cur_obj_become_tangible();
         o->oInteractStatus = 0;
-        o->oPosY = o->oHomeY;
-        o->oGraphYOffset = 0.0f;
+        QSETFIELD(o, oPosY, QFIELD(o, oHomeY));
+        QSETFIELD(o, oGraphYOffset, 0);
     }
     if (cur_obj_was_attacked_or_ground_pounded()) {
         cur_obj_become_intangible();
         o->oExclamationBoxUnkFC = 0x4000;
-        o->oVelY = 30.0f;
-        o->oGravity = -8.0f;
-        o->oFloorHeight = o->oPosY;
+        QSETFIELD(o, oVelY, q(30));
+        QSETFIELD(o, oGravity, q(-8));
+        QSETFIELD(o, oFloorHeight, QFIELD(o, oPosY));
         o->oAction = 3;
 #if ENABLE_RUMBLE
         queue_rumble_data(5, 80);
@@ -88,17 +88,17 @@ void exclamation_box_act_2(void) {
 void exclamation_box_act_3(void) {
     UNUSED s32 unused;
     cur_obj_move_using_fvel_and_gravity();
-    if (o->oVelY < 0.0f) {
-        o->oVelY = 0.0f;
-        o->oGravity = 0.0f;
+    if (QFIELD(o, oVelY) < 0) {
+        QSETFIELD(o, oVelY, 0);
+        QSETFIELD(o, oGravity, 0);
     }
-    o->oExclamationBoxUnkF8 = (sins(o->oExclamationBoxUnkFC) + 1.0) * 0.3 + 0.0;
-    o->oExclamationBoxUnkF4 = (-sins(o->oExclamationBoxUnkFC) + 1.0) * 0.5 + 1.0;
-    o->oGraphYOffset = (-sins(o->oExclamationBoxUnkFC) + 1.0) * 26.0;
+    QSETFIELD(o, oExclamationBoxUnkF8, (sinqs(o->oExclamationBoxUnkFC) + QONE) / 2);
+    QSETFIELD(o, oExclamationBoxUnkF4, (-sinqs(o->oExclamationBoxUnkFC) + QONE) / 2 + QONE);
+    QSETFIELD(o, oGraphYOffset, (-sinqs(o->oExclamationBoxUnkFC) + QONE) * 26);
     o->oExclamationBoxUnkFC += 0x1000;
-    o->header.gfx.scale[0] = o->oExclamationBoxUnkF4 * 2.0f;
-    o->header.gfx.scale[1] = o->oExclamationBoxUnkF8 * 2.0f;
-    o->header.gfx.scale[2] = o->oExclamationBoxUnkF4 * 2.0f;
+    o->header.gfx.scaleq[0] = QFIELD(o, oExclamationBoxUnkF4) * 2;
+    o->header.gfx.scaleq[1] = QFIELD(o, oExclamationBoxUnkF8) * 2;
+    o->header.gfx.scaleq[2] = QFIELD(o, oExclamationBoxUnkF4) * 2;
     if (o->oTimer == 7)
         o->oAction = 4;
 }
@@ -109,8 +109,8 @@ void exclamation_box_spawn_contents(struct Struct802C0DF0 *a0, u8 a1) {
     while (a0->unk0 != 99) {
         if (a1 == a0->unk0) {
             sp1C = spawn_object(o, a0->model, a0->behavior);
-            sp1C->oVelY = 20.0f;
-            sp1C->oForwardVel = 3.0f;
+            QSETFIELD(sp1C, oVelY, q(20));
+            QSETFIELD(sp1C, oForwardVel, q(3));
             sp1C->oMoveAngleYaw = gMarioObject->oMoveAngleYaw;
             o->oBehParams |= a0->unk2 << 24;
             if (a0->model == 122)
@@ -143,6 +143,6 @@ void (*sExclamationBoxActions[])(void) = { exclamation_box_act_0, exclamation_bo
                                            exclamation_box_act_4, exclamation_box_act_5 };
 
 void bhv_exclamation_box_loop(void) {
-    cur_obj_scale(2.0f);
+    cur_obj_scaleq(q(2.0f));
     cur_obj_call_action_function(sExclamationBoxActions);
 }

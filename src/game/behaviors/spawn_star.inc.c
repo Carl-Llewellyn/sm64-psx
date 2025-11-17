@@ -37,11 +37,11 @@ void bhv_collect_star_loop(void) {
 }
 
 void bhv_star_spawn_init(void) {
-    o->oMoveAngleYaw = atan2s(o->oHomeZ - o->oPosZ, o->oHomeX - o->oPosX);
-    o->oStarSpawnDisFromHome = sqrtf(sqr(o->oHomeX - o->oPosX) + sqr(o->oHomeZ - o->oPosZ));
-    o->oVelY = (o->oHomeY - o->oPosY) / 30.0f;
-    o->oForwardVel = o->oStarSpawnDisFromHome / 30.0f;
-    o->oStarSpawnUnkFC = o->oPosY;
+    o->oMoveAngleYaw = atan2s(FFIELD(o, oHomeZ) - FFIELD(o, oPosZ), FFIELD(o, oHomeX) - FFIELD(o, oPosX));
+    FSETFIELD(o, oStarSpawnDisFromHome, sqrtf(sqr(FFIELD(o, oHomeX) - FFIELD(o, oPosX)) + sqr(FFIELD(o, oHomeZ) - FFIELD(o, oPosZ))));
+    FSETFIELD(o, oVelY, (FFIELD(o, oHomeY) - FFIELD(o, oPosY)) / 30.0f);
+    FSETFIELD(o, oForwardVel, FFIELD(o, oStarSpawnDisFromHome) / 30.0f);
+    QSETFIELD(o,  oStarSpawnUnkFC, QFIELD(o,  oPosY));
     if (o->oBehParams2ndByte == 0 || gCurrCourseNum == COURSE_BBH)
         cutscene_object(CUTSCENE_STAR_SPAWN, o);
     else
@@ -62,33 +62,33 @@ void bhv_star_spawn_loop(void) {
 
         case 1:
             obj_move_xyz_using_fvel_and_yaw(o);
-            o->oStarSpawnUnkFC += o->oVelY;
-            o->oPosY = o->oStarSpawnUnkFC + sins((o->oTimer * 0x8000) / 30) * 400.0f;
+            QMODFIELD(o, oStarSpawnUnkFC, += QFIELD(o, oVelY));
+            FSETFIELD(o, oPosY, FFIELD(o, oStarSpawnUnkFC) + sins((o->oTimer * 0x8000) / 30) * 400.0f);
             o->oFaceAngleYaw += 0x1000;
             spawn_object(o, MODEL_NONE, bhvSparkleSpawn);
             cur_obj_play_sound_1(SOUND_ENV_STAR);
             if (o->oTimer == 30) {
                 o->oAction = 2;
-                o->oForwardVel = 0;
+                QSETFIELD(o,  oForwardVel, q(0));
                 play_power_star_jingle(TRUE);
             }
             break;
 
         case 2:
             if (o->oTimer < 20)
-                o->oVelY = 20 - o->oTimer;
+                FSETFIELD(o, oVelY, 20 - o->oTimer);
             else
-                o->oVelY = -10.0f;
+                QSETFIELD(o,  oVelY, q(-10));
 
             spawn_object(o, MODEL_NONE, bhvSparkleSpawn);
             obj_move_xyz_using_fvel_and_yaw(o);
             o->oFaceAngleYaw = o->oFaceAngleYaw - o->oTimer * 0x10 + 0x1000;
             cur_obj_play_sound_1(SOUND_ENV_STAR);
 
-            if (o->oPosY < o->oHomeY) {
+            if (QFIELD(o, oPosY) < QFIELD(o, oHomeY)) {
                 cur_obj_play_sound_2(SOUND_GENERAL_STAR_APPEARS);
                 cur_obj_become_tangible();
-                o->oPosY = o->oHomeY;
+                QSETFIELD(o,  oPosY, QFIELD(o,  oHomeY));
                 o->oAction = 3;
             }
             break;
@@ -110,12 +110,12 @@ void bhv_star_spawn_loop(void) {
 }
 
 struct Object *spawn_star(struct Object *sp30, f32 sp34, f32 sp38, f32 sp3C) {
-    sp30 = spawn_object_abs_with_rot(o, 0, MODEL_STAR, bhvStarSpawnCoordinates, o->oPosX, o->oPosY,
-                                     o->oPosZ, 0, 0, 0);
+    sp30 = spawn_object_abs_with_rot(o, 0, MODEL_STAR, bhvStarSpawnCoordinates, FFIELD(o, oPosX), FFIELD(o, oPosY),
+                                     FFIELD(o, oPosZ), 0, 0, 0);
     sp30->oBehParams = o->oBehParams;
-    sp30->oHomeX = sp34;
-    sp30->oHomeY = sp38;
-    sp30->oHomeZ = sp3C;
+    FSETFIELD(sp30, oHomeX, sp34);
+    FSETFIELD(sp30, oHomeY, sp38);
+    FSETFIELD(sp30, oHomeZ, sp3C);
     sp30->oFaceAnglePitch = 0;
     sp30->oFaceAngleRoll = 0;
     return sp30;
@@ -159,7 +159,7 @@ void bhv_hidden_red_coin_star_init(void) {
     sp36 = count_objects_with_behavior(bhvRedCoin);
     if (sp36 == 0) {
         sp30 =
-            spawn_object_abs_with_rot(o, 0, MODEL_STAR, bhvStar, o->oPosX, o->oPosY, o->oPosZ, 0, 0, 0);
+            spawn_object_abs_with_rot(o, 0, MODEL_STAR, bhvStar, FFIELD(o, oPosX), FFIELD(o, oPosY), FFIELD(o, oPosZ), 0, 0, 0);
         sp30->oBehParams = o->oBehParams;
         o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
     }
@@ -177,7 +177,7 @@ void bhv_hidden_red_coin_star_loop(void) {
 
         case 1:
             if (o->oTimer > 2) {
-                spawn_red_coin_cutscene_star(o->oPosX, o->oPosY, o->oPosZ);
+                spawn_red_coin_cutscene_star(FFIELD(o, oPosX), FFIELD(o, oPosY), FFIELD(o, oPosZ));
                 spawn_mist_particles();
                 o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
             }

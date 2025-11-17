@@ -33,14 +33,15 @@ const LevelScript level_intro_splash_screen[] = {
     // Start animation
     LOAD_AREA(/*area*/ 1),
 
-    CALL(/*arg*/ LVL_INTRO_PLAY_ITS_A_ME_MARIO, /*func*/ lvl_intro_update),
+    CALL_DYN(/*arg*/ LVL_INTRO_PLAY_ITS_A_ME_MARIO, /*func*/ DYN_lvl_intro_update),
     SLEEP(/*frames*/ 75),
     TRANSITION(/*transType*/ WARP_TRANSITION_FADE_INTO_COLOR, /*time*/ 16, /*color*/ 0x00, 0x00, 0x00),
     SLEEP(/*frames*/ 16),
     CMD2A(/*unk2*/ 1),
     CLEAR_LEVEL(),
     SLEEP(/*frames*/ 2),
-    EXIT_AND_EXECUTE(/*seg*/ 0x14, _introSegmentRomStart, _introSegmentRomEnd, level_intro_mario_head_regular),
+    //EXIT_AND_EXECUTE(/*seg*/ 0x14, _introSegmentRomStart, _introSegmentRomEnd, level_intro_mario_head_regular),
+	EXIT_AND_EXECUTE(/*seg*/ 0x14, 1, 1, level_intro_mario_head_regular),
 };
 
 const LevelScript level_intro_mario_head_regular[] = {
@@ -62,7 +63,7 @@ const LevelScript level_intro_mario_head_regular[] = {
     SET_MENU_MUSIC(/*seq*/ SEQ_MENU_TITLE_SCREEN),
     TRANSITION(/*transType*/ WARP_TRANSITION_FADE_FROM_STAR, /*time*/ 20, /*color*/ 0x00, 0x00, 0x00),
     SLEEP(/*frames*/ 20),
-    CALL_LOOP(/*arg*/ LVL_INTRO_REGULAR, /*func*/ lvl_intro_update),
+    CALL_LOOP_DYN(/*arg*/ LVL_INTRO_REGULAR, /*func*/ DYN_lvl_intro_update),
     JUMP_IF(/*op*/ OP_EQ, /*arg*/ 100, script_intro_L1),
     JUMP_IF(/*op*/ OP_EQ, /*arg*/ 101, script_intro_L2),
     JUMP(script_intro_L4),
@@ -87,7 +88,7 @@ const LevelScript level_intro_mario_head_dizzy[] = {
     SET_MENU_MUSIC(/*seq*/ SEQ_MENU_GAME_OVER),
     TRANSITION(/*transType*/ WARP_TRANSITION_FADE_FROM_STAR, /*time*/ 20, /*color*/ 0x00, 0x00, 0x00),
     SLEEP(/*frames*/ 20),
-    CALL_LOOP(/*arg*/ LVL_INTRO_GAME_OVER, /*func*/ lvl_intro_update),
+    CALL_LOOP_DYN(/*arg*/ LVL_INTRO_GAME_OVER, /*func*/ DYN_lvl_intro_update),
     JUMP_IF(/*op*/ OP_EQ, /*arg*/ 100, script_intro_L1),
     JUMP_IF(/*op*/ OP_EQ, /*arg*/ 101, script_intro_L2),
     JUMP(script_intro_L4),
@@ -109,7 +110,7 @@ const LevelScript level_intro_entry_4[] = {
     SET_MENU_MUSIC(/*seq*/ SEQ_MENU_TITLE_SCREEN),
     TRANSITION(/*transType*/ WARP_TRANSITION_FADE_FROM_COLOR, /*time*/ 16, /*color*/ 0xFF, 0xFF, 0xFF),
     SLEEP(/*frames*/ 16),
-    CALL_LOOP(/*arg*/ LVL_INTRO_LEVEL_SELECT, /*func*/ lvl_intro_update),
+    CALL_LOOP_DYN(/*arg*/ LVL_INTRO_LEVEL_SELECT, /*func*/ DYN_lvl_intro_update),
     JUMP_IF(/*op*/ OP_EQ, /*arg*/ -1, script_intro_L5),
     JUMP(script_intro_L3),
 };
@@ -131,7 +132,8 @@ const LevelScript script_intro_L2[] = {
     SLEEP(/*frames*/ 16),
     CLEAR_LEVEL(),
     SLEEP(/*frames*/ 2),
-    EXIT_AND_EXECUTE(/*seg*/ 0x14, _introSegmentRomStart, _introSegmentRomEnd, level_intro_entry_4),
+    //EXIT_AND_EXECUTE(/*seg*/ 0x14, _introSegmentRomStart, _introSegmentRomEnd, level_intro_entry_4),
+	EXIT_AND_EXECUTE(/*seg*/ 0x14, 1, 1, level_intro_entry_4),
 };
 
 const LevelScript script_intro_L3[] = {
@@ -140,7 +142,7 @@ const LevelScript script_intro_L3[] = {
     SLEEP(/*frames*/ 16),
     CLEAR_LEVEL(),
     SLEEP(/*frames*/ 2),
-    EXIT_AND_EXECUTE(/*seg*/ 0x15, _scriptsSegmentRomStart, _scriptsSegmentRomEnd, level_main_scripts_entry),
+    EXIT_AND_EXECUTE_DYN(/*seg*/ 0x15, _scriptsSegmentRomStart, _scriptsSegmentRomEnd, DYN_level_main_scripts_entry),
 };
 
 const LevelScript script_intro_L4[] = {
@@ -148,7 +150,7 @@ const LevelScript script_intro_L4[] = {
     SLEEP(/*frames*/ 16),
     CLEAR_LEVEL(),
     SLEEP(/*frames*/ 2),
-    EXIT_AND_EXECUTE(/*seg*/ 0x15, _scriptsSegmentRomStart, _scriptsSegmentRomEnd, level_main_scripts_entry),
+    EXIT_AND_EXECUTE_DYN(/*seg*/ 0x15, _scriptsSegmentRomStart, _scriptsSegmentRomEnd, DYN_level_main_scripts_entry),
 };
 
 const LevelScript script_intro_L5[] = {
@@ -157,5 +159,6 @@ const LevelScript script_intro_L5[] = {
     SLEEP(/*frames*/ 16),
     CLEAR_LEVEL(),
     SLEEP(/*frames*/ 2),
-    EXIT_AND_EXECUTE(/*seg*/ 0x14, _introSegmentRomStart, _introSegmentRomEnd, level_intro_splash_screen),
+    //EXIT_AND_EXECUTE(/*seg*/ 0x14, _introSegmentRomStart, _introSegmentRomEnd, level_intro_splash_screen),
+	EXIT_AND_EXECUTE(/*seg*/ 0x14, 1, 1, level_intro_splash_screen),
 };

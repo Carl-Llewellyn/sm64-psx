@@ -31,7 +31,7 @@ s32 sNumActiveFirePiranhaPlants;
 s32 sNumKilledFirePiranhaPlants;
 
 void bhv_fire_piranha_plant_init(void) {
-    o->oFirePiranhaPlantNeutralScale = D_80331B5C[(u16)(o->oBehParams >> 16)];
+    FSETFIELD(o, oFirePiranhaPlantNeutralScale, D_80331B5C[(u16)(o->oBehParams >> 16)]);
     obj_set_hitbox(o, &sFirePiranhaPlantHitbox);
 
     if ((u16)(o->oBehParams >> 16) != 0) {
@@ -49,16 +49,16 @@ void bhv_fire_piranha_plant_init(void) {
 
 static void fire_piranha_plant_act_hide(void) {
     if (o->oFirePiranhaPlantDeathSpinTimer != 0) {
-        o->oMoveAngleYaw += (s32) o->oFirePiranhaPlantDeathSpinVel;
-        approach_f32_ptr(&o->oFirePiranhaPlantDeathSpinVel, 0.0f, 200.0f);
+        o->oMoveAngleYaw += IFIELD(o, oFirePiranhaPlantDeathSpinVel);
+        APPROACH_Q32_FIELD(o, oFirePiranhaPlantDeathSpinVel, 0, q(200));
 
         if (cur_obj_check_if_near_animation_end()) {
             if (--o->oFirePiranhaPlantDeathSpinTimer == 0) {
                 cur_obj_play_sound_2(SOUND_OBJ_ENEMY_DEFEAT_SHRINK);
             }
         }
-    } else if (approach_f32_ptr(&o->oFirePiranhaPlantScale, 0.0f,
-                                0.04f * o->oFirePiranhaPlantNeutralScale)) {
+    } else if (APPROACH_Q32_FIELD(o, oFirePiranhaPlantScale, 0,
+                                QFIELD(o, oFirePiranhaPlantNeutralScale) / 25)) {
         cur_obj_become_intangible();
         if (o->oFirePiranhaPlantActive) {
             sNumActiveFirePiranhaPlants -= 1;
@@ -72,8 +72,8 @@ static void fire_piranha_plant_act_hide(void) {
                 obj_die_if_health_non_positive();
                 set_object_respawn_info_bits(o, 1);
             }
-        } else if (sNumActiveFirePiranhaPlants < 2 && o->oTimer > 100 && o->oDistanceToMario > 100.0f
-                   && o->oDistanceToMario < 800.0f) {
+        } else if (sNumActiveFirePiranhaPlants < 2 && o->oTimer > 100 && QFIELD(o, oDistanceToMario) > q(100.0)
+                   && QFIELD(o, oDistanceToMario) < q(800.0)) {
             cur_obj_play_sound_2(SOUND_OBJ_PIRANHA_PLANT_APPEAR);
 
             o->oFirePiranhaPlantActive = TRUE;
@@ -93,8 +93,8 @@ static void fire_piranha_plant_act_hide(void) {
 static void fire_piranha_plant_act_grow(void) {
     cur_obj_init_anim_extend(4);
 
-    if (approach_f32_ptr(&o->oFirePiranhaPlantScale, o->oFirePiranhaPlantNeutralScale,
-                         0.04f * o->oFirePiranhaPlantNeutralScale)) {
+    if (APPROACH_Q32_FIELD(o, oFirePiranhaPlantScale, QFIELD(o, oFirePiranhaPlantNeutralScale),
+                         QFIELD(o, oFirePiranhaPlantNeutralScale) / 25)) {
         if (o->oTimer > 80) {
             cur_obj_play_sound_2(SOUND_OBJ_PIRANHA_PLANT_SHRINK);
             o->oAction = FIRE_PIRANHA_PLANT_ACT_HIDE;
@@ -105,20 +105,20 @@ static void fire_piranha_plant_act_grow(void) {
             if (obj_is_rendering_enabled()) {
                 if (cur_obj_check_anim_frame(56)) {
                     cur_obj_play_sound_2(SOUND_OBJ_FLAME_BLOWN);
-                    obj_spit_fire(0, (s32)(30.0f * o->oFirePiranhaPlantNeutralScale),
-                                  (s32)(140.0f * o->oFirePiranhaPlantNeutralScale),
-                                  2.5f * o->oFirePiranhaPlantNeutralScale, MODEL_RED_FLAME_SHADOW,
+                    obj_spit_fire(0, (s32)(30.0f * FFIELD(o, oFirePiranhaPlantNeutralScale)),
+                                  (s32)(140.0f * FFIELD(o, oFirePiranhaPlantNeutralScale)),
+                                  2.5f * FFIELD(o, oFirePiranhaPlantNeutralScale), MODEL_RED_FLAME_SHADOW,
                                   20.0f, 15.0f, 0x1000);
                 }
             }
         }
-    } else if (o->oFirePiranhaPlantScale > o->oFirePiranhaPlantNeutralScale / 2) {
+    } else if (QFIELD(o, oFirePiranhaPlantScale) > QFIELD(o, oFirePiranhaPlantNeutralScale) / 2) {
         cur_obj_become_tangible();
     }
 }
 
 void bhv_fire_piranha_plant_update(void) {
-    cur_obj_scale(o->oFirePiranhaPlantScale);
+    cur_obj_scaleq(QFIELD(o, oFirePiranhaPlantScale));
 
     switch (o->oAction) {
         case FIRE_PIRANHA_PLANT_ACT_HIDE:
@@ -140,7 +140,7 @@ void bhv_fire_piranha_plant_update(void) {
 
         o->oAction = FIRE_PIRANHA_PLANT_ACT_HIDE;
         o->oFirePiranhaPlantDeathSpinTimer = 10;
-        o->oFirePiranhaPlantDeathSpinVel = 8000.0f;
+        QSETFIELD(o,  oFirePiranhaPlantDeathSpinVel, q(8000));
 
         cur_obj_become_intangible();
     }

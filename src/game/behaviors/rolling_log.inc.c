@@ -7,23 +7,22 @@
 // a rolling log of another variation.
 
 void bhv_ttm_rolling_log_init(void) {
-    o->oPitouneUnkF8 = 3970.0f;
-    o->oPitouneUnkFC = 3654.0f;
-    o->oPitouneUnkF4 = 271037.0f;
+    QSETFIELD(o, oPitouneUnkF8, 3970);
+    QSETFIELD(o, oPitouneUnkFC, 3654);
+    QSETFIELD(o, oPitouneUnkF4, 271037);
     o->oMoveAngleYaw = 8810;
-    o->oForwardVel = 0;
-    o->oVelX = 0;
-    o->oVelZ = 0;
+    QSETFIELD(o,  oForwardVel, q(0));
+    QSETFIELD(o,  oVelX, q(0));
+    QSETFIELD(o,  oVelZ, q(0));
     o->oFaceAnglePitch = 0;
     o->oAngleVelPitch = 0;
 }
 
 void rolling_log_roll_log(void) {
-    f32 sp24;
-
     if (gMarioObject->platform == o) {
-        sp24 = (gMarioObject->header.gfx.pos[2] - o->oPosZ) * coss(-1*o->oMoveAngleYaw)
-               - (gMarioObject->header.gfx.pos[0] - o->oPosX) * sins(-1*o->oMoveAngleYaw);
+        q32 sp24 =
+            (gMarioObject->header.gfx.posi[2] - qtrunc(QFIELD(o, oPosZ))) * cosqs(-o->oMoveAngleYaw) -
+            (gMarioObject->header.gfx.posi[0] - qtrunc(QFIELD(o, oPosX))) * sinqs(-o->oMoveAngleYaw);
         if (sp24 > 0)
             o->oAngleVelPitch += 0x10;
         else
@@ -35,7 +34,7 @@ void rolling_log_roll_log(void) {
         if (o->oAngleVelPitch < -0x200)
             o->oAngleVelPitch = -0x200;
     } else {
-        if (is_point_close_to_object(o, o->oHomeX, o->oHomeY, o->oHomeZ, 100)) {
+        if (is_point_close_to_object(o, FFIELD(o, oHomeX), FFIELD(o, oHomeY), FFIELD(o, oHomeZ), 100)) {
             if (o->oAngleVelPitch != 0) {
                 if (o->oAngleVelPitch > 0)
                     o->oAngleVelPitch -= 0x10;
@@ -60,24 +59,24 @@ void rolling_log_roll_log(void) {
 }
 
 void bhv_rolling_log_loop(void) {
-    f32 prevX = o->oPosX;
-    f32 prevZ = o->oPosZ;
+    f32 prevX = FFIELD(o, oPosX);
+    f32 prevZ = FFIELD(o, oPosZ);
 
     rolling_log_roll_log();
 
-    o->oForwardVel = o->oAngleVelPitch / 0x40;
-    o->oVelX = o->oForwardVel * sins(o->oMoveAngleYaw);
-    o->oVelZ = o->oForwardVel * coss(o->oMoveAngleYaw);
+    FSETFIELD(o, oForwardVel, o->oAngleVelPitch / 0x40);
+    FSETFIELD(o, oVelX, FFIELD(o, oForwardVel) * sins(o->oMoveAngleYaw));
+    FSETFIELD(o, oVelZ, FFIELD(o, oForwardVel) * coss(o->oMoveAngleYaw));
 
-    o->oPosX += o->oVelX;
-    o->oPosZ += o->oVelZ;
+    QMODFIELD(o, oPosX, += QFIELD(o, oVelX));
+    QMODFIELD(o, oPosZ, += QFIELD(o, oVelZ));
 
-    if (o->oPitouneUnkF4 < sqr(o->oPosX - o->oPitouneUnkF8) + sqr(o->oPosZ - o->oPitouneUnkFC)) {
-        o->oForwardVel = 0;
-        o->oPosX = prevX;
-        o->oPosZ = prevZ;
-        o->oVelX = 0;
-        o->oVelZ = 0;
+    if (QFIELD(o, oPitouneUnkF4) < sqr(IFIELD(o, oPosX) - QFIELD(o, oPitouneUnkF8)) + sqr(IFIELD(o, oPosZ) - QFIELD(o, oPitouneUnkFC))) {
+        QSETFIELD(o,  oForwardVel, q(0));
+        FSETFIELD(o, oPosX, prevX);
+        FSETFIELD(o, oPosZ, prevZ);
+        QSETFIELD(o,  oVelX, q(0));
+        QSETFIELD(o,  oVelZ, q(0));
     }
 
     o->oFaceAnglePitch += o->oAngleVelPitch;
@@ -87,17 +86,17 @@ void bhv_rolling_log_loop(void) {
 }
 
 void volcano_act_1(void) {
-    o->oRollingLogUnkF4 += 4.0f;
-    o->oAngleVelPitch += o->oRollingLogUnkF4;
+    QMODFIELD(o, oRollingLogUnkF4, += q(4.0f));
+    o->oAngleVelPitch += FFIELD(o, oRollingLogUnkF4);
     o->oFaceAnglePitch -= o->oAngleVelPitch;
 
     if (o->oFaceAnglePitch < -0x4000) {
         o->oFaceAnglePitch = -0x4000;
         o->oAngleVelPitch = 0;
-        o->oRollingLogUnkF4 = 0;
+        QSETFIELD(o,  oRollingLogUnkF4, q(0));
         o->oAction = 2;
         cur_obj_play_sound_2(SOUND_GENERAL_BIG_POUND);
-        set_camera_shake_from_point(SHAKE_POS_LARGE, o->oPosX, o->oPosY, o->oPosZ);
+        set_camera_shake_from_pointq(SHAKE_POS_LARGE, QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ));
     }
 }
 
@@ -114,7 +113,7 @@ void volcano_act_3(void) {
 void bhv_volcano_trap_loop(void) {
     switch (o->oAction) {
         case 0:
-            if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 1000)) {
+            if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 1000)) {
                 o->oAction = 1;
                 cur_obj_play_sound_2(SOUND_GENERAL_QUIET_POUND2);
             }
@@ -126,7 +125,7 @@ void bhv_volcano_trap_loop(void) {
 
         case 2:
             if (o->oTimer < 8) {
-                o->oPosY = o->oHomeY + sins(o->oTimer * 0x1000) * 10.0f;
+                FSETFIELD(o, oPosY, FFIELD(o, oHomeY) + sins(o->oTimer * 0x1000) * 10.0f);
             }
             if (o->oTimer == 50) {
                 cur_obj_play_sound_2(SOUND_GENERAL_UNK45);
@@ -141,14 +140,14 @@ void bhv_volcano_trap_loop(void) {
 }
 
 void bhv_lll_rolling_log_init(void) {
-    o->oPitouneUnkF8 = 5120.0f;
-    o->oPitouneUnkFC = 6016.0f;
-    o->oPitouneUnkF4 = 1048576.0f;
+    QSETFIELD(o, oPitouneUnkF8, 5120);
+    QSETFIELD(o, oPitouneUnkFC, 6016);
+    QSETFIELD(o, oPitouneUnkF4, 1048576);
 
     o->oMoveAngleYaw = 0x3FFF;
-    o->oForwardVel = 0;
-    o->oVelX = 0;
-    o->oVelZ = 0;
+    QSETFIELD(o,  oForwardVel, q(0));
+    QSETFIELD(o,  oVelX, q(0));
+    QSETFIELD(o,  oVelZ, q(0));
     o->oFaceAnglePitch = 0;
     o->oAngleVelPitch = 0;
 }

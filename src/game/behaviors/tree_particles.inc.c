@@ -8,9 +8,9 @@ void bhv_tree_snow_or_leaf_loop(void) {
         o->oTreeSnowOrLeafUnkF8 = 4;
         o->oTreeSnowOrLeafUnkFC = random_float() * 0x400 + 0x600;
     }
-    if (o->oPosY < o->oFloorHeight)
+    if (QFIELD(o, oPosY) < QFIELD(o, oFloorHeight))
         obj_mark_for_deletion(o);
-    if (o->oFloorHeight < FLOOR_LOWER_LIMIT)
+    if (QFIELD(o, oFloorHeight) < q(FLOOR_LOWER_LIMIT))
         obj_mark_for_deletion(o);
     if (o->oTimer > 100)
         obj_mark_for_deletion(o);
@@ -18,24 +18,23 @@ void bhv_tree_snow_or_leaf_loop(void) {
         obj_mark_for_deletion(o);
     o->oFaceAnglePitch += o->oAngleVelPitch;
     o->oFaceAngleRoll += o->oAngleVelRoll;
-    o->oVelY += -3.0f;
-    if (o->oVelY < -8.0f)
-        o->oVelY = -8.0f;
-    if (o->oForwardVel > 0)
-        o->oForwardVel -= 0.3;
+    QMODFIELD(o, oVelY, -= q(3));
+        QSETFIELD(o, oVelY, q(-8));
+    if (QFIELD(o, oForwardVel) > 0)
+        QMODFIELD(o, oForwardVel, -= q(0.3));
     else
-        o->oForwardVel = 0;
-    o->oPosX += sins(o->oMoveAngleYaw) * sins(o->oTreeSnowOrLeafUnkF4) * o->oTreeSnowOrLeafUnkF8;
-    o->oPosZ += coss(o->oMoveAngleYaw) * sins(o->oTreeSnowOrLeafUnkF4) * o->oTreeSnowOrLeafUnkF8;
+        QSETFIELD(o, oForwardVel, 0);
+    FMODFIELD(o, oPosX, += sins(o->oMoveAngleYaw) * sins(o->oTreeSnowOrLeafUnkF4) * o->oTreeSnowOrLeafUnkF8);
+    FMODFIELD(o, oPosZ, += coss(o->oMoveAngleYaw) * sins(o->oTreeSnowOrLeafUnkF4) * o->oTreeSnowOrLeafUnkF8);
     o->oTreeSnowOrLeafUnkF4 += o->oTreeSnowOrLeafUnkFC;
-    o->oPosY += o->oVelY;
+    QMODFIELD(o, oPosY, += QFIELD(o, oVelY));
 }
 
 void bhv_snow_leaf_particle_spawn_init(void) {
     struct Object *obj; // Either snow or leaf
     UNUSED s32 unused;
     s32 isSnow;
-    f32 scale;
+    q32 scaleq;
     UNUSED s32 unused2;
     gMarioObject->oActiveParticleFlags &= ~0x2000;
     if (gCurrLevelNum == LEVEL_CCM || gCurrLevelNum == LEVEL_SL)
@@ -45,20 +44,20 @@ void bhv_snow_leaf_particle_spawn_init(void) {
     if (isSnow) {
         if (random_float() < 0.5) {
             obj = spawn_object(o, MODEL_WHITE_PARTICLE_DL, bhvTreeSnow);
-            scale = random_float();
-            obj_scale_xyz(obj, scale, scale, scale);
+            scaleq = random_q32();
+            obj_scale_xyzq(obj, scaleq, scaleq, scaleq);
             obj->oMoveAngleYaw = random_u16();
-            obj->oForwardVel = random_float() * 5.0f;
-            obj->oVelY = random_float() * 15.0f;
+            QSETFIELD(obj, oForwardVel, random_q32() * 5);
+            QSETFIELD(obj, oVelY, random_q32() * 15);
         }
     } else {
         if (random_float() < 0.3) {
             obj = spawn_object(o, MODEL_LEAVES, bhvTreeLeaf);
-            scale = random_float() * 3.0f;
-            obj_scale_xyz(obj, scale, scale, scale);
+            scaleq = random_q32() * 3;
+            obj_scale_xyzq(obj, scaleq, scaleq, scaleq);
             obj->oMoveAngleYaw = random_u16();
-            obj->oForwardVel = random_float() * 5.0f + 5.0f;
-            obj->oVelY = random_float() * 15.0f;
+            QSETFIELD(obj, oForwardVel, random_q32() * 5 + q(5));
+            QSETFIELD(obj, oVelY, random_q32() * 15);
             obj->oFaceAnglePitch = random_u16();
             obj->oFaceAngleRoll = random_u16();
             obj->oFaceAngleYaw = random_u16();

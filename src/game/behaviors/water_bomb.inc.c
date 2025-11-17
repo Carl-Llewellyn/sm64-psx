@@ -29,15 +29,15 @@ static struct ObjectHitbox sWaterBombHitbox = {
  * Spawn water bombs targeting mario when he comes in range.
  */
 void bhv_water_bomb_spawner_update(void) {
-    f32 latDistToMario;
-    f32 spawnerRadius;
+    q32 latDistToMarioq;
+    q32 spawnerRadiusq;
 
-    spawnerRadius = 50 * (u16)(o->oBehParams >> 16) + 200.0f;
-    latDistToMario = lateral_dist_between_objects(o, gMarioObject);
+    spawnerRadiusq = q(50 * (u16)(o->oBehParams >> 16) + 200);
+    latDistToMarioq = lateral_dist_between_objectsq(o, gMarioObject);
 
     // When mario is in range and a water bomb isn't already active
-    if (!o->oWaterBombSpawnerBombActive && latDistToMario < spawnerRadius
-        && gMarioObject->oPosY - o->oPosY < 1000.0f) {
+    if (!o->oWaterBombSpawnerBombActive && latDistToMarioq < spawnerRadiusq
+        && QFIELD(gMarioObject, oPosY) - QFIELD(o, oPosY) < q(1000)) {
         if (o->oWaterBombSpawnerTimeToSpawn != 0) {
             o->oWaterBombSpawnerTimeToSpawn -= 1;
         } else {
@@ -50,10 +50,10 @@ void bhv_water_bomb_spawner_update(void) {
 
                 waterBomb->oAction = WATER_BOMB_ACT_INIT;
 
-                waterBomb->oPosX =
-                    gMarioObject->oPosX + waterBombDistToMario * sins(gMarioObject->oMoveAngleYaw);
-                waterBomb->oPosZ =
-                    gMarioObject->oPosZ + waterBombDistToMario * coss(gMarioObject->oMoveAngleYaw);
+                FSETFIELD(waterBomb, oPosX,
+                    FFIELD(gMarioObject, oPosX) + waterBombDistToMario * sins(gMarioObject->oMoveAngleYaw));
+                FSETFIELD(waterBomb, oPosZ,
+                    FFIELD(gMarioObject, oPosZ) + waterBombDistToMario * coss(gMarioObject->oMoveAngleYaw));
 
                 spawn_object(waterBomb, MODEL_WATER_BOMB_SHADOW, bhvWaterBombShadow);
 
@@ -97,7 +97,7 @@ static void water_bomb_act_init(void) {
 
     o->oAction = WATER_BOMB_ACT_DROP;
     o->oMoveFlags = 0;
-    o->oVelY = -40.0f;
+    QSETFIELD(o, oVelY, q(-40));
 }
 
 /**
@@ -105,58 +105,56 @@ static void water_bomb_act_init(void) {
  * explode.
  */
 static void water_bomb_act_drop(void) {
-    f32 stretch;
-
     obj_set_hitbox(o, &sWaterBombHitbox);
 
     // Explode if touched or if hit water
     if ((o->oInteractStatus & INT_STATUS_INTERACTED) || (o->oMoveFlags & OBJ_MOVE_ENTERED_WATER)) {
         create_sound_spawner(SOUND_OBJ_DIVING_IN_WATER);
-        set_camera_shake_from_point(SHAKE_POS_SMALL, o->oPosX, o->oPosY, o->oPosZ);
+        set_camera_shake_from_pointq(SHAKE_POS_SMALL, QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ));
         o->oAction = WATER_BOMB_ACT_EXPLODE;
     } else if (o->oMoveFlags & OBJ_MOVE_MASK_ON_GROUND) {
         // On impact with the ground, begin getting squished
         if (!o->oWaterBombOnGround) {
             o->oWaterBombOnGround = TRUE;
 
-            if ((o->oWaterBombNumBounces += 1.0f) < 3.0f) {
+            if (FMODFIELD(o, oWaterBombNumBounces, += QONE) < q(3)) {
                 cur_obj_play_sound_2(SOUND_OBJ_WATER_BOMB_BOUNCING);
             } else {
                 create_sound_spawner(SOUND_OBJ_DIVING_IN_WATER);
             }
 
-            set_camera_shake_from_point(SHAKE_POS_SMALL, o->oPosX, o->oPosY, o->oPosZ);
+            set_camera_shake_from_pointq(SHAKE_POS_SMALL, QFIELD(o, oPosX), QFIELD(o, oPosY), QFIELD(o, oPosZ));
 
             // Move toward mario
             o->oMoveAngleYaw = o->oAngleToMario;
-            o->oForwardVel = 10.0f;
-            o->oWaterBombStretchSpeed = -40.0f;
+            QSETFIELD(o,  oForwardVel, q(10));
+            QSETFIELD(o,  oWaterBombStretchSpeed, q(-40));
         }
 
         // Make less of an attempt to unsquish on each bounce
-        o->oWaterBombStretchSpeed += 15.0f - o->oWaterBombNumBounces * 2.8f;
+        FMODFIELD(o, oWaterBombStretchSpeed, += 15.0f - FFIELD(o, oWaterBombNumBounces) * 2.8f);
 
-        o->oWaterBombVerticalStretch += o->oWaterBombStretchSpeed * 0.01f;
+        FMODFIELD(o, oWaterBombVerticalStretch, += FFIELD(o, oWaterBombStretchSpeed) * 0.01f);
 
         // After being too squished, explode
-        if (o->oWaterBombVerticalStretch < -0.8f) {
+        if (FFIELD(o, oWaterBombVerticalStretch) < -0.8f) {
             o->oAction = WATER_BOMB_ACT_EXPLODE;
-        } else if (o->oWaterBombVerticalStretch > 0.1f) {
+        } else if (QFIELD(o, oWaterBombVerticalStretch) > q(0.1f)) {
             // Begin bounce trajectory
-            o->oVelY = 1.8f * o->oWaterBombStretchSpeed;
+            FSETFIELD(o, oVelY, 1.8f * FFIELD(o, oWaterBombStretchSpeed));
         }
     } else {
-        approach_f32_ptr(&o->oWaterBombVerticalStretch, 0.0f, 0.008f);
+        APPROACH_F32_FIELD(o, oWaterBombVerticalStretch, 0.0f, 0.008f);
         o->oWaterBombOnGround = FALSE;
     }
 
-    o->header.gfx.scale[1] = o->oWaterBombVerticalStretch + 1.0f;
+    o->header.gfx.scaleq[1] = QFIELD(o, oWaterBombVerticalStretch) + QONE;
 
-    stretch = o->oWaterBombVerticalStretch;
-    if (o->oWaterBombNumBounces == 3.0f) {
-        stretch *= 4.0f;
+    q32 stretch = QFIELD(o, oWaterBombVerticalStretch);
+    if (QFIELD(o, oWaterBombNumBounces) == q(3)) {
+        stretch *= 4;
     }
-    o->header.gfx.scale[0] = o->header.gfx.scale[2] = 1.0f - stretch;
+    o->header.gfx.scaleq[0] = o->header.gfx.scaleq[2] = QONE - q(stretch);
 
     cur_obj_move_standard(78);
 }
@@ -201,11 +199,11 @@ static void water_bomb_act_shot_from_cannon(void) {
             cur_obj_spawn_particles(&sWaterBombCannonParticle);
         }
 
-        if (o->header.gfx.scale[1] > 1.2f) {
-            o->header.gfx.scale[1] -= 0.1f;
+        if (o->header.gfx.scaleq[1] > q(1.2)) {
+            o->header.gfx.scaleq[1] -= q(0.1);
         }
 
-        o->header.gfx.scale[0] = o->header.gfx.scale[2] = 2.0f - o->header.gfx.scale[1];
+        o->header.gfx.scaleq[0] = o->header.gfx.scaleq[2] = q(2) - o->header.gfx.scaleq[1];
         cur_obj_set_pos_via_transform();
     }
 }
@@ -217,7 +215,7 @@ void bhv_water_bomb_update(void) {
     if (o->oAction == WATER_BOMB_ACT_SHOT_FROM_CANNON) {
         water_bomb_act_shot_from_cannon();
     } else {
-        o->oGraphYOffset = 40.0f * o->header.gfx.scale[1];
+        QSETFIELD(o, oGraphYOffset, 40 * o->header.gfx.scaleq[1]);
         cur_obj_update_floor_and_walls();
 
         switch (o->oAction) {
@@ -243,13 +241,13 @@ void bhv_water_bomb_shadow_update(void) {
         obj_mark_for_deletion(o);
     } else {
         // TODO: What is happening here
-        f32 bombHeight = o->parentObj->oPosY - o->parentObj->oFloorHeight;
+        f32 bombHeight = FFIELD(o->parentObj, oPosY) - FFIELD(o->parentObj, oFloorHeight);
         if (bombHeight > 500.0f) {
             bombHeight = 500.0f;
         }
 
         obj_copy_pos(o, o->parentObj);
-        o->oPosY = o->parentObj->oFloorHeight + bombHeight;
+        FSETFIELD(o, oPosY, FFIELD(o->parentObj, oFloorHeight) + bombHeight);
         obj_copy_scale(o, o->parentObj);
     }
 }

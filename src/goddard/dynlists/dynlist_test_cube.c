@@ -1,3 +1,4 @@
+#if 0
 // early unused test dynlist
 #include <PR/ultratypes.h>
 
@@ -80,3 +81,4 @@ struct DynList dynlist_test_cube[] = {
 
     EndList(),
 };
+#endif

@@ -1,5 +1,5 @@
-#ifndef AUDIO_SEQPLAYER_H
-#define AUDIO_SEQPLAYER_H
+#pragma once
+#ifndef NO_AUDIO
 
 #include <PR/ultratypes.h>
 
@@ -15,4 +15,4 @@ void process_sequences(s32 iterationsRemaining);
 void init_sequence_player(u32 player);
 void init_sequence_players(void);
 
-#endif // AUDIO_SEQPLAYER_H
+#endif

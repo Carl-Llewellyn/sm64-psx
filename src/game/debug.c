@@ -165,27 +165,27 @@ void print_debug_top_down_normal(const char *str, s32 number) {
 #ifndef VERSION_EU
 void print_mapinfo(void) {
     struct Surface *pfloor;
-    f32 bgY;
-    f32 water;
+    q32 bgYq;
+    q32 waterq;
     s32 area;
     s32 angY;
 
     angY = gCurrentObject->oMoveAngleYaw / 182.044000;
-    area = ((s32) gCurrentObject->oPosX + 0x2000) / 1024
-           + ((s32) gCurrentObject->oPosZ + 0x2000) / 1024 * 16;
+    area = (IFIELD(gCurrentObject, oPosX) + 0x2000) / 1024
+           + (IFIELD(gCurrentObject, oPosZ) + 0x2000) / 1024 * 16;
 
-    bgY = find_floor(gCurrentObject->oPosX, gCurrentObject->oPosY, gCurrentObject->oPosZ, &pfloor);
-    water = find_water_level(gCurrentObject->oPosX, gCurrentObject->oPosZ);
+    bgYq = find_floorq(QFIELD(gCurrentObject, oPosX), QFIELD(gCurrentObject, oPosY), QFIELD(gCurrentObject, oPosZ), &pfloor);
+    waterq = find_water_levelq(QFIELD(gCurrentObject, oPosX), QFIELD(gCurrentObject, oPosZ));
 
     print_debug_top_down_normal("mapinfo", 0);
     print_debug_top_down_mapinfo("area %x", area);
-    print_debug_top_down_mapinfo("wx   %d", gCurrentObject->oPosX);
+    print_debug_top_down_mapinfo("wx   %d", FFIELD(gCurrentObject, oPosX));
     //! Fat finger: programmer hit tab instead of space. Japanese
     // thumb shift keyboards had the tab key next to the spacebar,
     // so this was likely the reason.
-    print_debug_top_down_mapinfo("wy\t  %d", gCurrentObject->oPosY);
-    print_debug_top_down_mapinfo("wz   %d", gCurrentObject->oPosZ);
-    print_debug_top_down_mapinfo("bgY  %d", bgY);
+    print_debug_top_down_mapinfo("wy\t  %d", FFIELD(gCurrentObject, oPosY));
+    print_debug_top_down_mapinfo("wz   %d", FFIELD(gCurrentObject, oPosZ));
+    print_debug_top_down_mapinfo("bgY  %d", qtrunc(bgYq));
     print_debug_top_down_mapinfo("angY %d", angY);
 
     if (pfloor) // not null
@@ -195,31 +195,31 @@ void print_mapinfo(void) {
         print_debug_top_down_mapinfo("bgarea   %d", pfloor->room);
     }
 
-    if (gCurrentObject->oPosY < water) {
-        print_debug_top_down_mapinfo("water %d", water);
+    if (QFIELD(gCurrentObject, oPosY) < waterq) {
+        print_debug_top_down_mapinfo("water %d", qtrunc(waterq));
     }
 }
 #else
 void print_mapinfo(void) {
     // EU mostly stubbed this function out.
     struct Surface *pfloor;
-    UNUSED f32 bgY;
-    UNUSED f32 water;
+    UNUSED q32 bgYq;
+    UNUSED q32 waterq;
     UNUSED s32 area;
     // s32 angY;
     //
     // angY = gCurrentObject->oMoveAngleYaw / 182.044000;
-    // area  = ((s32)gCurrentObject->oPosX + 0x2000) / 1024
-    //      + ((s32)gCurrentObject->oPosZ + 0x2000) / 1024 * 16;
+    // area  = ((s32)FFIELD(gCurrentObject, oPosX) + 0x2000) / 1024
+    //      + ((s32)FFIELD(gCurrentObject, oPosZ) + 0x2000) / 1024 * 16;
     //
-    bgY = find_floor(gCurrentObject->oPosX, gCurrentObject->oPosY, gCurrentObject->oPosZ, &pfloor);
-    water = find_water_level(gCurrentObject->oPosX, gCurrentObject->oPosZ);
+    bgYq = find_floorq(QFIELD(gCurrentObject, oPosX), QFIELD(gCurrentObject, oPosY), QFIELD(gCurrentObject, oPosZ), &pfloor);
+    waterq = find_water_levelq(QFIELD(gCurrentObject, oPosX), QFIELD(gCurrentObject, oPosZ));
 
     print_debug_top_down_normal("mapinfo", 0);
     // print_debug_top_down_mapinfo("area %x", area);
-    // print_debug_top_down_mapinfo("wx   %d", gCurrentObject->oPosX);
-    // print_debug_top_down_mapinfo("wy\t  %d", gCurrentObject->oPosY);
-    // print_debug_top_down_mapinfo("wz   %d", gCurrentObject->oPosZ);
+    // print_debug_top_down_mapinfo("wx   %d", FFIELD(gCurrentObject, oPosX));
+    // print_debug_top_down_mapinfo("wy\t  %d", FFIELD(gCurrentObject, oPosY));
+    // print_debug_top_down_mapinfo("wz   %d", FFIELD(gCurrentObject, oPosZ));
     // print_debug_top_down_mapinfo("bgY  %d", bgY);
     // print_debug_top_down_mapinfo("angY %d", angY);
     //
@@ -230,7 +230,7 @@ void print_mapinfo(void) {
     //    print_debug_top_down_mapinfo("bgarea   %d", pfloor->room);
     //}
     //
-    // if(gCurrentObject->oPosY < water)
+    // if(FFIELD(gCurrentObject, oPosY) < water)
     //    print_debug_top_down_mapinfo("water %d", water);
 }
 #endif
@@ -240,7 +240,7 @@ void print_checkinfo(void) {
 }
 
 void print_surfaceinfo(void) {
-    debug_surface_list_info(gMarioObject->oPosX, gMarioObject->oPosZ);
+    debug_surface_list_infoq(QFIELD(gMarioObject, oPosX), QFIELD(gMarioObject, oPosZ));
 }
 
 void print_stageinfo(void) {

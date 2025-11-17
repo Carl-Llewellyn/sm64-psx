@@ -1,3 +1,4 @@
+#if 0
 #include <PR/ultratypes.h>
 
 #include "dynlist_macros.h"
@@ -73,3 +74,4 @@ struct DynList dynlist_spot_shape[] = {
 
     EndList(),
 };
+#endif

@@ -21,7 +21,7 @@
 
 /*---------------------------------------------------------------------*
         Copyright (C) 1998 Nintendo. (Originated by SGI)
-        
+
         $RCSfile: os_cont.h,v $
         $Revision: 1.1 $
         $Date: 1998/10/09 08:01:05 $
@@ -47,7 +47,7 @@ extern "C" {
  */
 
 /*
- * Structure for controllers 
+ * Structure for controllers
  */
 
 typedef struct {
@@ -60,6 +60,8 @@ typedef struct {
 	u16     button;
 	s8      stick_x;		/* -80 <= stick_x <= 80 */
 	s8      stick_y;		/* -80 <= stick_y <= 80 */
+	s8      right_stick_x;		/* -80 <= right_stick_x <= 80 */
+	s8      right_stick_y;		/* -80 <= right_stick_y <= 80 */
 	u8	errnum;
 } OSContPad;
 
@@ -96,7 +98,7 @@ typedef struct {
 #ifdef _HW_VERSION_1
 #define CONT_FRAME_ERROR                0x2
 #define CONT_COLLISION_ERROR            0x1
-#endif 
+#endif
 
 /* Controller type */
 

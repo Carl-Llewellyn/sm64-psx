@@ -13,10 +13,10 @@ struct ObjectHitbox sBreakableBoxSmallHitbox = {
 };
 
 void bhv_breakable_box_small_init(void) {
-    o->oGravity = 2.5f;
-    o->oFriction = 0.99f;
-    o->oBuoyancy = 1.4f;
-    cur_obj_scale(0.4f);
+    QSETFIELD(o, oGravity, q(2.5f));
+    QSETFIELD(o,  oFriction, q(0.99));
+    QSETFIELD(o,  oBuoyancy, q(1.4));
+    cur_obj_scaleq(q(0.4f));
     obj_set_hitbox(o, &sBreakableBoxSmallHitbox);
     o->oAnimState = 1;
     o->activeFlags |= ACTIVE_FLAG_UNK9;
@@ -24,8 +24,8 @@ void bhv_breakable_box_small_init(void) {
 
 void small_breakable_box_spawn_dust(void) {
     struct Object *sp24 = spawn_object(o, MODEL_SMOKE, bhvSmoke);
-    sp24->oPosX += (s32)(random_float() * 80.0f) - 40;
-    sp24->oPosZ += (s32)(random_float() * 80.0f) - 40;
+    FMODFIELD(sp24, oPosX, += (s32)(random_float() * 80.0f) - 40);
+    FMODFIELD(sp24, oPosZ, += (s32)(random_float() * 80.0f) - 40);
 }
 
 void small_breakable_box_act_move(void) {
@@ -35,7 +35,7 @@ void small_breakable_box_act_move(void) {
     if (sp1E == 1)
         cur_obj_play_sound_2(SOUND_GENERAL_BOX_LANDING_2);
     if (sp1E & 1) {
-        if (o->oForwardVel > 20.0f) {
+        if (QFIELD(o, oForwardVel) > q(20.0f)) {
             cur_obj_play_sound_2(SOUND_ENV_SLIDING);
             small_breakable_box_spawn_dust();
         }
@@ -107,8 +107,8 @@ void breakable_box_small_get_thrown(void) {
     o->header.gfx.node.flags &= ~GRAPH_RENDER_INVISIBLE;
     o->oHeldState = 0;
     o->oFlags &= ~0x08;
-    o->oForwardVel = 40.0f;
-    o->oVelY = 20.0f;
+    QSETFIELD(o,  oForwardVel, q(40));
+    QSETFIELD(o,  oVelY, q(20));
     o->oBreakableBoxSmallReleased = 1;
     o->oBreakableBoxSmallFramesSinceReleased = 0;
     o->activeFlags &= ~ACTIVE_FLAG_UNK9;

@@ -16,10 +16,12 @@
 #include "sound_init.h"
 #include "surface_terrains.h"
 #include "rumble_init.h"
+#include <engine/behavior_script.h>
+#include <assert.h>
 
 s32 check_common_idle_cancels(struct MarioState *m) {
     mario_drop_held_object(m);
-    if (m->floor->normal.y < 0.29237169f) {
+    if (m->floor->compressed_normal.y < (s8) (0.29237169f * COMPRESSED_NORMAL_ONE)) {
         return mario_push_off_steep_floor(m, ACT_FREEFALL, 0);
     }
 
@@ -60,7 +62,7 @@ s32 check_common_idle_cancels(struct MarioState *m) {
 }
 
 s32 check_common_hold_idle_cancels(struct MarioState *m) {
-    if (m->floor->normal.y < 0.29237169f) {
+    if (m->floor->compressed_normal.y < (s8) (0.29237169 * COMPRESSED_NORMAL_ONE)) {
         return mario_push_off_steep_floor(m, ACT_HOLD_FREEFALL, 0);
     }
 
@@ -180,7 +182,7 @@ void play_anim_sound(struct MarioState *m, u32 actionState, s32 animFrame, u32 s
 
 s32 act_start_sleeping(struct MarioState *m) {
 #ifndef VERSION_JP
-    s32 animFrame;
+    s32 animFrame = 0;
 #endif
 
     if (check_common_idle_cancels(m)) {
@@ -577,7 +579,7 @@ s32 act_panting(struct MarioState *m) {
     }
 
     if (set_mario_animation(m, MARIO_ANIM_WALK_PANTING) == 1) {
-        play_sound(SOUND_MARIO_PANTING + ((gAudioRandom % 3U) << 0x10),
+        play_sound(SOUND_MARIO_PANTING + ((random_u16() % 3U) << 0x10),
                    m->marioObj->header.gfx.cameraToObject);
     }
 
@@ -821,7 +823,7 @@ s32 act_shockwave_bounce(struct MarioState *m) {
         m->pos[1] = m->floorHeight - sins(sp1E) * sp18;
     }
 
-    vec3f_copy(m->marioObj->header.gfx.pos, m->pos);
+    vec3f_to_vec3s(m->marioObj->header.gfx.posi, m->pos);
     vec3s_set(m->marioObj->header.gfx.angle, 0, m->faceAngle[1], 0);
     set_mario_animation(m, MARIO_ANIM_A_POSE);
     return FALSE;
@@ -1104,7 +1106,7 @@ s32 check_common_stationary_cancels(struct MarioState *m) {
 }
 
 s32 mario_execute_stationary_action(struct MarioState *m) {
-    s32 cancel;
+    s32 cancel = FALSE;
 
     if (check_common_stationary_cancels(m)) {
         return TRUE;

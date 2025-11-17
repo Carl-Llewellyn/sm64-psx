@@ -10,27 +10,26 @@ void bhv_punch_tiny_triangle_loop(void) {
     s16 sp1E;
     if (o->oTimer == 0) {
         sp1E = o->oMoveAngleYaw;
-        o->oCollisionParticleUnkF4 = 1.28f;
+        QSETFIELD(o, oCollisionParticleUnkF4, q(1.28));
         cur_obj_set_pos_relative(gMarioObject, 0.0f, 60.0f, 100.0f);
         o->oMoveAngleYaw = sp1E;
     }
     cur_obj_move_using_fvel_and_gravity();
     o->oAnimState = 5;
-    cur_obj_scale(o->oCollisionParticleUnkF4);
-    o->oCollisionParticleUnkF4 -= 0.2f;
+    cur_obj_scaleq(QFIELD(o, oCollisionParticleUnkF4));
+    QMODFIELD(o, oCollisionParticleUnkF4, -= q(0.2));
     if (gDebugInfo[4][0] + 6 < o->oTimer)
         obj_mark_for_deletion(o);
 }
 
 void bhv_punch_tiny_triangle_init(void) {
     s32 i;
-    UNUSED s32 unused;
     struct Object *triangle;
     for (i = 0; i < 6; i++) {
         triangle = spawn_object(o, MODEL_DIRT_ANIMATION, bhvPunchTinyTriangle);
         triangle->oMoveAngleYaw = gMarioObject->oMoveAngleYaw + sTinyTriMovementParams[2 * i] + 0x8000;
-        triangle->oVelY = sins(sTinyTriMovementParams[2 * i + 1]) * 25.0f;
-        triangle->oForwardVel = coss(sTinyTriMovementParams[2 * i + 1]) * 25.0f;
+        QSETFIELD(triangle, oVelY, sinqs(sTinyTriMovementParams[2 * i + 1]) * 25);
+        QSETFIELD(triangle, oForwardVel, cosqs(sTinyTriMovementParams[2 * i + 1]) * 25);
     }
 }
 
@@ -38,14 +37,14 @@ void bhv_wall_tiny_star_particle_loop(void) {
     s16 sp1E;
     if (o->oTimer == 0) {
         sp1E = o->oMoveAngleYaw;
-        o->oCollisionParticleUnkF4 = 0.28f;
+        QSETFIELD(o, oCollisionParticleUnkF4, q(0.28f));
         cur_obj_set_pos_relative(gMarioObject, 0.0f, 30.0f, 110.0f);
         o->oMoveAngleYaw = sp1E;
     }
     cur_obj_move_using_fvel_and_gravity();
     o->oAnimState = 4;
-    cur_obj_scale(o->oCollisionParticleUnkF4);
-    o->oCollisionParticleUnkF4 -= 0.015f;
+    cur_obj_scaleq(QFIELD(o, oCollisionParticleUnkF4));
+    QMODFIELD(o, oCollisionParticleUnkF4, -= q(0.015));
 }
 
 void bhv_tiny_star_particles_init(void) {
@@ -55,22 +54,22 @@ void bhv_tiny_star_particles_init(void) {
     for (i = 0; i < 7; i++) {
         particle = spawn_object(o, MODEL_CARTOON_STAR, bhvWallTinyStarParticle);
         particle->oMoveAngleYaw = gMarioObject->oMoveAngleYaw + sTinyStarMovementParams[2 * i] + 0x8000;
-        particle->oVelY = sins(sTinyStarMovementParams[2 * i + 1]) * 25.0f;
-        particle->oForwardVel = coss(sTinyStarMovementParams[2 * i + 1]) * 25.0f;
+        QSETFIELD(particle, oVelY, sinqs(sTinyStarMovementParams[2 * i + 1]) * 25);
+        QSETFIELD(particle, oForwardVel, cosqs(sTinyStarMovementParams[2 * i + 1]) * 25);
     }
 }
 
 void bhv_pound_tiny_star_particle_loop(void) {
     if (o->oTimer == 0) {
-        o->oCollisionParticleUnkF4 = 0.28f;
-        o->oForwardVel = 25.0f;
-        o->oPosY -= 20.0f;
-        o->oVelY = 14.0f;
+        QSETFIELD(o, oCollisionParticleUnkF4, q(0.28));
+        QSETFIELD(o,  oForwardVel, q(25));
+        QMODFIELD(o, oPosY, -= q(20.0f));
+        QSETFIELD(o,  oVelY, q(14));
     }
     cur_obj_move_using_fvel_and_gravity();
     o->oAnimState = 4;
-    cur_obj_scale(o->oCollisionParticleUnkF4);
-    o->oCollisionParticleUnkF4 -= 0.015f;
+    cur_obj_scaleq(QFIELD(o, oCollisionParticleUnkF4));
+    QMODFIELD(o, oCollisionParticleUnkF4, -= q(0.015));
 }
 
 void bhv_pound_tiny_star_particle_init(void) {

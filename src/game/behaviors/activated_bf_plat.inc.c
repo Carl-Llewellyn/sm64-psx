@@ -44,10 +44,10 @@ void bhv_activated_back_and_forth_platform_init(void) {
     // Equivalent to 50 * (oBehParams2ndByte & 0x7F), i.e. 50 * (oBehParams2ndByte % 128).
     // The maximum possible value of this is 50 * 127 = 6350.
     // It's 50 * 97 = 4850 in BitS and 50 * 31 = 1550 in BitFS.
-    o->oActivatedBackAndForthPlatformMaxOffset = 50.0f * ((u16)(o->oBehParams >> 16) & 0x007F);
+    ISETFIELD(o, oActivatedBackAndForthPlatformMaxOffset, 50 * ((u16)(o->oBehParams >> 16) & 0x007F));
 
     if (platformType == ACTIVATED_BF_PLAT_TYPE_BITFS_ELEVATOR) {
-        o->oActivatedBackAndForthPlatformMaxOffset -= 12.0f;
+        QMODFIELD(o, oActivatedBackAndForthPlatformMaxOffset, -= q(12.0f));
     }
 
     // Truthy/falsy value that determines the direction of movement.
@@ -66,13 +66,13 @@ void bhv_activated_back_and_forth_platform_update(void) {
     // oVelY is used for vertical platforms' movement and also for
     // horizontal platforms' dipping up/down when Mario gets on/off them
     if (gMarioObject->platform == o) {
-        o->oVelY = -6.0f;
+        QSETFIELD(o,  oVelY, q(-6));
     } else {
-        o->oVelY = 6.0f;
+        QSETFIELD(o,  oVelY, q(6));
     }
 
     // If the platform's velocity is set...
-    if (o->oActivatedBackAndForthPlatformVel != 0.0f) {
+    if (QFIELD(o, oActivatedBackAndForthPlatformVel) != 0) {
         // ...wait until the countdown is 0 before moving.
         // Since there's a 1 frame "lag" after the countdown is set to 20,
         // and one more frame of "lag" after it finally reaches 0 here,
@@ -82,16 +82,16 @@ void bhv_activated_back_and_forth_platform_update(void) {
         } else {
             // After the wait period is over, we start moving, by adding the velocity
             // to the positional offset.
-            o->oActivatedBackAndForthPlatformOffset += o->oActivatedBackAndForthPlatformVel;
+            QMODFIELD(o, oActivatedBackAndForthPlatformOffset, += QFIELD(o, oActivatedBackAndForthPlatformVel));
 
             // clamp_f32 returns whether the value needed to be clamped.
             // So if the offset got out of bounds (i.e. platform has reached an end of its path),
             // or Mario is over 3000 units away, the platform will reset the wait timer and flip around.
-            if (clamp_f32(&o->oActivatedBackAndForthPlatformOffset, 0.0f,
-                          o->oActivatedBackAndForthPlatformMaxOffset)
+            if (CLAMP_F32_FIELD(o, oActivatedBackAndForthPlatformOffset, 0.0f,
+                          FFIELD(o, oActivatedBackAndForthPlatformMaxOffset))
                 ||
                 // The platform will not reset if Mario goes far away and it's travelling backwards
-                (o->oActivatedBackAndForthPlatformVel > 0.0f && o->oDistanceToMario > 3000.0f)) {
+                (FFIELD(o, oActivatedBackAndForthPlatformVel) > 0.0f && QFIELD(o, oDistanceToMario) > q(3000.0))) {
                 // Reset the wait timer
                 o->oActivatedBackAndForthPlatformCountdown = 20;
 
@@ -100,10 +100,10 @@ void bhv_activated_back_and_forth_platform_update(void) {
                 // the platform will reverse directions. Otherwise, it will stop.
                 // This means that if Mario touches the platform initially, then gets off,
                 // it will do a full round trip then stop (assuming Mario stays within 3000 units).
-                if (o->oVelY < 0.0f || o->oActivatedBackAndForthPlatformVel > 0.0f) {
-                    o->oActivatedBackAndForthPlatformVel = -o->oActivatedBackAndForthPlatformVel;
+                if (FFIELD(o, oVelY) < 0.0f || FFIELD(o, oActivatedBackAndForthPlatformVel) > 0.0f) {
+                    QSETFIELD(o,  oActivatedBackAndForthPlatformVel, QFIELD(-o,  oActivatedBackAndForthPlatformVel));
                 } else {
-                    o->oActivatedBackAndForthPlatformVel = 0.0f;
+                    QSETFIELD(o,  oActivatedBackAndForthPlatformVel, q(0));
                 }
 
                 // Make the platform face the opposite way if it should.
@@ -113,8 +113,8 @@ void bhv_activated_back_and_forth_platform_update(void) {
         }
     } else {
         // oVelY is only negative if Mario is on the platform
-        if (o->oVelY < 0.0f) {
-            o->oActivatedBackAndForthPlatformVel = 10.0f;
+        if (QFIELD(o, oVelY) < 0) {
+            QSETFIELD(o,  oActivatedBackAndForthPlatformVel, q(10));
         }
 
         // Set waiting countdown to 20 frames
@@ -128,17 +128,17 @@ void bhv_activated_back_and_forth_platform_update(void) {
     // If the platform moves vertically...
     if (o->oActivatedBackAndForthPlatformVertical != FALSE) {
         // ...set its position to its original position + the offset.
-        o->oPosY = o->oHomeY + o->oActivatedBackAndForthPlatformOffset;
+        QSETFIELD(o, oPosY, QFIELD(o, oHomeY) + QFIELD(o, oActivatedBackAndForthPlatformOffset));
     } else {
         // Otherwise, dip down 20 units if Mario gets on the horizontal platform, and undo if he gets
         // off.
-        o->oPosY += o->oVelY;
-        clamp_f32(&o->oPosY, o->oHomeY - 20.0f, o->oHomeY);
+        QMODFIELD(o, oPosY, += QFIELD(o, oVelY));
+        CLAMP_F32_FIELD(o, oPosY, FFIELD(o, oHomeY) - 20.0f, FFIELD(o, oHomeY));
 
         // Update the position using the object's home (original position), facing angle, and offset.
         // This has to be done manually when the platform is vertical because only the yaw is used
         // by this function; it doesn't update the Y position.
-        obj_set_dist_from_home(-o->oActivatedBackAndForthPlatformOffset);
+        obj_set_dist_from_homeq(QFIELD(-o, oActivatedBackAndForthPlatformOffset));
     }
 
     // Compute the object's velocity using the old saved position.

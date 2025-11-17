@@ -19,10 +19,10 @@ void piranha_plant_act_idle(void) {
      * with a scale below 1, which would cause it to appear shrunken. See
      * documentation for, and calls to, piranha_plant_reset_when_far().
      */
-    cur_obj_scale(1);
+    cur_obj_scaleq(ONE);
 #endif
 
-    if (o->oDistanceToMario < 1200.0f) {
+    if (QFIELD(o, oDistanceToMario) < q(1200.0)) {
         o->oAction = PIRANHA_PLANT_ACT_SLEEPING;
     }
 }
@@ -87,11 +87,11 @@ void piranha_plant_act_sleeping(void) {
     o->oDamageOrCoinValue = 3;
 #endif
 
-    if (o->oDistanceToMario < 400.0f) {
+    if (QFIELD(o, oDistanceToMario) < q(400.0)) {
         if (mario_moving_fast_enough_to_make_piranha_plant_bite()) {
             o->oAction = PIRANHA_PLANT_ACT_WOKEN_UP;
         }
-    } else if (o->oDistanceToMario < 1000.0f) {
+    } else if (QFIELD(o, oDistanceToMario) < q(1000.0)) {
         play_secondary_music(SEQ_EVENT_PIRANHA_PLANT, 0, 255, 1000);
         o->oPiranhaPlantSleepMusicState = PIRANHA_PLANT_SLEEP_MUSIC_PLAYING;
     } else if (o->oPiranhaPlantSleepMusicState == PIRANHA_PLANT_SLEEP_MUSIC_PLAYING) {
@@ -167,7 +167,7 @@ void piranha_plant_attacked(void) {
 void piranha_plant_act_shrink_and_die(void) {
     if (o->oTimer == 0) {
         cur_obj_play_sound_2(SOUND_OBJ_ENEMY_DEFEAT_SHRINK);
-        o->oPiranhaPlantScale = 1.0f;
+        QSETFIELD(o, oPiranhaPlantScale, QONE);
     }
 
     /**
@@ -176,16 +176,16 @@ void piranha_plant_act_shrink_and_die(void) {
      * this was intentional. However, it is equally plausible that the
      * programmers meant to type `else if`.
      */
-    if (o->oPiranhaPlantScale > 0.0f) {
+    if (QFIELD(o, oPiranhaPlantScale) > 0) {
         // Shrink by 0.04 per frame.
-        o->oPiranhaPlantScale = o->oPiranhaPlantScale - 0.04;
+        QSETFIELD(o, oPiranhaPlantScale, QFIELD(o, oPiranhaPlantScale) - q(0.04));
     } else {
-        o->oPiranhaPlantScale = 0.0f;
+        QSETFIELD(o, oPiranhaPlantScale, 0);
         cur_obj_spawn_loot_blue_coin();
         o->oAction = PIRANHA_PLANT_ACT_WAIT_TO_RESPAWN;
     }
 
-    cur_obj_scale(o->oPiranhaPlantScale);
+    cur_obj_scaleq(QFIELD(o, oPiranhaPlantScale));
 
 #if BUGFIX_PIRANHA_PLANT_STATE_RESET
     piranha_plant_reset_when_far(); // see this function's comment
@@ -196,7 +196,7 @@ void piranha_plant_act_shrink_and_die(void) {
  * Wait for Mario to move far away, then respawn the Piranha Plant.
  */
 void piranha_plant_act_wait_to_respawn(void) {
-    if (o->oDistanceToMario > 1200.0f) {
+    if (QFIELD(o, oDistanceToMario) > q(1200.0)) {
         o->oAction = PIRANHA_PLANT_ACT_RESPAWN;
     }
 }
@@ -208,7 +208,7 @@ void piranha_plant_act_wait_to_respawn(void) {
 void piranha_plant_act_respawn(void) {
     cur_obj_init_animation_with_sound(8);
     if (o->oTimer == 0) {
-        o->oPiranhaPlantScale = 0.3f;
+        QSETFIELD(o, oPiranhaPlantScale, q(0.3));
     }
 
     /**
@@ -217,14 +217,14 @@ void piranha_plant_act_respawn(void) {
      * sets the Piranha Plant's scale to 0, therefore the Piranha Plant will
      * grow from the ground unconditionally when in this state.
      */
-    if (o->oPiranhaPlantScale < 1.0) {
+    if (QFIELD(o, oPiranhaPlantScale) < QONE) {
         // Grow by 0.02 per frame.
-        o->oPiranhaPlantScale += 0.02;
+        QMODFIELD(o, oPiranhaPlantScale, += q(0.02));
     } else {
-        o->oPiranhaPlantScale = 1.0f;
+        QSETFIELD(o, oPiranhaPlantScale, QONE);
         o->oAction = PIRANHA_PLANT_ACT_IDLE;
     }
-    cur_obj_scale(o->oPiranhaPlantScale);
+    cur_obj_scaleq(QFIELD(o, oPiranhaPlantScale));
 }
 
 /**
@@ -259,7 +259,7 @@ void piranha_plant_act_biting(void) {
     // Move to face the player.
     o->oMoveAngleYaw = approach_s16_symmetric(o->oMoveAngleYaw, o->oAngleToMario, 0x400);
 
-    if (o->oDistanceToMario > 500.0f)
+    if (QFIELD(o, oDistanceToMario) > q(500.0))
         if (cur_obj_check_if_near_animation_end())
             o->oAction = PIRANHA_PLANT_ACT_STOPPED_BITING;
 
@@ -303,7 +303,7 @@ void piranha_plant_act_stopped_biting(void) {
      * of the Piranha Plant during the short time the Piranha Plant's nod
      * animation plays.
      */
-    if (o->oDistanceToMario < 400.0f)
+    if (QFIELD(o, oDistanceToMario) < q(400.0))
         if (mario_moving_fast_enough_to_make_piranha_plant_bite())
             o->oAction = PIRANHA_PLANT_ACT_BITING;
 }
@@ -331,7 +331,7 @@ void bhv_piranha_plant_loop(void) {
 
     // In WF, hide all Piranha Plants once high enough up.
     if (gCurrLevelNum == LEVEL_WF) {
-        if (gMarioObject->oPosY > 3400.0f)
+        if (QFIELD(gMarioObject, oPosY) > q(3400))
             cur_obj_hide();
         else
             cur_obj_unhide();

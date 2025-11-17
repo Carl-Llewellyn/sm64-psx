@@ -20,6 +20,7 @@
 #include "star_select.h"
 #include "text_strings.h"
 #include "prevent_bss_reordering.h"
+#include <port/gfx/gfx.h>
 
 /**
  * @file star_select.c
@@ -61,17 +62,17 @@ void bhv_act_selector_star_type_loop(void) {
     switch (gCurrentObject->oStarSelectorType) {
         // If a star is not selected, don't rotate or change size
         case STAR_SELECTOR_NOT_SELECTED:
-            gCurrentObject->oStarSelectorSize -= 0.1;
-            if (gCurrentObject->oStarSelectorSize < 1.0) {
-                gCurrentObject->oStarSelectorSize = 1.0;
+            QMODFIELD(gCurrentObject, oStarSelectorSize, -= q(0.1));
+            if (QFIELD(gCurrentObject, oStarSelectorSize) < ONE) {
+                QSETFIELD(gCurrentObject,  oStarSelectorSize, q(1));
             }
             gCurrentObject->oFaceAngleYaw = 0;
             break;
         // If a star is selected, rotate and slightly increase size
         case STAR_SELECTOR_SELECTED:
-            gCurrentObject->oStarSelectorSize += 0.1;
-            if (gCurrentObject->oStarSelectorSize > 1.3) {
-                gCurrentObject->oStarSelectorSize = 1.3;
+            QMODFIELD(gCurrentObject, oStarSelectorSize, += q(0.1));
+            if (QFIELD(gCurrentObject, oStarSelectorSize) > q(1.3)) {
+                QSETFIELD(gCurrentObject,  oStarSelectorSize, q(1.3));
             }
             gCurrentObject->oFaceAngleYaw += 0x800;
             break;
@@ -81,7 +82,7 @@ void bhv_act_selector_star_type_loop(void) {
             break;
     }
     // Scale act selector stars depending of the type selected
-    cur_obj_scale(gCurrentObject->oStarSelectorSize);
+    cur_obj_scaleq(QFIELD(gCurrentObject, oStarSelectorSize));
     // Unused timer, only referenced here. Probably replaced by sActSelectorMenuTimer
     gCurrentObject->oStarSelectorTimer++;
 }
@@ -94,7 +95,7 @@ void render_100_coin_star(u8 stars) {
         // If the 100 coin star has been collected, create a new star selector next to the coin score.
         sStarSelectorModels[6] = spawn_object_abs_with_rot(gCurrentObject, 0, MODEL_STAR,
                                                         bhvActSelectorStarType, 370, 24, -300, 0, 0, 0);
-        sStarSelectorModels[6]->oStarSelectorSize = 0.8;
+        QSETFIELD(sStarSelectorModels[6], oStarSelectorSize, q(0.8));
         sStarSelectorModels[6]->oStarSelectorType = STAR_SELECTOR_100_COINS;
     }
 }
@@ -151,7 +152,7 @@ void bhv_act_selector_init(void) {
         sStarSelectorModels[i] =
             spawn_object_abs_with_rot(gCurrentObject, 0, selectorModelIDs[i], bhvActSelectorStarType,
                                       75 + sVisibleStars * -75 + i * 152, 248, -300, 0, 0, 0);
-        sStarSelectorModels[i]->oStarSelectorSize = 1.0f;
+        QSETFIELD(sStarSelectorModels[i], oStarSelectorSize, QONE);
     }
 
     render_100_coin_star(stars);
@@ -214,7 +215,11 @@ void print_course_number(void) {
     create_dl_translation_matrix(MENU_MTX_PUSH, 158.0f, 81.0f, 0.0f);
 
     // Full wood texture in JP & US, lower part of it on EU
+#ifdef RSP_DL
     gSPDisplayList(gDisplayListHead++, dl_menu_rgba16_wood_course);
+#else
+    gfx_emit_call(segmented_to_virtual(dl_menu_rgba16_wood_course));
+#endif
 
 #ifdef VERSION_EU
     // Change upper part of the wood texture depending of the language defined
@@ -233,9 +238,14 @@ void print_course_number(void) {
     gSPDisplayList(gDisplayListHead++, dl_menu_rgba16_wood_course_end);
 #endif
 
+#ifdef RSP_DL
     gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
     gSPDisplayList(gDisplayListHead++, dl_rgba16_text_begin);
     gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
+#else
+    gfx_emit_mtx_pop();
+    gfx_emit_env_color_alpha_full(0xFFFFFF);
+#endif
 
     int_to_str(gCurrCourseNum, courseNum);
 
@@ -245,7 +255,9 @@ void print_course_number(void) {
         print_hud_lut_string(HUD_LUT_GLOBAL, 143, 158, courseNum);
     }
 
+#ifdef RSP_DL
     gSPDisplayList(gDisplayListHead++, dl_rgba16_text_end);
+#endif
 }
 
 #ifdef VERSION_JP
@@ -305,6 +317,7 @@ void print_act_selector_strings(void) {
 #endif
 
     // Print the coin highscore.
+#ifdef RSP_DL
     gSPDisplayList(gDisplayListHead++, dl_rgba16_text_begin);
     gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
     print_hud_my_score_coins(1, gCurrSaveFileNum - 1, gCurrCourseNum - 1, 155, 106);
@@ -312,6 +325,11 @@ void print_act_selector_strings(void) {
 
     gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
     gDPSetEnvColor(gDisplayListHead++, 0, 0, 0, 255);
+#else
+    gfx_emit_env_color_alpha_full(0xFFFFFF);
+    print_hud_my_score_coins(1, gCurrSaveFileNum - 1, gCurrCourseNum - 1, 155, 106);
+    gfx_emit_env_color_alpha_full(0);
+#endif
     // Print the "MY SCORE" text if the coin score is more than 0
     if (save_file_get_course_coin_score(gCurrSaveFileNum - 1, gCurrCourseNum - 1) != 0) {
 #ifdef VERSION_EU
@@ -328,7 +346,11 @@ void print_act_selector_strings(void) {
     print_generic_string(lvlNameX, 33, currLevelName + 3);
 #endif
 
+#ifdef RSP_DL
     gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
+#else
+    gfx_emit_env_color_alpha_full(0xFFFFFF);
+#endif
 
 #ifdef VERSION_EU
     print_course_number(language);
@@ -336,8 +358,12 @@ void print_act_selector_strings(void) {
     print_course_number();
 #endif
 
+#ifdef RSP_DL
     gSPDisplayList(gDisplayListHead++, dl_menu_ia8_text_begin);
     gDPSetEnvColor(gDisplayListHead++, 0, 0, 0, 255);
+#else
+    gfx_emit_env_color_alpha_full(0);
+#endif
     // Print the name of the selected act.
     if (sVisibleStars != 0) {
         selectedActName = segmented_to_virtual(actNameTbl[(gCurrCourseNum - 1) * 6 + sSelectedActIndex]);
@@ -360,7 +386,11 @@ void print_act_selector_strings(void) {
 #endif
     }
 
+#ifdef RSP_DL
     gSPDisplayList(gDisplayListHead++, dl_menu_ia8_text_end);
+#else
+    gfx_emit_env_color_alpha_full(0xFFFFFF);
+#endif
  }
 
 /**
@@ -427,7 +457,7 @@ s32 lvl_update_obj_and_load_act_button_actions(UNUSED s32 arg, UNUSED s32 unused
 #endif
 #if ENABLE_RUMBLE
             queue_rumble_data(60, 70);
-            func_sh_8024C89C(1);
+            set_rumble_decay(1);
 #endif
             if (sInitSelectedActNum >= sSelectedActIndex + 1) {
                 sLoadedActNum = sSelectedActIndex + 1;

@@ -6,7 +6,7 @@ void sinking_rectangular_plat_actions(f32 a0, s32 a1) {
             o->oAction++;
             break;
         case 1:
-            o->oPosY -= sins(o->oLllWoodPieceOscillationTimer) * a0;
+            FMODFIELD(o, oPosY, -= sins(o->oLllWoodPieceOscillationTimer) * a0);
             o->oLllWoodPieceOscillationTimer += a1;
             break;
         case 2:

@@ -12,6 +12,8 @@ extern struct GraphNodeCamera *gCurGraphNodeCamera;
 extern struct GraphNodeObject *gCurGraphNodeObject;
 extern struct GraphNodeHeldObject *gCurGraphNodeHeldObject;
 extern u16 gAreaUpdateCounter;
+extern bool matrix_changed;
+void update_matrix();
 
 // after processing an object, the type is reset to this
 #define ANIM_TYPE_NONE                  0
@@ -27,7 +29,6 @@ extern u16 gAreaUpdateCounter;
 // translation types the type is set to this
 #define ANIM_TYPE_ROTATION              5
 
-void geo_process_node_and_siblings(struct GraphNode *firstNode);
 void geo_process_root(struct GraphNodeRoot *node, Vp *b, Vp *c, s32 clearColor);
 
 #endif // RENDERING_GRAPH_NODE_H

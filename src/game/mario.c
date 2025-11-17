@@ -32,6 +32,7 @@
 #include "save_file.h"
 #include "sound_init.h"
 #include "rumble_init.h"
+#include <engine/behavior_script.h>
 
 u32 unused80339F10;
 s8 filler80339F1C[20];
@@ -65,7 +66,7 @@ s16 set_mario_animation(struct MarioState *m, s32 targetAnimID) {
     struct Object *o = m->marioObj;
     struct Animation *targetAnim = m->animList->bufTarget;
 
-    if (load_patchable_table(m->animList, targetAnimID)) {
+    if (load_mario_anim(m->animList, targetAnimID)) {
         targetAnim->values = (void *) VIRTUAL_TO_PHYSICAL((u8 *) targetAnim + (uintptr_t) targetAnim->values);
         targetAnim->index = (void *) VIRTUAL_TO_PHYSICAL((u8 *) targetAnim + (uintptr_t) targetAnim->index);
     }
@@ -98,7 +99,7 @@ s16 set_mario_anim_with_accel(struct MarioState *m, s32 targetAnimID, s32 accel)
     struct Object *o = m->marioObj;
     struct Animation *targetAnim = m->animList->bufTarget;
 
-    if (load_patchable_table(m->animList, targetAnimID)) {
+    if (load_mario_anim(m->animList, targetAnimID)) {
         targetAnim->values = (void *) VIRTUAL_TO_PHYSICAL((u8 *) targetAnim + (uintptr_t) targetAnim->values);
         targetAnim->index = (void *) VIRTUAL_TO_PHYSICAL((u8 *) targetAnim + (uintptr_t) targetAnim->index);
     }
@@ -191,9 +192,9 @@ s16 find_mario_anim_flags_and_translation(struct Object *obj, s32 yaw, Vec3s tra
     f32 s = (f32) sins(yaw);
     f32 c = (f32) coss(yaw);
 
-    dx = *(animValues + (retrieve_animation_index(animFrame, &animIndex))) / 4.0f;
-    translation[1] = *(animValues + (retrieve_animation_index(animFrame, &animIndex))) / 4.0f;
-    dz = *(animValues + (retrieve_animation_index(animFrame, &animIndex))) / 4.0f;
+    dx = *(animValues + (retrieve_animation_index(animFrame, &animIndex, NULL))) / 4.0f;
+    translation[1] = *(animValues + (retrieve_animation_index(animFrame, &animIndex, NULL))) / 4.0f;
+    dz = *(animValues + (retrieve_animation_index(animFrame, &animIndex, NULL))) / 4.0f;
 
     translation[0] = (dx * c) + (dz * s);
     translation[2] = (-dx * s) + (dz * c);
@@ -251,11 +252,11 @@ void play_mario_jump_sound(struct MarioState *m) {
     if (!(m->flags & MARIO_MARIO_SOUND_PLAYED)) {
 #ifndef VERSION_JP
         if (m->action == ACT_TRIPLE_JUMP) {
-            play_sound(SOUND_MARIO_YAHOO_WAHA_YIPPEE + ((gAudioRandom % 5) << 16),
+            play_sound(SOUND_MARIO_YAHOO_WAHA_YIPPEE + ((random_u16() % 5) << 16),
                        m->marioObj->header.gfx.cameraToObject);
         } else {
 #endif
-            play_sound(SOUND_MARIO_YAH_WAH_HOO + ((gAudioRandom % 3) << 16),
+            play_sound(SOUND_MARIO_YAH_WAH_HOO + ((random_u16() % 3) << 16),
                        m->marioObj->header.gfx.cameraToObject);
 #ifndef VERSION_JP
         }
@@ -424,7 +425,7 @@ s32 mario_get_floor_class(struct MarioState *m) {
     }
 
     // Crawling allows Mario to not slide on certain steeper surfaces.
-    if (m->action == ACT_CRAWLING && m->floor->normal.y > 0.5f && floorClass == SURFACE_CLASS_DEFAULT) {
+    if (m->action == ACT_CRAWLING && m->floor->compressed_normal.y > (s8) (0.5 * COMPRESSED_NORMAL_ONE) && floorClass == SURFACE_CLASS_DEFAULT) {
         floorClass = SURFACE_CLASS_NOT_SLIPPERY;
     }
 
@@ -522,19 +523,19 @@ struct Surface *resolve_and_return_wall_collisions(Vec3f pos, f32 offset, f32 ra
     struct WallCollisionData collisionData;
     struct Surface *wall = NULL;
 
-    collisionData.x = pos[0];
-    collisionData.y = pos[1];
-    collisionData.z = pos[2];
-    collisionData.radius = radius;
-    collisionData.offsetY = offset;
+	collisionData.xq = q(pos[0]);
+    collisionData.yq = q(pos[1]);
+    collisionData.zq = q(pos[2]);
+	collisionData.radiusq = q(radius);
+	collisionData.offsetYq = q(offset);
 
     if (find_wall_collisions(&collisionData)) {
         wall = collisionData.walls[collisionData.numWalls - 1];
     }
 
-    pos[0] = collisionData.x;
-    pos[1] = collisionData.y;
-    pos[2] = collisionData.z;
+    pos[0] = qtof(collisionData.xq);
+    pos[1] = qtof(collisionData.yq);
+    pos[2] = qtof(collisionData.zq);
 
     // This only returns the most recent wall and can also return NULL
     // there are no wall collisions.
@@ -545,9 +546,7 @@ struct Surface *resolve_and_return_wall_collisions(Vec3f pos, f32 offset, f32 ra
  * Finds the ceiling from a vec3f horizontally and a height (with 80 vertical buffer).
  */
 f32 vec3f_find_ceil(Vec3f pos, f32 height, struct Surface **ceil) {
-    UNUSED f32 unused;
-
-    return find_ceil(pos[0], height + 80.0f, pos[2], ceil);
+    return qtof(find_ceilq(q(pos[0]), q(height) + q(80), q(pos[2]), ceil));
 }
 
 /**
@@ -571,72 +570,72 @@ s32 mario_facing_downhill(struct MarioState *m, s32 turnYaw) {
  * Determines if a surface is slippery based on the surface class.
  */
 u32 mario_floor_is_slippery(struct MarioState *m) {
-    f32 normY;
+    q32 normYq;
 
     if ((m->area->terrainType & TERRAIN_MASK) == TERRAIN_SLIDE
-        && m->floor->normal.y < 0.9998477f //~cos(1 deg)
+        && m->floor->compressed_normal.y < (s8) (0.9998477f * COMPRESSED_NORMAL_ONE) //~cos(1 deg)
     ) {
         return TRUE;
     }
 
     switch (mario_get_floor_class(m)) {
         case SURFACE_VERY_SLIPPERY:
-            normY = 0.9848077f; //~cos(10 deg)
+            normYq = q(0.9848077); //~cos(10 deg)
             break;
 
         case SURFACE_SLIPPERY:
-            normY = 0.9396926f; //~cos(20 deg)
+            normYq = q(0.9396926); //~cos(20 deg)
             break;
 
         default:
-            normY = 0.7880108f; //~cos(38 deg)
+            normYq = q(0.7880108); //~cos(38 deg)
             break;
 
         case SURFACE_NOT_SLIPPERY:
-            normY = 0.0f;
+            normYq = q(0.0);
             break;
     }
 
-    return m->floor->normal.y <= normY;
+    return (q32) m->floor->compressed_normal.y * QONE / COMPRESSED_NORMAL_ONE <= normYq;
 }
 
 /**
  * Determines if a surface is a slope based on the surface class.
  */
 s32 mario_floor_is_slope(struct MarioState *m) {
-    f32 normY;
+    q32 normYq;
 
     if ((m->area->terrainType & TERRAIN_MASK) == TERRAIN_SLIDE
-        && m->floor->normal.y < 0.9998477f) { // ~cos(1 deg)
+        && m->floor->compressed_normal.y < (s8) (0.9998477 * COMPRESSED_NORMAL_ONE)) { // ~cos(1 deg)
         return TRUE;
     }
 
     switch (mario_get_floor_class(m)) {
         case SURFACE_VERY_SLIPPERY:
-            normY = 0.9961947f; // ~cos(5 deg)
+            normYq = q(0.9961947); // ~cos(5 deg)
             break;
 
         case SURFACE_SLIPPERY:
-            normY = 0.9848077f; // ~cos(10 deg)
+            normYq = q(0.9848077); // ~cos(10 deg)
             break;
 
         default:
-            normY = 0.9659258f; // ~cos(15 deg)
+            normYq = q(0.9659258); // ~cos(15 deg)
             break;
 
         case SURFACE_NOT_SLIPPERY:
-            normY = 0.9396926f; // ~cos(20 deg)
+            normYq = q(0.9396926); // ~cos(20 deg)
             break;
     }
 
-    return m->floor->normal.y <= normY;
+    return (q32) m->floor->compressed_normal.y * QONE / COMPRESSED_NORMAL_ONE <= normYq;
 }
 
 /**
  * Determines if a surface is steep based on the surface class.
  */
 s32 mario_floor_is_steep(struct MarioState *m) {
-    f32 normY;
+    q32 normYq;
     s32 result = FALSE;
 
     // Interestingly, this function does not check for the
@@ -646,23 +645,23 @@ s32 mario_floor_is_steep(struct MarioState *m) {
     if (!mario_facing_downhill(m, FALSE)) {
         switch (mario_get_floor_class(m)) {
             case SURFACE_VERY_SLIPPERY:
-                normY = 0.9659258f; // ~cos(15 deg)
+                normYq = q(0.9659258); // ~cos(15 deg)
                 break;
 
             case SURFACE_SLIPPERY:
-                normY = 0.9396926f; // ~cos(20 deg)
+                normYq = q(0.9396926); // ~cos(20 deg)
                 break;
 
             default:
-                normY = 0.8660254f; // ~cos(30 deg)
+                normYq = q(0.8660254); // ~cos(30 deg)
                 break;
 
             case SURFACE_NOT_SLIPPERY:
-                normY = 0.8660254f; // ~cos(30 deg)
+                normYq = q(0.8660254); // ~cos(30 deg)
                 break;
         }
 
-        result = m->floor->normal.y <= normY;
+        result = (q32) m->floor->compressed_normal.y * QONE / COMPRESSED_NORMAL_ONE <= normYq;
     }
 
     return result;
@@ -1206,22 +1205,22 @@ void squish_mario_model(struct MarioState *m) {
     if (m->squishTimer != 0xFF) {
         // If no longer squished, scale back to default.
         if (m->squishTimer == 0) {
-            vec3f_set(m->marioObj->header.gfx.scale, 1.0f, 1.0f, 1.0f);
+            vec3q_set(m->marioObj->header.gfx.scaleq, QONE, QONE, QONE);
         }
         // If timer is less than 16, rubber-band Mario's size scale up and down.
         else if (m->squishTimer <= 16) {
             m->squishTimer -= 1;
 
-            m->marioObj->header.gfx.scale[1] =
-                1.0f - ((sSquishScaleOverTime[15 - m->squishTimer] * 0.6f) / 100.0f);
-            m->marioObj->header.gfx.scale[0] =
-                ((sSquishScaleOverTime[15 - m->squishTimer] * 0.4f) / 100.0f) + 1.0f;
+            m->marioObj->header.gfx.scaleq[1] =
+                QONE - (q((u32) sSquishScaleOverTime[15 - m->squishTimer] * 3 / 5) / 100);
+            m->marioObj->header.gfx.scaleq[0] =
+                (q((u32) sSquishScaleOverTime[15 - m->squishTimer] * 2 / 5) / 100) + QONE;
 
-            m->marioObj->header.gfx.scale[2] = m->marioObj->header.gfx.scale[0];
+            m->marioObj->header.gfx.scaleq[2] = m->marioObj->header.gfx.scaleq[0];
         } else {
             m->squishTimer -= 1;
 
-            vec3f_set(m->marioObj->header.gfx.scale, 1.4f, 0.4f, 1.4f);
+            vec3q_set(m->marioObj->header.gfx.scaleq, q(1.4), q(0.4), q(1.4));
         }
     }
 }
@@ -1230,15 +1229,22 @@ void squish_mario_model(struct MarioState *m) {
  * Debug function that prints floor normal, velocity, and action information.
  */
 void debug_print_speed_action_normal(struct MarioState *m) {
-    f32 steepness;
-    f32 floor_nY;
+    q32 steepnessq;
+    q32 floor_nYq;
 
     if (gShowDebugText) {
-        steepness = sqrtf(
-            ((m->floor->normal.x * m->floor->normal.x) + (m->floor->normal.z * m->floor->normal.z)));
-        floor_nY = m->floor->normal.y;
+        steepnessq = sqrtq(
+            qmul(
+                (q32) m->floor->compressed_normal.x * QONE / COMPRESSED_NORMAL_ONE,
+                (q32) m->floor->compressed_normal.x * QONE / COMPRESSED_NORMAL_ONE
+            ) + qmul(
+                (q32) m->floor->compressed_normal.z * QONE / COMPRESSED_NORMAL_ONE,
+                (q32) m->floor->compressed_normal.z * QONE / COMPRESSED_NORMAL_ONE
+            )
+        );
+        floor_nYq = (q32) m->floor->compressed_normal.y * QONE / COMPRESSED_NORMAL_ONE;
 
-        print_text_fmt_int(210, 88, "ANG %d", (atan2s(floor_nY, steepness) * 180.0f) / 32768.0f);
+        print_text_fmt_int(210, 88, "ANG %d", atan2sq(floor_nYq, steepnessq) * 180 / 32768);
 
         print_text_fmt_int(210, 72, "SPD %d", m->forwardVel);
 
@@ -1312,29 +1318,35 @@ void update_mario_joystick_inputs(struct MarioState *m) {
  * Resolves wall collisions, and updates a variety of inputs.
  */
 void update_mario_geometry_inputs(struct MarioState *m) {
-    f32 gasLevel;
-    f32 ceilToFloorDist;
+    q32 gasLevelq;
+    q32 ceilToFloorDistq;
 
-    f32_find_wall_collision(&m->pos[0], &m->pos[1], &m->pos[2], 60.0f, 50.0f);
-    f32_find_wall_collision(&m->pos[0], &m->pos[1], &m->pos[2], 30.0f, 24.0f);
-
-    m->floorHeight = find_floor(m->pos[0], m->pos[1], m->pos[2], &m->floor);
+	Vec3q mposq;
+	vec3f_to_vec3q(mposq, m->pos);
+    q32_find_wall_collision(&mposq[0], &mposq[1], &mposq[2], q(60), q(50));
+    q32_find_wall_collision(&mposq[0], &mposq[1], &mposq[2], q(30), q(24));
+    m->floorHeight = qtof(find_floorq(mposq[0], mposq[1], mposq[2], &m->floor));
 
     // If Mario is OOB, move his position to his graphical position (which was not updated)
     // and check for the floor there.
     // This can cause errant behavior when combined with astral projection,
     // since the graphical position was not Mario's previous location.
     if (m->floor == NULL) {
-        vec3f_copy(m->pos, m->marioObj->header.gfx.pos);
-        m->floorHeight = find_floor(m->pos[0], m->pos[1], m->pos[2], &m->floor);
+        mposq[0] = q(m->marioObj->header.gfx.posi[0]);
+        mposq[1] = q(m->marioObj->header.gfx.posi[1]);
+        mposq[2] = q(m->marioObj->header.gfx.posi[2]);
+        m->floorHeight = qtof(find_floorq(mposq[0], mposq[1], mposq[2], &m->floor));
     }
+	for(int i = 0; i < 3; i++) {
+		m->pos[i] = qtof(mposq[i]);
+	}
 
     m->ceilHeight = vec3f_find_ceil(&m->pos[0], m->floorHeight, &m->ceil);
-    gasLevel = find_poison_gas_level(m->pos[0], m->pos[2]);
+    gasLevelq = find_poison_gas_levelq(q(m->pos[0]), q(m->pos[2]));
     m->waterLevel = find_water_level(m->pos[0], m->pos[2]);
 
     if (m->floor != NULL) {
-        m->floorAngle = atan2s(m->floor->normal.z, m->floor->normal.x);
+        m->floorAngle = atan2sq((q32) m->floor->compressed_normal.z * QONE / COMPRESSED_NORMAL_ONE, (q32) m->floor->compressed_normal.x * QONE / COMPRESSED_NORMAL_ONE);
         m->terrainSoundAddend = mario_get_terrain_sound_addend(m);
 
         if ((m->pos[1] > m->waterLevel - 40) && mario_floor_is_slippery(m)) {
@@ -1343,9 +1355,9 @@ void update_mario_geometry_inputs(struct MarioState *m) {
 
         if ((m->floor->flags & SURFACE_FLAG_DYNAMIC)
             || (m->ceil && m->ceil->flags & SURFACE_FLAG_DYNAMIC)) {
-            ceilToFloorDist = m->ceilHeight - m->floorHeight;
+            ceilToFloorDistq = q(m->ceilHeight - m->floorHeight);
 
-            if ((0.0f <= ceilToFloorDist) && (ceilToFloorDist <= 150.0f)) {
+            if ((0 <= ceilToFloorDistq) && (ceilToFloorDistq <= q(150))) {
                 m->input |= INPUT_SQUISHED;
             }
         }
@@ -1354,11 +1366,11 @@ void update_mario_geometry_inputs(struct MarioState *m) {
             m->input |= INPUT_OFF_FLOOR;
         }
 
-        if (m->pos[1] < (m->waterLevel - 10)) {
+        if (m->pos[1] < m->waterLevel - 10) {
             m->input |= INPUT_IN_WATER;
         }
 
-        if (m->pos[1] < (gasLevel - 100.0f)) {
+        if (q(m->pos[1]) < gasLevelq - q(100)) {
             m->input |= INPUT_IN_POISON_GAS;
         }
 
@@ -1380,7 +1392,7 @@ void update_mario_inputs(struct MarioState *m) {
     update_mario_joystick_inputs(m);
     update_mario_geometry_inputs(m);
 
-    debug_print_speed_action_normal(m);
+    //debug_print_speed_action_normal(m);
 
     if (gCameraMovementFlags & CAM_MOVE_C_UP_MODE) {
         if (m->action & ACT_FLAG_ALLOW_FIRST_PERSON) {
@@ -1393,7 +1405,7 @@ void update_mario_inputs(struct MarioState *m) {
     if (!(m->input & (INPUT_NONZERO_ANALOG | INPUT_A_PRESSED))) {
         m->input |= INPUT_UNKNOWN_5;
     }
-    
+
     // These 3 flags are defined by Bowser stomping attacks
     if (m->marioObj->oInteractStatus
         & (INT_STATUS_MARIO_STUNNED | INT_STATUS_MARIO_KNOCKBACK_DMG | INT_STATUS_MARIO_SHOCKWAVE)) {
@@ -1520,7 +1532,7 @@ void update_mario_info_for_cam(struct MarioState *m) {
     vec3s_copy(m->statusForCamera->faceAngle, m->faceAngle);
 
     if (!(m->flags & MARIO_UNKNOWN_25)) {
-        vec3f_copy(m->statusForCamera->pos, m->pos);
+        vec3f_to_vec3q(m->statusForCamera->posq, m->pos);
     }
 }
 
@@ -1545,11 +1557,11 @@ void mario_reset_bodystate(struct MarioState *m) {
 void sink_mario_in_quicksand(struct MarioState *m) {
     struct Object *o = m->marioObj;
 
-    if (o->header.gfx.throwMatrix) {
-        (*o->header.gfx.throwMatrix)[3][1] -= m->quicksandDepth;
+    if (o->header.gfx.throwMatrixq) {
+        (*o->header.gfx.throwMatrixq).t[1] -= m->quicksandDepth;
     }
 
-    o->header.gfx.pos[1] -= m->quicksandDepth;
+    o->header.gfx.posi[1] -= m->quicksandDepth;
 }
 
 /**
@@ -1647,9 +1659,9 @@ void mario_update_hitbox_and_cap_model(struct MarioState *m) {
 
     // Short hitbox for crouching/crawling/etc.
     if (m->action & ACT_FLAG_SHORT_HITBOX) {
-        m->marioObj->hitboxHeight = 100.0f;
+        m->marioObj->hitboxHeight_s16 = 100;
     } else {
-        m->marioObj->hitboxHeight = 160.0f;
+        m->marioObj->hitboxHeight_s16 = 160;
     }
 
     if ((m->flags & MARIO_TELEPORTING) && (m->fadeWarpOpacity != 0xFF)) {
@@ -1789,8 +1801,6 @@ void init_mario(void) {
     Vec3s capPos;
     struct Object *capObject;
 
-    unused80339F10 = 0;
-
     gMarioState->actionTimer = 0;
     gMarioState->framesSinceA = 0xFF;
     gMarioState->framesSinceB = 0xFF;
@@ -1818,8 +1828,7 @@ void init_mario(void) {
     gMarioState->riddenObj = NULL;
     gMarioState->usedObj = NULL;
 
-    gMarioState->waterLevel =
-        find_water_level(gMarioSpawnInfo->startPos[0], gMarioSpawnInfo->startPos[2]);
+    gMarioState->waterLevel = qtrunc(find_water_levelq(q(gMarioSpawnInfo->startPos[0]), q(gMarioSpawnInfo->startPos[2])));
 
     gMarioState->area = gCurrentArea;
     gMarioState->marioObj = gMarioObject;
@@ -1828,14 +1837,13 @@ void init_mario(void) {
     vec3s_set(gMarioState->angleVel, 0, 0, 0);
     vec3s_to_vec3f(gMarioState->pos, gMarioSpawnInfo->startPos);
     vec3f_set(gMarioState->vel, 0, 0, 0);
-    gMarioState->floorHeight =
-        find_floor(gMarioState->pos[0], gMarioState->pos[1], gMarioState->pos[2], &gMarioState->floor);
+    gMarioState->floorHeight = qtof(find_floorq(q(gMarioState->pos[0]), q(gMarioState->pos[1]), q(gMarioState->pos[2]), &gMarioState->floor));
 
     if (gMarioState->pos[1] < gMarioState->floorHeight) {
         gMarioState->pos[1] = gMarioState->floorHeight;
     }
 
-    gMarioState->marioObj->header.gfx.pos[1] = gMarioState->pos[1];
+    gMarioState->marioObj->header.gfx.posi[1] = (s32) gMarioState->pos[1];
 
     gMarioState->action =
         (gMarioState->pos[1] <= (gMarioState->waterLevel - 100)) ? ACT_WATER_IDLE : ACT_IDLE;
@@ -1844,23 +1852,23 @@ void init_mario(void) {
     update_mario_info_for_cam(gMarioState);
     gMarioState->marioBodyState->punchState = 0;
 
-    gMarioState->marioObj->oPosX = gMarioState->pos[0];
-    gMarioState->marioObj->oPosY = gMarioState->pos[1];
-    gMarioState->marioObj->oPosZ = gMarioState->pos[2];
+    FSETFIELD(gMarioState->marioObj, oPosX, gMarioState->pos[0]);
+    FSETFIELD(gMarioState->marioObj, oPosY, gMarioState->pos[1]);
+    FSETFIELD(gMarioState->marioObj, oPosZ, gMarioState->pos[2]);
 
     gMarioState->marioObj->oMoveAnglePitch = gMarioState->faceAngle[0];
     gMarioState->marioObj->oMoveAngleYaw = gMarioState->faceAngle[1];
     gMarioState->marioObj->oMoveAngleRoll = gMarioState->faceAngle[2];
 
-    vec3f_copy(gMarioState->marioObj->header.gfx.pos, gMarioState->pos);
+    vec3f_to_vec3s(gMarioState->marioObj->header.gfx.posi, gMarioState->pos);
     vec3s_set(gMarioState->marioObj->header.gfx.angle, 0, gMarioState->faceAngle[1], 0);
 
     if (save_file_get_cap_pos(capPos)) {
         capObject = spawn_object(gMarioState->marioObj, MODEL_MARIOS_CAP, bhvNormalCap);
 
-        capObject->oPosX = capPos[0];
-        capObject->oPosY = capPos[1];
-        capObject->oPosZ = capPos[2];
+        FSETFIELD(capObject, oPosX, capPos[0]);
+        FSETFIELD(capObject, oPosY, capPos[1]);
+        FSETFIELD(capObject, oPosZ, capPos[2]);
 
         capObject->oForwardVelS32 = 0;
 

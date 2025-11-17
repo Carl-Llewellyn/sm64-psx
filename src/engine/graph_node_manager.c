@@ -22,12 +22,12 @@ static s16 next_s16_in_geo_script(s16 **src) {
 
 /**
  * Takes a pointer to three shorts (supplied by a geo layout script) and
- * copies it to the destination float vector.
+ * copies it to the destination q32 vector.
  */
-s16 *read_vec3s_to_vec3f(Vec3f dst, s16 *src) {
-    dst[0] = next_s16_in_geo_script(&src);
-    dst[1] = next_s16_in_geo_script(&src);
-    dst[2] = next_s16_in_geo_script(&src);
+s16 *read_vec3s_to_vec3q(Vec3q dstq, s16 *src) {
+	for(int i = 0; i < 3; i++) {
+		dstq[i] = q(next_s16_in_geo_script(&src));
+	}
     return src;
 }
 
@@ -49,9 +49,9 @@ s16 *read_vec3s(Vec3s dst, s16 *src) {
  * range.
  */
 s16 *read_vec3s_angle(Vec3s dst, s16 *src) {
-    dst[0] = (next_s16_in_geo_script(&src) << 15) / 180;
-    dst[1] = (next_s16_in_geo_script(&src) << 15) / 180;
-    dst[2] = (next_s16_in_geo_script(&src) << 15) / 180;
+    dst[0] = (s32) ((u32) (s32) next_s16_in_geo_script(&src) << 15) / 180;
+    dst[1] = (s32) ((u32) (s32) next_s16_in_geo_script(&src) << 15) / 180;
+    dst[2] = (s32) ((u32) (s32) next_s16_in_geo_script(&src) << 15) / 180;
     return src;
 }
 

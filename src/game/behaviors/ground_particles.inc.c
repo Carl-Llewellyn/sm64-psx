@@ -25,9 +25,9 @@ void bhv_ground_sand_init(void) {
 
 void spawn_smoke_with_velocity(void) {
     struct Object *smoke = spawn_object_with_scale(o, MODEL_SMOKE, bhvWhitePuffSmoke2, 1.0f);
-    smoke->oForwardVel = sSmokeMovementParams[0];
-    smoke->oVelY = sSmokeMovementParams[1];
-    smoke->oGravity = sSmokeMovementParams[2];
+    FSETFIELD(smoke, oForwardVel, sSmokeMovementParams[0]);
+    FSETFIELD(smoke, oVelY, sSmokeMovementParams[1]);
+    FSETFIELD(smoke, oGravity, sSmokeMovementParams[2]);
     obj_translate_xyz_random(smoke, sSmokeMovementParams[3]);
 }
 

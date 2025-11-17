@@ -1,5 +1,6 @@
-#ifndef AUDIO_PLAYBACK_H
-#define AUDIO_PLAYBACK_H
+#pragma once
+
+#ifndef NO_AUDIO
 
 #include <PR/ultratypes.h>
 
@@ -46,5 +47,4 @@ void note_enable(struct Note *note);
 void note_disable(struct Note *note);
 #endif
 
-
-#endif // AUDIO_PLAYBACK_H
+#endif

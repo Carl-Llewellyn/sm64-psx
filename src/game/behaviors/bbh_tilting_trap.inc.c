@@ -25,7 +25,7 @@ void bhv_bbh_tilting_trap_platform_loop(void) {
 #else
     if (gMarioObject->platform == o) {
 #endif
-        o->oAngleVelPitch = (s32)(o->oDistanceToMario * coss(o->oAngleToMario));
+        o->oAngleVelPitch = qtrunc(qmul(QFIELD(o, oDistanceToMario), cosqs(o->oAngleToMario)));
         o->oFaceAnglePitch += o->oAngleVelPitch;
     } else
 #ifndef VERSION_JP

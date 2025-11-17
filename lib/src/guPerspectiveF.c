@@ -6,7 +6,7 @@ void guPerspectiveF(float mf[4][4], u16 *perspNorm, float fovy, float aspect, fl
     int row;
     int col;
     guMtxIdentF(mf);
-    fovy *= GU_PI / 180.0;
+    fovy *= GU_PI / 180.0f;
     yscale = cosf(fovy / 2) / sinf(fovy / 2);
     mf[0][0] = yscale / aspect;
     mf[1][1] = yscale;
@@ -20,10 +20,10 @@ void guPerspectiveF(float mf[4][4], u16 *perspNorm, float fovy, float aspect, fl
         }
     }
     if (perspNorm != NULL) {
-        if (near + far <= 2.0) {
+        if (near + far <= 2.0f) {
             *perspNorm = 65535;
         } else {
-            *perspNorm = (double) (1 << 17) / (near + far);
+            *perspNorm = (float) (1 << 17) / (near + far);
             if (*perspNorm <= 0) {
                 *perspNorm = 1;
             }

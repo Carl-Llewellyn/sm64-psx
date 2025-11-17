@@ -1,5 +1,6 @@
-#ifndef AUDIO_HEAP_H
-#define AUDIO_HEAP_H
+#pragma once
+
+#ifndef NO_AUDIO
 
 #include <PR/ultratypes.h>
 
@@ -91,7 +92,9 @@ struct UnkPool
     /*0x514*/ u32 unk514;
 };
 
+#ifndef NO_AUDIO
 extern u8 gAudioHeap[];
+#endif
 extern s16 gVolume;
 extern s8 gReverbDownsampleRate;
 extern struct SoundAllocPool gAudioInitPool;
@@ -141,4 +144,4 @@ void *unk_pool1_lookup(s32 poolIdx, s32 id);
 void *unk_pool1_alloc(s32 poolIndex, s32 arg1, u32 size);
 #endif
 
-#endif // AUDIO_HEAP_H
+#endif

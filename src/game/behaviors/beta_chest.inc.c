@@ -33,7 +33,7 @@ void bhv_beta_chest_bottom_init(void) {
  * with radius 200 units and height 200 units.
  */
 void bhv_beta_chest_bottom_loop(void) {
-    cur_obj_push_mario_away_from_cylinder(200.0f, 200.0f);
+    cur_obj_push_mario_away_from_cylinder(200, 200);
 }
 
 /**
@@ -44,7 +44,7 @@ void bhv_beta_chest_bottom_loop(void) {
 void bhv_beta_chest_lid_loop(void) {
     switch (o->oAction) {
         case BETA_CHEST_ACT_IDLE_CLOSED:
-            if (dist_between_objects(o->parentObj, gMarioObject) < 300.0f) {
+            if (dist_between_objectsq(o->parentObj, gMarioObject) < q(300)) {
                 o->oAction++; // Set to BETA_CHEST_ACT_OPENING
             }
 

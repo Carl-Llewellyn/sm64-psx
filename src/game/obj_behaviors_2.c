@@ -87,7 +87,7 @@ static s32 obj_is_rendering_enabled(void) {
 }
 
 static s16 obj_get_pitch_from_vel(void) {
-    return -atan2s(o->oForwardVel, o->oVelY);
+    return -atan2sq(QFIELD(o, oForwardVel), QFIELD(o, oVelY));
 }
 
 /**
@@ -110,14 +110,13 @@ static s32 obj_update_race_proposition_dialog(s16 dialogID) {
     return dialogResponse;
 }
 
-static void obj_set_dist_from_home(f32 distFromHome) {
-    o->oPosX = o->oHomeX + distFromHome * coss(o->oMoveAngleYaw);
-    o->oPosZ = o->oHomeZ + distFromHome * sins(o->oMoveAngleYaw);
+static void obj_set_dist_from_homeq(q32 distFromHomeq) {
+    QSETFIELD(o, oPosX, QFIELD(o, oHomeX) + qmul(distFromHomeq, cosqs(o->oMoveAngleYaw)));
+    QSETFIELD(o, oPosZ, QFIELD(o, oHomeZ) + qmul(distFromHomeq, sinqs(o->oMoveAngleYaw)));
 }
 
 static s32 obj_is_near_to_and_facing_mario(f32 maxDist, s16 maxAngleDiff) {
-    if (o->oDistanceToMario < maxDist
-        && abs_angle_diff(o->oMoveAngleYaw, o->oAngleToMario) < maxAngleDiff) {
+    if (FFIELD(o, oDistanceToMario) < maxDist && abs_angle_diff(o->oMoveAngleYaw, o->oAngleToMario) < maxAngleDiff) {
         return TRUE;
     }
     return FALSE;
@@ -128,21 +127,21 @@ static s32 obj_is_near_to_and_facing_mario(f32 maxDist, s16 maxAngleDiff) {
 static BAD_RETURN(u32) obj_perform_position_op(s32 op) {
     switch (op) {
         case POS_OP_SAVE_POSITION:
-            sObjSavedPosX = o->oPosX;
-            sObjSavedPosY = o->oPosY;
-            sObjSavedPosZ = o->oPosZ;
+            sObjSavedPosX = FFIELD(o, oPosX);
+            sObjSavedPosY = FFIELD(o, oPosY);
+            sObjSavedPosZ = FFIELD(o, oPosZ);
             break;
 
         case POS_OP_COMPUTE_VELOCITY:
-            o->oVelX = o->oPosX - sObjSavedPosX;
-            o->oVelY = o->oPosY - sObjSavedPosY;
-            o->oVelZ = o->oPosZ - sObjSavedPosZ;
+            FSETFIELD(o, oVelX, FFIELD(o, oPosX) - sObjSavedPosX);
+            FSETFIELD(o, oVelY, FFIELD(o, oPosY) - sObjSavedPosY);
+            FSETFIELD(o, oVelZ, FFIELD(o, oPosZ) - sObjSavedPosZ);
             break;
 
         case POS_OP_RESTORE_POSITION:
-            o->oPosX = sObjSavedPosX;
-            o->oPosY = sObjSavedPosY;
-            o->oPosZ = sObjSavedPosZ;
+            FSETFIELD(o, oPosX, sObjSavedPosX);
+            FSETFIELD(o, oPosY, sObjSavedPosY);
+            FSETFIELD(o, oPosZ, sObjSavedPosZ);
             break;
     }
 }
@@ -168,7 +167,7 @@ static void platform_on_track_update_pos_or_spawn_ball(s32 ballIndex, f32 x, f32
         } else {
             obj_perform_position_op(POS_OP_SAVE_POSITION);
             o->oPlatformOnTrackPrevWaypointFlags = 0;
-            amountToMove = o->oForwardVel;
+            amountToMove = FFIELD(o, oForwardVel);
         }
 
         do {
@@ -218,9 +217,9 @@ static void platform_on_track_update_pos_or_spawn_ball(s32 ballIndex, f32 x, f32
                                               MODEL_TRAJECTORY_MARKER_BALL, bhvTrackBall);
 
             if (trackBall != NULL) {
-                trackBall->oPosX = x;
-                trackBall->oPosY = y;
-                trackBall->oPosZ = z;
+                FSETFIELD(trackBall, oPosX, x);
+                FSETFIELD(trackBall, oPosY, y);
+                FSETFIELD(trackBall, oPosZ, z);
             }
         } else {
             if (prevWaypoint != initialPrevWaypoint) {
@@ -230,15 +229,15 @@ static void platform_on_track_update_pos_or_spawn_ball(s32 ballIndex, f32 x, f32
                 o->oPlatformOnTrackPrevWaypoint = prevWaypoint;
             }
 
-            o->oPosX = x;
-            o->oPosY = y;
-            o->oPosZ = z;
+            FSETFIELD(o, oPosX, x);
+            FSETFIELD(o, oPosY, y);
+            FSETFIELD(o, oPosZ, z);
 
             obj_perform_position_op(POS_OP_COMPUTE_VELOCITY);
 
             o->oPlatformOnTrackPitch =
-                atan2s(sqrtf(o->oVelX * o->oVelX + o->oVelZ * o->oVelZ), -o->oVelY);
-            o->oPlatformOnTrackYaw = atan2s(o->oVelZ, o->oVelX);
+                atan2s(sqrtf(FFIELD(o, oVelX) * FFIELD(o, oVelX) + FFIELD(o, oVelZ) * FFIELD(o, oVelZ)), -FFIELD(o, oVelY));
+            o->oPlatformOnTrackYaw = atan2s(FFIELD(o, oVelZ), FFIELD(o, oVelX));
         }
     }
 }
@@ -255,7 +254,7 @@ static void cur_obj_spin_all_dimensions(f32 arg0, f32 arg1) {
     f32 val04;
     f32 val00;
 
-    if (o->oForwardVel == 0.0f) {
+    if (QFIELD(o, oForwardVel) == 0) {
         val24 = val20 = val1C = 0.0f;
 
         if (o->oMoveFlags & OBJ_MOVE_IN_AIR) {
@@ -292,9 +291,9 @@ static void cur_obj_spin_all_dimensions(f32 arg0, f32 arg1) {
         val04 = val24 * c - val1C * s;
         val00 = val1C * c + val24 * s;
 
-        o->oPosX = o->oHomeX - val04 + val10;
-        o->oGraphYOffset = val20 - val0C;
-        o->oPosZ = o->oHomeZ + val00 - val08;
+        FSETFIELD(o, oPosX, FFIELD(o, oHomeX) - val04 + val10);
+        FSETFIELD(o, oGraphYOffset, val20 - val0C);
+        FSETFIELD(o, oPosZ, FFIELD(o, oHomeZ) + val00 - val08);
     }
 }
 
@@ -306,12 +305,12 @@ static void obj_rotate_yaw_and_bounce_off_walls(s16 targetYaw, s16 turnAmount) {
 }
 
 static s16 obj_get_pitch_to_home(f32 latDistToHome) {
-    return atan2s(latDistToHome, o->oPosY - o->oHomeY);
+    return atan2s(latDistToHome, FFIELD(o, oPosY) - FFIELD(o, oHomeY));
 }
 
-static void obj_compute_vel_from_move_pitch(f32 speed) {
-    o->oForwardVel = speed * coss(o->oMoveAnglePitch);
-    o->oVelY = speed * -sins(o->oMoveAnglePitch);
+static void obj_compute_vel_from_move_pitchq(q32 speedq) {
+    FSETFIELD(o, oForwardVel, qmul(speedq, cosqs(o->oMoveAnglePitch)));
+    FSETFIELD(o, oVelY, qmul(speedq, -sinqs(o->oMoveAnglePitch)));
 }
 
 static s32 clamp_s16(s16 *value, s16 minimum, s16 maximum) {
@@ -331,6 +330,18 @@ static s32 clamp_f32(f32 *value, f32 minimum, f32 maximum) {
         *value = minimum;
     } else if (*value >= maximum) {
         *value = maximum;
+    } else {
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static s32 clamp_q32(q32 *valueq, q32 minimumq, q32 maximumq) {
+    if (*valueq <= minimumq) {
+        *valueq = minimumq;
+    } else if (*valueq >= maximumq) {
+        *valueq = maximumq;
     } else {
         return FALSE;
     }
@@ -379,33 +390,51 @@ static s32 cur_obj_play_sound_at_anim_range(s8 arg0, s8 arg1, u32 sound) {
 static s16 obj_turn_pitch_toward_mario(f32 targetOffsetY, s16 turnAmount) {
     s16 targetPitch;
 
-    o->oPosY -= targetOffsetY;
+    FMODFIELD(o, oPosY, -= targetOffsetY);
     targetPitch = obj_turn_toward_object(o, gMarioObject, O_MOVE_ANGLE_PITCH_INDEX, turnAmount);
-    o->oPosY += targetOffsetY;
+    FMODFIELD(o, oPosY, += targetOffsetY);
 
     return targetPitch;
 }
 
-static s32 approach_f32_ptr(f32 *px, f32 target, f32 delta) {
-    if (*px > target) {
-        delta = -delta;
+s32 approach_q32_ptr(q32 *pxq, q32 targetq, q32 deltaq) {
+    if (*pxq > targetq) {
+        deltaq = -deltaq;
     }
 
-    *px += delta;
+    *pxq += deltaq;
 
-    if ((*px - target) * delta >= 0) {
-        *px = target;
+    if ((*pxq - targetq) / ONE * deltaq >= 0) {
+        *pxq = targetq;
         return TRUE;
     }
     return FALSE;
 }
 
-static s32 obj_forward_vel_approach(f32 target, f32 delta) {
-    return approach_f32_ptr(&o->oForwardVel, target, delta);
+#define APPROACH_Q32_FIELD(obj, field, target, delta) ({\
+	q32 x = QFIELD(obj, field);\
+	approach_q32_ptr(&x, target, delta);\
+	QSETFIELD(obj, field, x);\
+	x;\
+})
+
+#define APPROACH_F32_FIELD(obj, field, target, delta) APPROACH_Q32_FIELD(obj, field, q(target), q(delta))
+
+#define CLAMP_Q32_FIELD(obj, field, a, b) ({\
+	q32 x = QFIELD(obj, field);\
+	s32 res = clamp_q32(&x, a, b);\
+	QSETFIELD(obj, field, x);\
+	res;\
+})
+
+#define CLAMP_F32_FIELD(obj, field, a, b) CLAMP_Q32_FIELD(obj, field, q(a), q(b))
+
+static s32 obj_forward_vel_approachq(q32 target, q32 delta) {
+    return APPROACH_Q32_FIELD(o, oForwardVel, target, delta);
 }
 
-static s32 obj_y_vel_approach(f32 target, f32 delta) {
-    return approach_f32_ptr(&o->oVelY, target, delta);
+static s32 obj_y_vel_approachq(q32 target, q32 delta) {
+    return APPROACH_Q32_FIELD(o, oVelY, target, delta);
 }
 
 static s32 obj_move_pitch_approach(s16 target, s16 delta) {
@@ -490,16 +519,16 @@ static s16 obj_random_fixed_turn(s16 delta) {
  */
 static s32 obj_grow_then_shrink(f32 *scaleVel, f32 shootFireScale, f32 endScale) {
     if (o->oTimer < 2) {
-        o->header.gfx.scale[0] += *scaleVel;
+        o->header.gfx.scaleq[0] += q(*scaleVel);
 
         if ((*scaleVel -= 0.01f) > -0.03f) {
             o->oTimer = 0;
         }
     } else if (o->oTimer > 10) {
-        if (approach_f32_ptr(&o->header.gfx.scale[0], endScale, 0.05f)) {
+        if (approach_q32_ptr(&o->header.gfx.scaleq[0], q(endScale), q(0.05))) {
             return -1;
-        } else if (*scaleVel != 0.0f && o->header.gfx.scale[0] < shootFireScale) {
-            *scaleVel = 0.0f;
+        } else if (*scaleVel != 0 && o->header.gfx.scaleq[0] < q(shootFireScale)) {
+            *scaleVel = 0;
             return 1;
         }
     }
@@ -564,22 +593,22 @@ static s32 obj_resolve_object_collisions(s32 *targetYaw) {
             //! If one object moves after collisions are detected and this code
             //  runs, the objects can move toward each other (transport cloning)
 
-            dx = otherObject->oPosX - o->oPosX;
-            dz = otherObject->oPosZ - o->oPosZ;
+            dx = FFIELD(otherObject, oPosX) - FFIELD(o, oPosX);
+            dz = FFIELD(otherObject, oPosZ) - FFIELD(o, oPosZ);
             angle = atan2s(dx, dz); //! This should be atan2s(dz, dx)
 
-            radius = o->hitboxRadius;
-            otherRadius = otherObject->hitboxRadius;
+            radius = o->hitboxRadius_s16;
+            otherRadius = otherObject->hitboxRadius_s16;
             relativeRadius = radius / (radius + otherRadius);
 
-            newCenterX = o->oPosX + dx * relativeRadius;
-            newCenterZ = o->oPosZ + dz * relativeRadius;
+            newCenterX = FFIELD(o, oPosX) + dx * relativeRadius;
+            newCenterZ = FFIELD(o, oPosZ) + dz * relativeRadius;
 
-            o->oPosX = newCenterX - radius * coss(angle);
-            o->oPosZ = newCenterZ - radius * sins(angle);
+            FSETFIELD(o, oPosX, newCenterX - radius * coss(angle));
+            FSETFIELD(o, oPosZ, newCenterZ - radius * sins(angle));
 
-            otherObject->oPosX = newCenterX + otherRadius * coss(angle);
-            otherObject->oPosZ = newCenterZ + otherRadius * sins(angle);
+            FSETFIELD(otherObject, oPosX, newCenterX + otherRadius * coss(angle));
+            FSETFIELD(otherObject, oPosZ, newCenterZ + otherRadius * sins(angle));
 
             if (targetYaw != NULL && abs_angle_diff(o->oMoveAngleYaw, angle) < 0x4000) {
                 // Bounce off object (or it would, if the above atan2s bug
@@ -652,14 +681,14 @@ static void obj_set_knockback_action(s32 attackType) {
         case ATTACK_KICK_OR_TRIP:
         case ATTACK_FAST_ATTACK:
             o->oAction = OBJ_ACT_VERTICAL_KNOCKBACK;
-            o->oForwardVel = 20.0f;
-            o->oVelY = 50.0f;
+            QSETFIELD(o, oForwardVel, q(20));
+            QSETFIELD(o, oVelY, q(50));
             break;
 
         default:
             o->oAction = OBJ_ACT_HORIZONTAL_KNOCKBACK;
-            o->oForwardVel = 50.0f;
-            o->oVelY = 30.0f;
+            QSETFIELD(o, oForwardVel, q(50));
+            QSETFIELD(o, oVelY, q(30));
             break;
     }
 
@@ -674,13 +703,13 @@ static void obj_set_squished_action(void) {
 
 static s32 obj_die_if_above_lava_and_health_non_positive(void) {
     if (o->oMoveFlags & OBJ_MOVE_UNDERWATER_ON_GROUND) {
-        if (o->oGravity + o->oBuoyancy > 0.0f
-            || find_water_level(o->oPosX, o->oPosZ) - o->oPosY < 150.0f) {
+        if (QFIELD(o, oGravity) + QFIELD(o, oBuoyancy) > 0
+            || find_water_levelq(QFIELD(o, oPosX), QFIELD(o, oPosZ)) - QFIELD(o, oPosY) < q(150)) {
             return FALSE;
         }
     } else if (!(o->oMoveFlags & OBJ_MOVE_ABOVE_LAVA)) {
         if (o->oMoveFlags & OBJ_MOVE_ENTERED_WATER) {
-            if (o->oWallHitboxRadius < 200.0f) {
+            if (QFIELD(o, oWallHitboxRadius) < q(200)) {
                 cur_obj_play_sound_2(SOUND_OBJ_DIVING_INTO_WATER);
             } else {
                 cur_obj_play_sound_2(SOUND_OBJ_DIVING_IN_WATER);
@@ -784,15 +813,15 @@ static void obj_act_squished(f32 baseScale) {
         cur_obj_extend_animation_if_at_end();
     }
 
-    if (approach_f32_ptr(&o->header.gfx.scale[1], targetScaleY, baseScale * 0.14f)) {
-        o->header.gfx.scale[0] = o->header.gfx.scale[2] = baseScale * 2.0f - o->header.gfx.scale[1];
+    if (approach_q32_ptr(&o->header.gfx.scaleq[1], q(targetScaleY), q(baseScale * 0.14f))) {
+        o->header.gfx.scaleq[0] = o->header.gfx.scaleq[2] = q(baseScale) * 2 - o->header.gfx.scaleq[1];
 
         if (o->oTimer >= 16) {
             obj_die_if_health_non_positive();
         }
     }
 
-    o->oForwardVel = 0.0f;
+    QSETFIELD(o, oForwardVel, 0);
     cur_obj_move_standard(-78);
 }
 
@@ -874,23 +903,23 @@ static s32 obj_move_for_one_second(s32 endAction) {
  * attack Mario (e.g. fly guy shooting fire or lunging), especially when combined
  * with partial updates.
  */
-static void treat_far_home_as_mario(f32 threshold) {
-    f32 dx = o->oHomeX - o->oPosX;
-    f32 dy = o->oHomeY - o->oPosY;
-    f32 dz = o->oHomeZ - o->oPosZ;
-    f32 distance = sqrtf(dx * dx + dy * dy + dz * dz);
+static void treat_far_home_as_marioq(q32 thresholdq) {
+    s32 dxi = IFIELD(o, oHomeX) - IFIELD(o, oPosX);
+    s32 dyi = IFIELD(o, oHomeY) - IFIELD(o, oPosY);
+    s32 dzi = IFIELD(o, oHomeZ) - IFIELD(o, oPosZ);
+    q32 distanceq = q(sqrtu(dxi * dxi + dyi * dyi + dzi * dzi));
 
-    if (distance > threshold) {
-        o->oAngleToMario = atan2s(dz, dx);
-        o->oDistanceToMario = 25000.0f;
+    if (distanceq > thresholdq) {
+        o->oAngleToMario = atan2sq(dzi, dxi);
+        QSETFIELD(o, oDistanceToMario, q(25000));
     } else {
-        dx = o->oHomeX - gMarioObject->oPosX;
-        dy = o->oHomeY - gMarioObject->oPosY;
-        dz = o->oHomeZ - gMarioObject->oPosZ;
-        distance = sqrtf(dx * dx + dy * dy + dz * dz);
+        dxi = IFIELD(o, oHomeX) - IFIELD(gMarioObject, oPosX);
+        dyi = IFIELD(o, oHomeY) - IFIELD(gMarioObject, oPosY);
+        dzi = IFIELD(o, oHomeZ) - IFIELD(gMarioObject, oPosZ);
+        distanceq = q(sqrtu(dxi * dxi + dyi * dyi + dzi * dzi));
 
-        if (distance > threshold) {
-            o->oDistanceToMario = 20000.0f;
+        if (distanceq > thresholdq) {
+            QSETFIELD(o, oDistanceToMario, q(20000));
         }
     }
 }
@@ -942,8 +971,8 @@ void obj_spit_fire(s16 relativePosX, s16 relativePosY, s16 relativePosZ, f32 sca
                                                            scale, o, model, bhvSmallPiranhaFlame);
 
     if (obj != NULL) {
-        obj->oSmallPiranhaFlameStartSpeed = startSpeed;
-        obj->oSmallPiranhaFlameEndSpeed = endSpeed;
+        FSETFIELD(obj, oSmallPiranhaFlameStartSpeed, startSpeed);
+        FSETFIELD(obj, oSmallPiranhaFlameEndSpeed, endSpeed);
         obj->oSmallPiranhaFlameModel = model;
         obj->oMoveAnglePitch = movePitch;
     }

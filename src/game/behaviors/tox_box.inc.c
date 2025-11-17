@@ -9,15 +9,15 @@ s8 D_8032F948[] = { 4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 2, 5, 1, 5, 1, 5, 1, 5,
 s8 *D_8032F96C[] = { D_8032F8F0, D_8032F924, D_8032F948 };
 
 void tox_box_shake_screen(void) {
-    if (o->oDistanceToMario < 3000.0f)
+    if (QFIELD(o, oDistanceToMario) < q(3000.0))
         cur_obj_shake_screen(SHAKE_POS_SMALL);
 }
 
 void tox_box_move(f32 forwardVel, f32 a1, s16 deltaPitch, s16 deltaRoll)
 {
-    o->oPosY = 99.41124 * sins((f32)(o->oTimer + 1) / 8 * 0x8000) + o->oHomeY + 3.0f;
-    o->oForwardVel = forwardVel;
-    o->oUpVel = a1;
+    FSETFIELD(o, oPosY, 99.41124 * sins((o->oTimer + 1) * (0x8000 / 8)) + FFIELD(o, oHomeY) + 3.0f);
+    FSETFIELD(o, oForwardVel, forwardVel);
+    FSETFIELD(o, oUpVel, a1);
     o->oFaceAnglePitch += deltaPitch;
     if ((s16) o->oFaceAnglePitch < 0)
         deltaRoll = -deltaRoll;
@@ -47,10 +47,10 @@ void tox_box_act_7(void) {
 }
 
 void tox_box_act_1(void) {
-    o->oForwardVel = 0.0f;
+    QSETFIELD(o,  oForwardVel, q(0));
     if (o->oTimer == 0)
         tox_box_shake_screen();
-    o->oPosY = o->oHomeY + 3.0f;
+    FSETFIELD(o, oPosY, FFIELD(o, oHomeY) + 3.0f);
     if (o->oTimer == 20)
         o->oAction = cur_obj_progress_direction_table();
 }

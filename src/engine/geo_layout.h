@@ -6,6 +6,7 @@
 #include "game/memory.h"
 #include "macros.h"
 #include "types.h"
+#include <stdbool.h>
 
 #define GEO_CMD_FLAGS_RESET 0
 #define GEO_CMD_FLAGS_SET   1
@@ -81,6 +82,7 @@ void geo_layout_cmd_nop(void);
 void geo_layout_cmd_copy_view(void);
 void geo_layout_cmd_node_held_obj(void);
 void geo_layout_cmd_node_culling_radius(void);
+void geo_layout_cmd_node_held_obj_dyn(void);
 
 struct GraphNode *process_geo_layout(struct AllocOnlyPool *a0, void *segptr);
 

@@ -42,7 +42,7 @@ void cap_check_quicksand(void) {
         case SURFACE_DEEP_QUICKSAND:
         case SURFACE_QUICKSAND:
             o->oAction = 10;
-            o->oForwardVel = 0.0f;
+            QSETFIELD(o,  oForwardVel, q(0));
             break;
 
         case SURFACE_DEEP_MOVING_QUICKSAND:
@@ -50,18 +50,18 @@ void cap_check_quicksand(void) {
         case SURFACE_MOVING_QUICKSAND:
             o->oAction = 11;
             o->oMoveAngleYaw = (sObjFloor->force & 0xFF) << 8;
-            o->oForwardVel = 8 + 2 * (0 - ((sObjFloor->force & 0xFF00) >> 8));
+            FSETFIELD(o, oForwardVel, 8 + 2 * (0 - ((sObjFloor->force & 0xFF00) >> 8)));
             break;
 
         case SURFACE_INSTANT_QUICKSAND:
             o->oAction = 12;
-            o->oForwardVel = 0.0f;
+            QSETFIELD(o,  oForwardVel, q(0));
             break;
 
         case SURFACE_INSTANT_MOVING_QUICKSAND:
             o->oAction = 13;
             o->oMoveAngleYaw = (sObjFloor->force & 0xFF) << 8;
-            o->oForwardVel = 8 + 2 * (0 - ((sObjFloor->force & 0xFF00) >> 8));
+            FSETFIELD(o, oForwardVel, 8 + 2 * (0 - ((sObjFloor->force & 0xFF00) >> 8)));
             break;
     }
 }
@@ -70,27 +70,27 @@ void cap_sink_quicksand(void) {
     switch (o->oAction) {
         case 10:
             if (o->oTimer < 10) {
-                o->oGraphYOffset += -1.0f;
+                FMODFIELD(o, oGraphYOffset, += -1.0f);
                 o->oFaceAnglePitch = 0x2000;
             }
             break;
 
         case 11:
             if (o->oTimer < 10)
-                o->oGraphYOffset += -3.0f;
+                FMODFIELD(o, oGraphYOffset, += -3.0f);
 
             o->oFaceAnglePitch = 0x2000;
             break;
 
         case 12:
-            o->oGraphYOffset += -1.0f;
+            FMODFIELD(o, oGraphYOffset, += -1.0f);
             if (o->oTimer >= 21)
                 o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
 
             break;
 
         case 13:
-            o->oGraphYOffset += -6.0f;
+            FMODFIELD(o, oGraphYOffset, += -6.0f);
             if (o->oTimer >= 21)
                 o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
 
@@ -102,15 +102,15 @@ void cap_sink_quicksand(void) {
 }
 
 void bhv_wing_cap_init(void) {
-    o->oGravity = 1.2f;
-    o->oFriction = 0.999f;
-    o->oBuoyancy = 0.9f;
+    QSETFIELD(o, oGravity, q(1.2f));
+    QSETFIELD(o,  oFriction, q(0.999));
+    QSETFIELD(o,  oBuoyancy, q(0.9));
     o->oOpacity = 255;
 }
 
 void cap_scale_vertically(void) {
     o->oCapUnkF8 += 0x2000;
-    o->header.gfx.scale[1] = coss(o->oCapUnkF8) * 0.3 + 0.7;
+    o->header.gfx.scaleq[1] = cosqs(o->oCapUnkF8) * 3 / 10 + q(0.7);
     if (o->oCapUnkF8 == 0x10000) {
         o->oCapUnkF8 = 0;
         o->oCapUnkF4 = 2;
@@ -120,13 +120,13 @@ void cap_scale_vertically(void) {
 void wing_vanish_cap_act_0(void) {
     s16 sp1E;
 
-    o->oFaceAngleYaw += o->oForwardVel * 128.0f;
+    o->oFaceAngleYaw += FFIELD(o, oForwardVel) * 128.0f;
     sp1E = object_step();
     if (sp1E & 0x01) {
         cap_check_quicksand();
-        if (o->oVelY != 0.0f) {
+        if (QFIELD(o, oVelY) != 0) {
             o->oCapUnkF4 = 1;
-            o->oVelY = 0.0f;
+            QSETFIELD(o,  oVelY, q(0));
         }
     }
 
@@ -154,16 +154,16 @@ void bhv_wing_vanish_cap_loop(void) {
 }
 
 void bhv_metal_cap_init(void) {
-    o->oGravity = 2.4f;
-    o->oFriction = 0.999f;
-    o->oBuoyancy = 1.5f;
+    QSETFIELD(o, oGravity, q(2.4f));
+    QSETFIELD(o,  oFriction, q(0.999));
+    QSETFIELD(o,  oBuoyancy, q(1.5));
     o->oOpacity = 0xFF;
 }
 
 void metal_cap_act_0(void) {
     s16 sp1E;
 
-    o->oFaceAngleYaw += o->oForwardVel * 128.0f;
+    o->oFaceAngleYaw += FFIELD(o, oForwardVel) * 128.0f;
     sp1E = object_step();
     if (sp1E & 0x01)
         cap_check_quicksand();
@@ -189,12 +189,12 @@ void bhv_metal_cap_loop(void) {
 }
 
 void bhv_normal_cap_init(void) {
-    o->oGravity = 0.7f;
-    o->oFriction = 0.89f;
-    o->oBuoyancy = 0.9f;
+    QSETFIELD(o, oGravity, q(0.7f));
+    QSETFIELD(o,  oFriction, q(0.89));
+    QSETFIELD(o,  oBuoyancy, q(0.9));
     o->oOpacity = 0xFF;
 
-    save_file_set_cap_pos(o->oPosX, o->oPosY, o->oPosZ);
+    save_file_set_cap_pos(FFIELD(o, oPosX), FFIELD(o, oPosY), FFIELD(o, oPosZ));
 }
 
 void normal_cap_set_save_flags(void) {
@@ -222,15 +222,15 @@ void normal_cap_set_save_flags(void) {
 void normal_cap_act_0(void) {
     s16 sp1E;
 
-    o->oFaceAngleYaw += o->oForwardVel * 128.0f;
-    o->oFaceAnglePitch += o->oForwardVel * 80.0f;
+    o->oFaceAngleYaw += FFIELD(o, oForwardVel) * 128.0f;
+    o->oFaceAnglePitch += FFIELD(o, oForwardVel) * 80.0f;
     sp1E = object_step();
     if (sp1E & 0x01) {
         cap_check_quicksand();
 
-        if (o->oVelY != 0.0f) {
+        if (QFIELD(o, oVelY) != 0) {
             o->oCapUnkF4 = 1;
-            o->oVelY = 0.0f;
+            QSETFIELD(o,  oVelY, q(0));
             o->oFaceAnglePitch = 0;
         }
     }
@@ -251,8 +251,8 @@ void bhv_normal_cap_loop(void) {
             break;
     }
 
-    if ((s32) o->oForwardVel != 0)
-        save_file_set_cap_pos(o->oPosX, o->oPosY, o->oPosZ);
+    if (IFIELD(o, oForwardVel) != 0)
+        save_file_set_cap_pos(FFIELD(o, oPosX), FFIELD(o, oPosY), FFIELD(o, oPosZ));
 
     if (o->activeFlags == ACTIVE_FLAG_DEACTIVATED)
         normal_cap_set_save_flags();
@@ -262,8 +262,8 @@ void bhv_normal_cap_loop(void) {
 }
 
 void bhv_vanish_cap_init(void) {
-    o->oGravity = 1.2f;
-    o->oFriction = 0.999f;
-    o->oBuoyancy = 0.9f;
+    QSETFIELD(o, oGravity, q(1.2f));
+    QSETFIELD(o,  oFriction, q(0.999));
+    QSETFIELD(o,  oBuoyancy, q(0.9));
     o->oOpacity = 150;
 }

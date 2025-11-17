@@ -20,12 +20,12 @@ void clam_act_0(void) {
 
         o->oClamUnkF4 = 10;
         o->oTimer = 0;
-    } else if (o->oTimer > 150 && o->oDistanceToMario < 500.0f) {
+    } else if (o->oTimer > 150 && QFIELD(o, oDistanceToMario) < q(500.0)) {
         cur_obj_play_sound_2(SOUND_GENERAL_CLAM_SHELL2);
         o->oAction = 1;
     } else if (o->oClamUnkF4 != 0) {
         o->oClamUnkF4 -= 1;
-        cur_obj_shake_y(3.0f);
+        cur_obj_shake_yq(q(3.0f));
     }
 }
 
@@ -49,7 +49,7 @@ void clam_act_1(void) {
 }
 
 void bhv_clam_loop(void) {
-    o->header.gfx.scale[1] = 1.5f;
+    o->header.gfx.scaleq[1] = q(1.5);
 
     switch (o->oAction) {
         case 0:

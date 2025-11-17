@@ -19,9 +19,12 @@
 
 struct WallCollisionData
 {
-    /*0x00*/ f32 x, y, z;
-    /*0x0C*/ f32 offsetY;
-    /*0x10*/ f32 radius;
+    ///*0x00*/ f32 x, y, z;
+	q32 xq, yq, zq;
+    ///*0x0C*/ f32 offsetY;
+	q32 offsetYq;
+    ///*0x10*/ f32 radius;
+	q32 radiusq;
     /*0x14*/ s16 unused;
     /*0x16*/ s16 numWalls;
     /*0x18*/ struct Surface *walls[4];
@@ -29,21 +32,22 @@ struct WallCollisionData
 
 struct FloorGeometry
 {
-    f32 unused[4]; // possibly position data?
-    f32 normalX;
-    f32 normalY;
-    f32 normalZ;
-    f32 originOffset;
+    q32 normalXq;
+    q32 normalYq;
+    q32 normalZq;
+    q32 originOffsetq;
 };
 
-s32 f32_find_wall_collision(f32 *xPtr, f32 *yPtr, f32 *zPtr, f32 offsetY, f32 radius);
+s32 q32_find_wall_collision(q32 *xPtrq, q32 *yPtrq, q32 *zPtrq, q32 offsetYq, q32 radiusq);
 s32 find_wall_collisions(struct WallCollisionData *colData);
-f32 find_ceil(f32 posX, f32 posY, f32 posZ, struct Surface **pceil);
-f32 find_floor_height_and_data(f32 xPos, f32 yPos, f32 zPos, struct FloorGeometry **floorGeo);
-f32 find_floor_height(f32 x, f32 y, f32 z);
+q32 find_ceilq(q32 posXq, q32 posYq, q32 posZq, struct Surface **pceil);
+q32 find_floor_height_and_dataq(q32 xPosq, q32 yPosq, q32 zPosq, struct FloorGeometry **floorGeo);
+q32 find_floor_heightq(q32 xq, q32 yq, q32 zq);
+q32 find_floorq(q32 xPosq, q32 yPosq, q32 zPosq, struct Surface **pfloor);
 f32 find_floor(f32 xPos, f32 yPos, f32 zPos, struct Surface **pfloor);
+q32 find_water_levelq(q32 xq, q32 zq);
 f32 find_water_level(f32 x, f32 z);
-f32 find_poison_gas_level(f32 x, f32 z);
-void debug_surface_list_info(f32 xPos, f32 zPos);
+q32 find_poison_gas_levelq(q32 xq, q32 zq);
+void debug_surface_list_infoq(q32 xPosq, q32 zPosq);
 
 #endif // SURFACE_COLLISION_H

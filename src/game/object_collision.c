@@ -23,17 +23,17 @@ struct Object *debug_print_obj_collision(struct Object *a) {
 }
 
 s32 detect_object_hitbox_overlap(struct Object *a, struct Object *b) {
-    f32 sp3C = a->oPosY - a->hitboxDownOffset;
-    f32 sp38 = b->oPosY - b->hitboxDownOffset;
-    f32 dx = a->oPosX - b->oPosX;
+    f32 sp3C = FFIELD(a, oPosY) - a->hitboxDownOffset_s16;
+    f32 sp38 = FFIELD(b, oPosY) - b->hitboxDownOffset_s16;
+    f32 dx = FFIELD(a, oPosX) - FFIELD(b, oPosX);
     UNUSED f32 sp30 = sp3C - sp38;
-    f32 dz = a->oPosZ - b->oPosZ;
-    f32 collisionRadius = a->hitboxRadius + b->hitboxRadius;
+    f32 dz = FFIELD(a, oPosZ) - FFIELD(b, oPosZ);
+    f32 collisionRadius = a->hitboxRadius_s16 + b->hitboxRadius_s16;
     f32 distance = sqrtf(dx * dx + dz * dz);
 
     if (collisionRadius > distance) {
-        f32 sp20 = a->hitboxHeight + sp3C;
-        f32 sp1C = b->hitboxHeight + sp38;
+        f32 sp20 = a->hitboxHeight_s16 + sp3C;
+        f32 sp1C = b->hitboxHeight_s16 + sp38;
 
         if (sp3C > sp1C) {
             return 0;
@@ -63,12 +63,12 @@ s32 detect_object_hitbox_overlap(struct Object *a, struct Object *b) {
 }
 
 s32 detect_object_hurtbox_overlap(struct Object *a, struct Object *b) {
-    f32 sp3C = a->oPosY - a->hitboxDownOffset;
-    f32 sp38 = b->oPosY - b->hitboxDownOffset;
-    f32 sp34 = a->oPosX - b->oPosX;
+    f32 sp3C = FFIELD(a, oPosY) - a->hitboxDownOffset_s16;
+    f32 sp38 = FFIELD(b, oPosY) - b->hitboxDownOffset_s16;
+    f32 sp34 = FFIELD(a, oPosX) - FFIELD(b, oPosX);
     UNUSED f32 sp30 = sp3C - sp38;
-    f32 sp2C = a->oPosZ - b->oPosZ;
-    f32 sp28 = a->hurtboxRadius + b->hurtboxRadius;
+    f32 sp2C = FFIELD(a, oPosZ) - FFIELD(b, oPosZ);
+    f32 sp28 = a->hurtboxRadius_s16 + b->hurtboxRadius_s16;
     f32 sp24 = sqrtf(sp34 * sp34 + sp2C * sp2C);
 
     if (a == gMarioObject) {
@@ -76,8 +76,8 @@ s32 detect_object_hurtbox_overlap(struct Object *a, struct Object *b) {
     }
 
     if (sp28 > sp24) {
-        f32 sp20 = a->hitboxHeight + sp3C;
-        f32 sp1C = b->hurtboxHeight + sp38;
+        f32 sp20 = a->hitboxHeight_s16 + sp3C;
+        f32 sp1C = b->hurtboxHeight_s16 + sp38;
 
         if (sp3C > sp1C) {
             return 0;
@@ -114,7 +114,7 @@ void check_collision_in_list(struct Object *a, struct Object *b, struct Object *
     if (a->oIntangibleTimer == 0) {
         while (b != c) {
             if (b->oIntangibleTimer == 0) {
-                if (detect_object_hitbox_overlap(a, b) && b->hurtboxRadius != 0.0f) {
+                if (detect_object_hitbox_overlap(a, b) && b->hurtboxRadius_s16 != 0) {
                     detect_object_hurtbox_overlap(a, b);
                 }
             }
@@ -160,7 +160,7 @@ void check_destructive_object_collision(void) {
     struct Object *sp18 = (struct Object *) sp1C->header.next;
 
     while (sp18 != sp1C) {
-        if (sp18->oDistanceToMario < 2000.0f && !(sp18->activeFlags & ACTIVE_FLAG_UNK9)) {
+        if (FFIELD(sp18, oDistanceToMario) < 2000.0f && !(sp18->activeFlags & ACTIVE_FLAG_UNK9)) {
             check_collision_in_list(sp18, (struct Object *) sp18->header.next, sp1C);
             check_collision_in_list(sp18, (struct Object *) gObjectLists[OBJ_LIST_GENACTOR].next,
                           (struct Object *) &gObjectLists[OBJ_LIST_GENACTOR]);

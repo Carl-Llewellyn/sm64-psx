@@ -51,9 +51,9 @@ struct SnowFlakeVertex gSnowFlakeVertex1 = { -5, 5, 0 };
 struct SnowFlakeVertex gSnowFlakeVertex2 = { -5, -5, 0 };
 struct SnowFlakeVertex gSnowFlakeVertex3 = { 5, 5, 0 };
 
-extern void *tiny_bubble_dl_0B006AB0;
-extern void *tiny_bubble_dl_0B006A50;
-extern void *tiny_bubble_dl_0B006CD8;
+extern Gfx tiny_bubble_dl_0B006AB0[];
+extern Gfx tiny_bubble_dl_0B006A50[];
+extern Gfx tiny_bubble_dl_0B006CD8[];
 
 /**
  * Initialize snow particles by allocating a buffer for storing their state

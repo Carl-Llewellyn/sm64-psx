@@ -53,9 +53,9 @@ void coin_collected(void) {
 }
 
 void bhv_moving_yellow_coin_init(void) {
-    o->oGravity = 3.0f;
-    o->oFriction = 1.0f;
-    o->oBuoyancy = 1.5f;
+    QSETFIELD(o, oGravity, q(3.0f));
+    QSETFIELD(o,  oFriction, q(1));
+    QSETFIELD(o,  oBuoyancy, q(1.5));
 
     obj_set_hitbox(o, &sMovingYellowCoinHitbox);
 }
@@ -96,9 +96,9 @@ void bhv_moving_yellow_coin_loop(void) {
 }
 
 void bhv_moving_blue_coin_init(void) {
-    o->oGravity = 5.0f;
-    o->oFriction = 1.0f;
-    o->oBuoyancy = 1.5f;
+    QSETFIELD(o, oGravity, q(5.0f));
+    QSETFIELD(o,  oFriction, q(1));
+    QSETFIELD(o,  oBuoyancy, q(1.5));
 
     obj_set_hitbox(o, &sMovingBlueCoinHitbox);
 }
@@ -108,7 +108,7 @@ void bhv_moving_blue_coin_loop(void) {
 
     switch (o->oAction) {
         case MOV_BCOIN_ACT_STILL:
-            if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 1500))
+            if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 1500))
                 o->oAction = 1;
             break;
 
@@ -116,14 +116,14 @@ void bhv_moving_blue_coin_loop(void) {
             collisionFlags = object_step();
             if ((collisionFlags & OBJ_COL_FLAG_GROUNDED)) /* bit 0 */
             {
-                o->oForwardVel += 25.0f;
+                QMODFIELD(o, oForwardVel, += q(25));
                 if (!(collisionFlags & OBJ_COL_FLAG_NO_Y_VEL))
                     cur_obj_play_sound_2(SOUND_GENERAL_COIN_DROP); /* bit 3 */
             } else
-                o->oForwardVel *= 0.98;
+                QSETFIELD(o, oForwardVel, qmul(QFIELD(o, oForwardVel), q(0.98)));
 
-            if (o->oForwardVel > 75.0)
-                o->oForwardVel = 75.0f;
+            if (QFIELD(o, oForwardVel) > q(75))
+                QSETFIELD(o,  oForwardVel, q(75));
 
             obj_flicker_and_disappear(o, 600);
             break;
@@ -137,9 +137,9 @@ void bhv_moving_blue_coin_loop(void) {
 }
 
 void bhv_blue_coin_sliding_jumping_init(void) {
-    o->oGravity = 3.0;
-    o->oFriction = 0.98;
-    o->oBuoyancy = 1.5;
+    QSETFIELD(o, oGravity, q(3.0));
+    QSETFIELD(o,  oFriction, q(0.98));
+    QSETFIELD(o,  oBuoyancy, q(1.5));
 
     obj_set_hitbox(o, &sMovingBlueCoinHitbox);
 }
@@ -147,15 +147,15 @@ void bhv_blue_coin_sliding_jumping_init(void) {
 void blue_coin_sliding_away_from_mario(void) {
     s16 collisionFlags;
 
-    o->oForwardVel = 15.0;
+    QSETFIELD(o, oForwardVel, q(15));
     o->oMoveAngleYaw = o->oAngleToMario + 0x8000;
 
     if (coin_step(&collisionFlags) != 0)
-        o->oVelY += 18.0f;
+        QMODFIELD(o, oVelY, += q(18));
     if ((collisionFlags & 0x2) != 0)
         o->oAction = 3; /* bit 1 */
 
-    if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 1000) == 0)
+    if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 1000) == 0)
         o->oAction = 2;
 }
 
@@ -164,7 +164,7 @@ void blue_coin_sliding_slow_down(void) {
 
     coin_step(&collisionFlags);
 
-    if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 500) == 1)
+    if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 500) == 1)
         o->oAction = 1;
 
     if (o->oTimer >= 151)
@@ -176,7 +176,7 @@ void bhv_blue_coin_sliding_loop(void) {
 
     switch (o->oAction) {
         case 0:
-            if (is_point_within_radius_of_mario(o->oPosX, o->oPosY, o->oPosZ, 500) == 1)
+            if (is_point_within_radius_of_mario(IFIELD(o, oPosX), IFIELD(o, oPosY), IFIELD(o, oPosZ), 500) == 1)
                 o->oAction = 1;
 
             set_object_visibility(o, 3000);
@@ -224,7 +224,7 @@ void bhv_blue_coin_jumping_loop(void) {
         case 0:
             if (o->oTimer == 0) {
                 cur_obj_become_intangible();
-                o->oVelY = 50.0;
+                QSETFIELD(o,  oVelY, q(50));
             }
 
             object_step();

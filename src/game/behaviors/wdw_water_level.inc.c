@@ -18,7 +18,7 @@ void bhv_water_level_diamond_loop(void) {
         switch (o->oAction) {
             case WATER_LEVEL_DIAMOND_ACT_INIT:
                 o->oFaceAngleYaw = 0;
-                o->oWaterLevelTriggerTargetWaterLevel = (s32) o->oPosY;
+                o->oWaterLevelTriggerTargetWaterLevel = IFIELD(o, oPosY);
                 if (o->oTimer > 10)
                     o->oAction++; // Sets to WATER_LEVEL_DIAMOND_ACT_IDLE
                 break;

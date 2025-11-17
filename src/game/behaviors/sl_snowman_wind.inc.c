@@ -10,14 +10,18 @@ void bhv_sl_snowman_wind_loop(void) {
     
     // Waiting for Mario to approach.
     if (o->oSubAction == SL_SNOWMAN_WIND_ACT_IDLE) {
-        o->oDistanceToMario = 0;
+        QSETFIELD(o, oDistanceToMario, 0);
         
         // Check if Mario is within 1000 units of the center of the bridge, and ready to speak.
-        vec3f_copy_2(tempPos, &o->oPosX);
+        tempPos[0] = FFIELD(o, oPosX);
+		tempPos[1] = FFIELD(o, oPosY);
+		tempPos[2] = FFIELD(o, oPosZ);
         obj_set_pos(o, 1100, 3328, 1164); // Position is in the middle of the ice bridge
         if (cur_obj_can_mario_activate_textbox(1000.0f, 30.0f, 0x7FFF))
             o->oSubAction++;
-        vec3f_copy_2(&o->oPosX, tempPos);
+        FSETFIELD(o, oPosX, tempPos[0]);
+		FSETFIELD(o, oPosY, tempPos[1]);
+		FSETFIELD(o, oPosZ, tempPos[2]);
         
     // Mario has come close, begin dialog.
     } else if (o->oSubAction == SL_SNOWMAN_WIND_ACT_TALKING) {
@@ -25,7 +29,7 @@ void bhv_sl_snowman_wind_loop(void) {
             o->oSubAction++;
         
     // Blowing, spawn wind particles (SL_SNOWMAN_WIND_ACT_BLOWING)
-    } else if (o->oDistanceToMario < 1500.0f && absf(gMarioObject->oPosY - o->oHomeY) < 500.0f) {
+    } else if (QFIELD(o, oDistanceToMario) < q(1500) && ABS(QFIELD(gMarioObject, oPosY) - QFIELD(o, oHomeY)) < q(500)) {
         // Point towards Mario, but only within 0x1500 angle units of the original angle.
         if ((marioAngleFromWindSource = o->oAngleToMario - o->oSLSnowmanWindOriginalYaw) > 0) {
             if (marioAngleFromWindSource < 0x1500)

@@ -1,3 +1,4 @@
+#ifndef NO_AUDIO
 #include <ultra64.h>
 
 #include "heap.h"
@@ -336,8 +337,10 @@ void unused_803160F8(struct SoundAllocPool *pool) {
 
 extern s32 D_SH_80315EE8;
 void sound_init_main_pools(s32 sizeForAudioInitPool) {
+#ifndef NO_AUDIO
     sound_alloc_pool_init(&gAudioInitPool, gAudioHeap, sizeForAudioInitPool);
     sound_alloc_pool_init(&gAudioSessionPool, gAudioHeap + sizeForAudioInitPool, gAudioHeapSize - sizeForAudioInitPool);
+#endif
 }
 
 #ifdef VERSION_SH
@@ -1736,4 +1739,5 @@ u8 audioString28[] = "FXCOMP %d\n";
 u8 audioString29[] = "FXDOWN %d\n";
 u8 audioString30[] = "WaveCacheLen: %d\n";
 u8 audioString31[] = "SpecChange Finished\n";
+#endif
 #endif

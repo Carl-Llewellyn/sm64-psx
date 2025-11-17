@@ -1,3 +1,4 @@
+#if 0
 #include <PR/ultratypes.h>
 
 #include "macros.h"
@@ -168,3 +169,4 @@ struct DynList dynlist_mario_mustache_shape[] = {
 
     EndList(),
 };
+#endif

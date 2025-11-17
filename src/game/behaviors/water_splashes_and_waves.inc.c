@@ -49,16 +49,15 @@ struct WaterDropletParams gShallowWaterWaveDropletParams = {
 void bhv_water_splash_spawn_droplets(void) {
     s32 i;
     if (o->oTimer == 0)
-        o->oPosY = find_water_level(o->oPosX, o->oPosZ);
+        FSETFIELD(o, oPosY, qtof(find_water_levelq(QFIELD(o, oPosX), QFIELD(o, oPosZ))));
 
-    if (o->oPosY > FLOOR_LOWER_LIMIT_MISC) // Make sure it is not at the default water level
+    if (FFIELD(o, oPosY) > FLOOR_LOWER_LIMIT_MISC) // Make sure it is not at the default water level
         for (i = 0; i < 3; i++)
             spawn_water_droplet(o, &sWaterSplashDropletParams);
 }
 
 void bhv_water_droplet_loop(void) {
-    UNUSED u32 unusedVar;
-    f32 waterLevel = find_water_level(o->oPosX, o->oPosZ);
+    f32 waterLevel = find_water_level(FFIELD(o, oPosX), FFIELD(o, oPosZ));
 
     if (o->oTimer == 0) {
         if (cur_obj_has_model(MODEL_FISH))
@@ -68,11 +67,11 @@ void bhv_water_droplet_loop(void) {
         o->oFaceAngleYaw = random_u16();
     }
     // Apply gravity
-    o->oVelY -= 4.0f;
-    o->oPosY += o->oVelY;
+    QMODFIELD(o, oVelY, -= q(4.0f));
+    QMODFIELD(o, oPosY, += QFIELD(o, oVelY));
     // Check if fallen back into the water
-    if (o->oVelY < 0.0f) {
-        if (waterLevel > o->oPosY) {
+    if (QFIELD(o, oVelY) < 0) {
+        if (waterLevel > FFIELD(o, oPosY)) {
             // Create the smaller splash
             try_to_spawn_object(0, 1.0f, o, MODEL_SMALL_WATER_SPLASH, bhvWaterDropletSplash);
             obj_mark_for_deletion(o);
@@ -85,7 +84,7 @@ void bhv_water_droplet_loop(void) {
 
 void bhv_idle_water_wave_loop(void) {
     obj_copy_pos(o, gMarioObject);
-    o->oPosY = gMarioStates[0].waterLevel + 5;
+    FSETFIELD(o, oPosY, gMarioStates[0].waterLevel + 5);
     if (!(gMarioObject->oMarioParticleFlags & ACTIVE_PARTICLE_IDLE_WATER_WAVE)) {
         gMarioObject->oActiveParticleFlags &= (u16)~ACTIVE_PARTICLE_IDLE_WATER_WAVE;
         o->activeFlags = ACTIVE_FLAG_DEACTIVATED;
@@ -93,13 +92,13 @@ void bhv_idle_water_wave_loop(void) {
 }
 
 void bhv_water_droplet_splash_init(void) {
-    cur_obj_scale(random_float() + 1.5);
+    cur_obj_scaleq(random_q32() + q(1.5));
 }
 
 void bhv_bubble_splash_init(void) {
-    f32 waterLevel = find_water_level(o->oPosX, o->oPosZ);
-    obj_scale_xyz(o, 0.5f, 1.0f, 0.5f);
-    o->oPosY = waterLevel + 5.0f;
+    q32 waterLevelq = find_water_levelq(QFIELD(o, oPosX), QFIELD(o, oPosZ));
+    obj_scale_xyzq(o, q(0.5), q(1.0), q(0.5));
+    QSETFIELD(o, oPosY, waterLevelq + q(5));
 }
 
 void bhv_shallow_water_splash_init(void) {
@@ -113,21 +112,21 @@ void bhv_shallow_water_splash_init(void) {
 }
 
 void bhv_wave_trail_shrink(void) {
-    f32 waterLevel = find_water_level(o->oPosX, o->oPosZ);
+    f32 waterLevel = find_water_level(FFIELD(o, oPosX), FFIELD(o, oPosZ));
     // Destroy every other water wave to space them out (this is a terrible way of doing it)
     if (o->oTimer == 0)
         if (gGlobalTimer & 1)
             obj_mark_for_deletion(o);
-    o->oPosY = waterLevel + 5.0f;
+    FSETFIELD(o, oPosY, waterLevel + 5.0f);
 
     if (o->oTimer == 0)
-        o->oWaveTrailSize = o->header.gfx.scale[0];
+        QSETFIELD(o, oWaveTrailSize, o->header.gfx.scaleq[0]);
 
     if (o->oAnimState > 3) {
-        o->oWaveTrailSize = o->oWaveTrailSize - 0.1; // Shrink the wave
-        if (o->oWaveTrailSize < 0.0f)
-            o->oWaveTrailSize = 0.0f;
-        o->header.gfx.scale[0] = o->oWaveTrailSize;
-        o->header.gfx.scale[2] = o->oWaveTrailSize;
+        QMODFIELD(o, oWaveTrailSize, -= q(0.1)); // Shrink the wave
+        if (QFIELD(o, oWaveTrailSize) < 0)
+            QSETFIELD(o, oWaveTrailSize, 0);
+        o->header.gfx.scaleq[0] = QFIELD(o, oWaveTrailSize);
+        o->header.gfx.scaleq[2] = QFIELD(o, oWaveTrailSize);
     }
 }

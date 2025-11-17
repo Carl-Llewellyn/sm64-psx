@@ -1,3 +1,4 @@
+#ifndef NO_AUDIO
 #ifndef VERSION_SH
 #include <ultra64.h>
 
@@ -10,7 +11,7 @@
 #include "external.h"
 
 #ifndef TARGET_N64
-#include "../pc/mixer.h"
+#include "../port/mixer.h"
 #endif
 
 #define DMEM_ADDR_TEMP 0x0
@@ -1540,5 +1541,6 @@ void note_disable(struct Note *note) {
     note->parentLayer = NO_LAYER;
     note->prevParentLayer = NO_LAYER;
 }
+#endif
 #endif
 #endif

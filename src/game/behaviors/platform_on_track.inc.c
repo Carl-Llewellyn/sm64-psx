@@ -67,7 +67,7 @@ void bhv_platform_on_track_init(void) {
         o->oBehParams2ndByte = o->oMoveAngleYaw; // TODO: Weird?
 
         if (o->oPlatformOnTrackType == PLATFORM_ON_TRACK_TYPE_CHECKERED) {
-            o->header.gfx.scale[1] = 2.0f;
+            o->header.gfx.scaleq[1] = q(2);
         }
     }
 }
@@ -83,12 +83,12 @@ static void platform_on_track_act_init(void) {
     o->oPlatformOnTrackPrevWaypointFlags = 0;
     o->oPlatformOnTrackBaseBallIndex = 0;
 
-    o->oPosX = o->oHomeX = o->oPlatformOnTrackStartWaypoint->pos[0];
-    o->oPosY = o->oHomeY = o->oPlatformOnTrackStartWaypoint->pos[1];
-    o->oPosZ = o->oHomeZ = o->oPlatformOnTrackStartWaypoint->pos[2];
+    FSETFIELD(o, oPosX, FSETFIELD(o, oHomeX, o->oPlatformOnTrackStartWaypoint->pos[0]));
+    FSETFIELD(o, oPosY, FSETFIELD(o, oHomeY, o->oPlatformOnTrackStartWaypoint->pos[1]));
+    FSETFIELD(o, oPosZ, FSETFIELD(o, oHomeZ, o->oPlatformOnTrackStartWaypoint->pos[2]));
 
     o->oFaceAngleYaw = o->oBehParams2ndByte;
-    o->oForwardVel = o->oVelX = o->oVelY = o->oVelZ = o->oPlatformOnTrackDistMovedSinceLastBall = 0.0f;
+    QSETFIELD(o, oForwardVel, QSETFIELD(o, oVelX, QSETFIELD(o, oVelY, QSETFIELD(o, oVelZ, QSETFIELD(o, oPlatformOnTrackDistMovedSinceLastBall, 0)))));
 
     o->oPlatformOnTrackWasStoodOn = FALSE;
 
@@ -98,7 +98,7 @@ static void platform_on_track_act_init(void) {
 
     // Spawn track balls
     for (i = 1; i < 6; i++) {
-        platform_on_track_update_pos_or_spawn_ball(i, o->oHomeX, o->oHomeY, o->oHomeZ);
+        platform_on_track_update_pos_or_spawn_ball(i, FFIELD(o, oHomeX), FFIELD(o, oHomeY), FFIELD(o, oHomeZ));
     }
 
     o->oAction = PLATFORM_ON_TRACK_ACT_WAIT_FOR_MARIO;
@@ -145,7 +145,7 @@ static void platform_on_track_act_move_along_track(void) {
                 || o->oPlatformOnTrackPrevWaypointFlags == WAYPOINT_FLAGS_PLATFORM_ON_TRACK_PAUSE) {
                 cur_obj_play_sound_2(SOUND_GENERAL_UNKNOWN4_LOWPRIO);
 
-                o->oForwardVel = 0.0f;
+                QSETFIELD(o,  oForwardVel, q(0));
                 if (o->oPlatformOnTrackPrevWaypointFlags == WAYPOINT_FLAGS_END) {
                     o->oAction = PLATFORM_ON_TRACK_ACT_INIT;
                 } else {
@@ -155,25 +155,25 @@ static void platform_on_track_act_move_along_track(void) {
         } else {
             // The ski lift accelerates, while the others instantly start
             if (!o->oPlatformOnTrackIsNotSkiLift) {
-                obj_forward_vel_approach(10.0, 0.1f);
+                obj_forward_vel_approachq(q(10.0), q(0.1f));
             } else {
-                o->oForwardVel = 10.0f;
+                QSETFIELD(o,  oForwardVel, q(10));
             }
 
             // Spawn a new track ball if necessary
-            if (approach_f32_ptr(&o->oPlatformOnTrackDistMovedSinceLastBall, 300.0f, o->oForwardVel)) {
-                o->oPlatformOnTrackDistMovedSinceLastBall -= 300.0f;
+            if (APPROACH_F32_FIELD(o, oPlatformOnTrackDistMovedSinceLastBall, 300.0f, FFIELD(o, oForwardVel))) {
+                QMODFIELD(o, oPlatformOnTrackDistMovedSinceLastBall, -= q(300.0f));
 
-                o->oHomeX = o->oPosX;
-                o->oHomeY = o->oPosY;
-                o->oHomeZ = o->oPosZ;
+                QSETFIELD(o,  oHomeX, QFIELD(o,  oPosX));
+                QSETFIELD(o,  oHomeY, QFIELD(o,  oPosY));
+                QSETFIELD(o,  oHomeZ, QFIELD(o,  oPosZ));
                 o->oPlatformOnTrackBaseBallIndex = (u16)(o->oPlatformOnTrackBaseBallIndex + 1);
 
-                platform_on_track_update_pos_or_spawn_ball(5, o->oHomeX, o->oHomeY, o->oHomeZ);
+                platform_on_track_update_pos_or_spawn_ball(5, FFIELD(o, oHomeX), FFIELD(o, oHomeY), FFIELD(o, oHomeZ));
             }
         }
 
-        platform_on_track_update_pos_or_spawn_ball(0, o->oPosX, o->oPosY, o->oPosZ);
+        platform_on_track_update_pos_or_spawn_ball(0, FFIELD(o, oPosX), FFIELD(o, oPosY), FFIELD(o, oPosZ));
 
         o->oMoveAnglePitch = o->oPlatformOnTrackPitch;
         o->oMoveAngleYaw = o->oPlatformOnTrackYaw;
@@ -245,22 +245,24 @@ static void platform_on_track_rock_ski_lift(void) {
     s32 targetRoll = 0;
     UNUSED s32 initialRoll = o->oFaceAngleRoll;
 
-    o->oFaceAngleRoll += (s32) o->oPlatformOnTrackSkiLiftRollVel;
+    o->oFaceAngleRoll += IFIELD(o, oPlatformOnTrackSkiLiftRollVel);
 
     // Tilt away from the moving direction and toward mario
     if (gMarioObject->platform == o) {
-        targetRoll = o->oForwardVel * sins(o->oMoveAngleYaw) * -50.0f
-                     + (s32)(o->oDistanceToMario * sins(o->oAngleToMario - o->oFaceAngleYaw) * -4.0f);
+        targetRoll = FFIELD(o, oForwardVel) * sins(o->oMoveAngleYaw) * -50.0f
+                     + (s32)(FFIELD(o, oDistanceToMario) * sins(o->oAngleToMario - o->oFaceAngleYaw) * -4.0f);
     }
 
+	f32 platformOnTrackSkiLiftRollVel = FFIELD(o, oPlatformOnTrackSkiLiftRollVel);
     oscillate_toward(
         /* value          */ &o->oFaceAngleRoll,
-        /* vel            */ &o->oPlatformOnTrackSkiLiftRollVel,
+        /* vel            */ &platformOnTrackSkiLiftRollVel,
         /* target         */ targetRoll,
         /* velCloseToZero */ 5.0f,
         /* accel          */ 6.0f,
         /* slowdown       */ 1.5f);
-    clamp_f32(&o->oPlatformOnTrackSkiLiftRollVel, -100.0f, 100.0f);
+	clamp_f32(&platformOnTrackSkiLiftRollVel, -100.0f, 100.0f);
+	FSETFIELD(o, oPlatformOnTrackSkiLiftRollVel, platformOnTrackSkiLiftRollVel);
 }
 
 /**
@@ -289,12 +291,12 @@ void bhv_platform_on_track_update(void) {
         platform_on_track_rock_ski_lift();
     } else if (o->oPlatformOnTrackType == PLATFORM_ON_TRACK_TYPE_CARPET) {
         if (!o->oPlatformOnTrackWasStoodOn && gMarioObject->platform == o) {
-            o->oPlatformOnTrackOffsetY = -8.0f;
+            QSETFIELD(o,  oPlatformOnTrackOffsetY, q(-8));
             o->oPlatformOnTrackWasStoodOn = TRUE;
         }
 
-        approach_f32_ptr(&o->oPlatformOnTrackOffsetY, 0.0f, 0.5f);
-        o->oPosY += o->oPlatformOnTrackOffsetY;
+        APPROACH_F32_FIELD(o, oPlatformOnTrackOffsetY, 0.0f, 0.5f);
+        QMODFIELD(o, oPosY, += QFIELD(o, oPlatformOnTrackOffsetY));
     }
 }
 

@@ -56,8 +56,8 @@ static void beta_boo_key_dropped_loop(void) {
 
     // Slowly increase the Y offset to make the model aligned correctly.
     // This is spread out over 13 frames so that it's not noticable.
-    if (o->oGraphYOffset < 26.0f) {
-        o->oGraphYOffset += 2.0f;
+    if (QFIELD(o, oGraphYOffset) < q(26)) {
+        QMODFIELD(o, oGraphYOffset, += q(2));
     }
 
     // Transition from rotating in both the yaw and the roll axes
@@ -72,8 +72,8 @@ static void beta_boo_key_dropped_loop(void) {
 
     // Once the key stops bouncing, stop its horizontal movement on the ground.
     if (o->oMoveFlags & OBJ_MOVE_ON_GROUND) {
-        o->oVelX = 0.0f;
-        o->oVelZ = 0.0f;
+        QSETFIELD(o,  oVelX, q(0));
+        QSETFIELD(o,  oVelZ, q(0));
     }
 
     // Rotate the key
@@ -109,7 +109,6 @@ static void beta_boo_key_dropped_loop(void) {
  */
 static void beta_boo_key_drop(void) {
     s16 velocityDirection;
-    f32 velocityMagnitude;
 
     // Update the key to be inside the boo
     struct Object *parent = o->parentObj;
@@ -127,13 +126,12 @@ static void beta_boo_key_drop(void) {
         // Make the key move laterally away from Mario at 3 units/frame
         // (as if he transferred kinetic energy to it)
         velocityDirection = gMarioObject->oMoveAngleYaw;
-        velocityMagnitude = 3.0f;
 
-        o->oVelX = sins(velocityDirection) * velocityMagnitude;
-        o->oVelZ = coss(velocityDirection) * velocityMagnitude;
+        QSETFIELD(o, oVelX, sinqs(velocityDirection) * 3);
+        QSETFIELD(o, oVelZ, cosqs(velocityDirection) * 3);
 
         // Give it an initial Y velocity of 40 units/frame
-        o->oVelY = 40.0f;
+        QSETFIELD(o, oVelY, q(40));
     }
 
     // Rotate the key
@@ -151,7 +149,7 @@ static void beta_boo_key_inside_boo_loop(void) {
 
     // Use a Y offset of 40 to make the key model aligned correctly.
     // (Why didn't they use oGraphYOffset?)
-    o->oPosY += 40.0f;
+    QMODFIELD(o, oPosY, += q(40.0f));
 
     // If the boo is dying/dead, set the action to BETA_BOO_KEY_ACT_DROPPING.
     if (parent->oBooDeathStatus != BOO_DEATH_STATUS_ALIVE) {

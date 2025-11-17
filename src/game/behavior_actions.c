@@ -47,6 +47,15 @@
 
 #define o gCurrentObject
 
+s32 approach_q32_ptr(q32 *pxq, q32 targetq, q32 deltaq);
+
+#define APPROACH_F32_FIELD(obj, field, target, delta) ({\
+	q32 x = QFIELD(obj, field);\
+	approach_q32_ptr(&x, q(target), q(delta));\
+	QSETFIELD(obj, field, x);\
+	x;\
+})
+
 struct WFRotatingPlatformData {
     s16 pad;
     s16 scale;
@@ -157,15 +166,15 @@ void spawn_mist_particles_variable(s32 count, s32 offsetY, f32 size) {
 #include "behaviors/breakable_box.inc.c"
 
 // not sure what this is doing here. not in a behavior file.
-Gfx *geo_move_mario_part_from_parent(s32 run, UNUSED struct GraphNode *node, Mat4 mtx) {
-    Mat4 sp20;
+Gfx *geo_move_mario_part_from_parent(s32 run, UNUSED struct GraphNode *node, const ShortMatrix* mtxq) {
+    ShortMatrix sp20;
     struct Object *sp1C;
 
     if (run == TRUE) {
         sp1C = (struct Object *) gCurGraphNodeObject;
         if (sp1C == gMarioObject && sp1C->prevObj != NULL) {
-            create_transformation_from_matrices(sp20, mtx, *gCurGraphNodeCamera->matrixPtr);
-            obj_update_pos_from_parent_transformation(sp20, sp1C->prevObj);
+            create_transformation_from_matricesq(&sp20, mtxq, gCurGraphNodeCamera->matrixPtrq);
+            obj_update_pos_from_parent_transformationq(&sp20, sp1C->prevObj);
             obj_set_gfx_pos_from_pos(sp1C->prevObj);
         }
     }

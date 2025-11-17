@@ -77,7 +77,7 @@ index 30a87806..6bf7b79a 100644
 +        GEO_CLOSE_NODE(),
 +        GEO_ZBUFFER(0),
 +        GEO_OPEN_NODE(),
-+            GEO_ASM(0, geo18_display_error_message),
++            GEO_ASM_DYN(0, DYN_geo18_display_error_message),
 +        GEO_CLOSE_NODE(),
 +    GEO_CLOSE_NODE(),
 +    GEO_END(),

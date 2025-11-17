@@ -5,12 +5,12 @@ void bhv_warp_loop(void) {
     if (o->oTimer == 0) {
         sp6 = (o->oBehParams >> 24) & 0xFF;
         if (sp6 == 0)
-            o->hitboxRadius = 50.0f;
+            o->hitboxRadius_s16 = 50;
         else if (sp6 == 0xFF)
-            o->hitboxRadius = 10000.0f;
+            o->hitboxRadius_s16 = 10000;
         else
-            o->hitboxRadius = sp6 * 10.0;
-        o->hitboxHeight = 50.0f;
+            o->hitboxRadius_s16 = sp6 * 10;
+        o->hitboxHeight_s16 = 50;
     }
     o->oInteractStatus = 0;
 }
@@ -21,12 +21,12 @@ void bhv_fading_warp_loop() // identical to the above function except for o->hit
     if (o->oTimer == 0) {
         sp6 = (o->oBehParams >> 24) & 0xFF;
         if (sp6 == 0)
-            o->hitboxRadius = 85.0f;
+            o->hitboxRadius_s16 = 85;
         else if (sp6 == 0xFF)
-            o->hitboxRadius = 10000.0f;
+            o->hitboxRadius_s16 = 10000;
         else
-            o->hitboxRadius = sp6 * 10.0;
-        o->hitboxHeight = 50.0f;
+            o->hitboxRadius_s16 = sp6 * 10;
+        o->hitboxHeight_s16 = 50;
     }
     o->oInteractStatus = 0;
 }

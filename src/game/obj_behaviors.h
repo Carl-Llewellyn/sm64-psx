@@ -104,7 +104,7 @@ void big_bully_spawn_minion(s32 arg0, s32 arg1, s32 arg2, s16 arg3);
 void bhv_big_bully_with_minions_init(void);
 void big_bully_spawn_star(void);
 void bhv_big_bully_with_minions_loop(void);
-f32 water_ring_calc_mario_dist(void);
+s32 water_ring_calc_mario_dist(void);
 void water_ring_init(void);
 void bhv_jet_stream_water_ring_init(void);
 void water_ring_check_collection(f32 avgScale, struct Object* ringManager);

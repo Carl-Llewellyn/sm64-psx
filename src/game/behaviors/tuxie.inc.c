@@ -16,21 +16,21 @@ void tuxies_mother_act_2(void) {
     UNUSED s32 unused;
     struct Object *sp1C = cur_obj_find_nearest_object_with_behavior(bhvSmallPenguin, &sp24);
 
-    if (cur_obj_find_nearby_held_actor(bhvUnused20E0, 1000.0f) != NULL) {
+    if (cur_obj_find_nearby_held_actor(bhvUnused20E0, 1000) != NULL) {
         if (o->oSubAction == 0) {
             cur_obj_init_animation_with_sound(0);
-            o->oForwardVel = 10.0f;
+            QSETFIELD(o,  oForwardVel, q(10));
             if (800.0f < cur_obj_lateral_dist_from_mario_to_home())
                 o->oSubAction = 1;
             cur_obj_rotate_yaw_toward(o->oAngleToMario, 0x400);
         } else {
-            o->oForwardVel = 0.0f;
+            QSETFIELD(o,  oForwardVel, q(0));
             cur_obj_init_animation_with_sound(3);
             if (cur_obj_lateral_dist_from_mario_to_home() < 700.0f)
                 o->oSubAction = 0;
         }
     } else {
-        o->oForwardVel = 0.0f;
+        QSETFIELD(o,  oForwardVel, q(0));
         cur_obj_init_animation_with_sound(3);
     }
     if (sp1C != NULL && sp24 < 300.0f && sp1C->oHeldState != HELD_FREE) {
@@ -54,7 +54,7 @@ void tuxies_mother_act_1(void) {
                     dialogID = DIALOG_058;
                 else
                     dialogID = DIALOG_059;
-                if (cur_obj_update_dialog_with_cutscene(MARIO_DIALOG_LOOK_UP, 
+                if (cur_obj_update_dialog_with_cutscene(MARIO_DIALOG_LOOK_UP,
                         DIALOG_FLAG_TURN_TO_MARIO, CUTSCENE_DIALOG, dialogID)) {
                     if (dialogID == DIALOG_058)
                         o->oSubAction = 1;
@@ -102,7 +102,7 @@ void tuxies_mother_act_0(void) {
     struct Object *sp24;
     sp2C = 0;
     sp24 = cur_obj_find_nearest_object_with_behavior(bhvSmallPenguin, &sp28);
-    cur_obj_scale(4.0f);
+    cur_obj_scaleq(q(4.0f));
     cur_obj_init_animation_with_sound(3);
     if (sp28 < 500.0f)
         sp2C = 1;
@@ -118,12 +118,12 @@ void tuxies_mother_act_0(void) {
                         o->oSubAction++;
                 break;
             case 1:
-                if (cur_obj_update_dialog_with_cutscene(MARIO_DIALOG_LOOK_UP, 
+                if (cur_obj_update_dialog_with_cutscene(MARIO_DIALOG_LOOK_UP,
                     DIALOG_FLAG_TURN_TO_MARIO, CUTSCENE_DIALOG, DIALOG_057))
                     o->oSubAction++;
                 break;
             case 2:
-                if (o->oDistanceToMario > 450.0f)
+                if (QFIELD(o, oDistanceToMario) > q(450.0))
                     o->oSubAction = 0;
                 break;
         }
@@ -157,9 +157,9 @@ void small_penguin_act_2(void) {
         if (cur_obj_dist_to_nearest_object_with_behavior(bhvTuxiesMother) < 1000.0f)
             sp1C = 1;
     cur_obj_init_animation_with_sound(0);
-    o->oForwardVel = o->oSmallPenguinUnk104 + 3.0f;
+    QSETFIELD(o, oForwardVel, QFIELD(o, oSmallPenguinUnk104) + q(3));
     cur_obj_rotate_yaw_toward(o->oAngleToMario + 0x8000, o->oSmallPenguinUnk110 + 0x600);
-    if (o->oDistanceToMario > o->oSmallPenguinUnk108 + 500.0f)
+    if (QFIELD(o, oDistanceToMario) > QFIELD(o, oSmallPenguinUnk108) + q(500))
         o->oAction = 0;
     small_penguin_dive_with_mario();
     if (sp1C)
@@ -168,11 +168,11 @@ void small_penguin_act_2(void) {
 
 void small_penguin_act_1(void) {
     cur_obj_init_animation_with_sound(0);
-    o->oForwardVel = o->oSmallPenguinUnk104 + 3.0f;
+    QSETFIELD(o, oForwardVel, QFIELD(o, oSmallPenguinUnk104) + q(3));
     cur_obj_rotate_yaw_toward(o->oAngleToMario, o->oSmallPenguinUnk110 + 0x600);
-    if (o->oDistanceToMario < o->oSmallPenguinUnk108 + 300.0f)
+    if (QFIELD(o, oDistanceToMario) < QFIELD(o, oSmallPenguinUnk108) + q(300))
         o->oAction = 0;
-    if (o->oDistanceToMario > 1100.0f)
+    if (QFIELD(o, oDistanceToMario) > q(1100))
         o->oAction = 0;
     small_penguin_dive_with_mario();
 }
@@ -190,7 +190,7 @@ void small_penguin_act_3(void) {
 
 void small_penguin_act_4(void) {
     if (o->oTimer > 20) {
-        o->oForwardVel = 0.0f;
+        QSETFIELD(o,  oForwardVel, q(0));
         cur_obj_init_animation_with_sound(2);
         if (o->oTimer > 40)
             o->oAction = o->oSmallPenguinUnk100;
@@ -204,15 +204,15 @@ void small_penguin_act_0(void) {
     cur_obj_init_animation_with_sound(3);
     if (o->oTimer == 0) {
         o->oSmallPenguinUnk110 = (s32)(random_float() * 0x400);
-        o->oSmallPenguinUnk108 = random_float() * 100.0f;
-        o->oSmallPenguinUnk104 = random_float();
-        o->oForwardVel = 0.0f;
+        QSETFIELD(o, oSmallPenguinUnk108, random_q32() * 100);
+        QSETFIELD(o, oSmallPenguinUnk104, random_q32());
+        QSETFIELD(o, oForwardVel, 0);
         if (cur_obj_dist_to_nearest_object_with_behavior(bhvTuxiesMother) < 1000.0f)
             sp1C = 1;
     }
-    if (o->oDistanceToMario < 1000.0f && o->oSmallPenguinUnk108 + 600.0f < o->oDistanceToMario)
+    if (QFIELD(o, oDistanceToMario) < q(1000) && QFIELD(o, oSmallPenguinUnk108) + q(600) < QFIELD(o, oDistanceToMario))
         o->oAction = 1;
-    else if (o->oDistanceToMario < o->oSmallPenguinUnk108 + 300.0f)
+    else if (QFIELD(o, oDistanceToMario) < QFIELD(o, oSmallPenguinUnk108) + q(300))
         o->oAction = 2;
     if (sp1C)
         o->oAction = 5;
@@ -221,17 +221,17 @@ void small_penguin_act_0(void) {
 }
 
 void small_penguin_act_5(void) {
-    f32 sp24;
+    q32 sp24q;
     s16 sp22;
     struct Object *sp1C = cur_obj_nearest_object_with_behavior(bhvTuxiesMother);
     if (sp1C != NULL) {
-        if (o->oDistanceToMario < 1000.0f)
-            o->oForwardVel = 2.0f;
+        if (QFIELD(o, oDistanceToMario) < q(1000.0))
+            QSETFIELD(o, oForwardVel, q(2));
         else
-            o->oForwardVel = 0.0f;
-        sp24 = dist_between_objects(o, sp1C);
+            QSETFIELD(o, oForwardVel, 0);
+        sp24q = dist_between_objectsq(o, sp1C);
         sp22 = obj_angle_to_object(o, sp1C);
-        if (sp24 > 200.0f)
+        if (sp24q > q(200))
             cur_obj_rotate_yaw_toward(sp22, 0x400);
         else
             cur_obj_rotate_yaw_toward(sp22 + 0x8000, 0x400);
@@ -285,7 +285,7 @@ void bhv_small_penguin_loop(void) {
 /** Geo switch logic for Tuxie's mother's eyes. Cases 0-4. Interestingly, case
  * 4 is unused, and is the eye state seen in Shoshinkai 1995 footage.
  */
-Gfx *geo_switch_tuxie_mother_eyes(s32 run, struct GraphNode *node, UNUSED Mat4 *mtx) {
+Gfx *geo_switch_tuxie_mother_eyes(s32 run, struct GraphNode *node, UNUSED const ShortMatrix *mtxq) {
     struct Object *obj;
     struct GraphNodeSwitchCase *switchCase;
     s32 timer;
@@ -311,7 +311,7 @@ Gfx *geo_switch_tuxie_mother_eyes(s32 run, struct GraphNode *node, UNUSED Mat4 *
          * moving, since she only does when she's chasing Mario.
          */
         if (segmented_to_virtual(bhvTuxiesMother) == obj->behavior)
-            if (obj->oForwardVel > 5.0f)
+            if (QFIELD(obj, oForwardVel) > q(5))
                 switchCase->selectedCase = 3;
     }
     return NULL;
