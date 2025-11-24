@@ -68,8 +68,8 @@ TESSELLATION_ICACHE_FUNC [[gnu::flatten]] static void draw_sub_poly(const GfxVtx
 
 	bool blend = preloaded_flags->flags & PRIM_FLAG_FORCE_BLEND;
 
-	// if there was any error in rtpt, cull it
-	if(gte_getControlReg(GTE_FLAG) & FATAL_GTE_ERRORS) return;
+	// if there was any error in rtpt, cull it // this may not actually be good!
+	//if(gte_getControlReg(GTE_FLAG) & FATAL_GTE_ERRORS) return;
 
 	// fetch the results
 	s32 sxy0 = gte_getDataReg(GTE_SXY0);
@@ -94,7 +94,7 @@ TESSELLATION_ICACHE_FUNC [[gnu::flatten]] static void draw_sub_poly(const GfxVtx
 		gte_commandAfterLoad(GTE_CMD_RTPS | GTE_SF);
 
 		// if there was any error in rtps, cull it
-		if(gte_getControlReg(GTE_FLAG) & FATAL_GTE_ERRORS) return;
+		//if(gte_getControlReg(GTE_FLAG) & FATAL_GTE_ERRORS) return;
 
 		// get the result
 		sxy3 = gte_getDataReg(GTE_SXY2);
