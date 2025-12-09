@@ -220,6 +220,11 @@ void controller_backend_read(OSContPad* pad, u32 port) {
 		is_connected = false;
 		is_analog = false;
 		is_dualshock = false;
+		pad->button = 0;
+		pad->stick_x = 0;
+		pad->stick_y = 0;
+		pad->right_stick_x = 0;
+		pad->right_stick_y = 0;
 	}
 	last_poll_us = now_us;
 
@@ -237,12 +242,11 @@ void controller_backend_read(OSContPad* pad, u32 port) {
 				}
 				is_analog = true;
 			}
-		} else {
-			pad->errnum = 1;
-			return;
 		}
 		is_connected = true;
 	}
+
+	pad->errnum = 0;
 
 	static u8 request_poll[] = {CMD_POLL, 0, 0, 0};
 	update_rumble(&request_poll[2], &request_poll[3]);
@@ -258,6 +262,9 @@ void controller_backend_read(OSContPad* pad, u32 port) {
 		is_dualshock = false;
 		pad->errnum = 1;
 		return;
+	}
+	if(response_len >= 8) {
+		is_analog = true;
 	}
 
 	// Bytes 2 and 3 hold a bitfield representing the state all buttons. As each
