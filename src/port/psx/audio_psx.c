@@ -96,10 +96,16 @@ void audio_backend_init() {
 	SPU_FLAG_NOISE2 = 0;
 	SPU_FLAG_FM1 = 0;
 	SPU_FLAG_FM2 = 0;
+	SPU_FLAG_REVERB1 = 0;
+	SPU_FLAG_REVERB2 = 0;
 	SPU_FLAG_OFF1 = 0xFFFF;
 	SPU_FLAG_OFF2 = 0xFFFF;
 	SPU_MASTER_VOL_L = 0x3FFF;
 	SPU_MASTER_VOL_R = 0x3FFF;
+
+	SPU_REVERB_ADDR = 0;
+	SPU_REVERB_VOL_L = 0;
+	SPU_REVERB_VOL_R = 0;
 
 	u8* buf = main_pool_alloc(_audio_sample_segment_end - _audio_sample_segment, MEMORY_POOL_RIGHT);
 	dma_read(buf, _audio_sample_segment, _audio_sample_segment_end);

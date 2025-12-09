@@ -294,6 +294,7 @@ void cd_read(void* out, u32 pos, u32 size) {
 	if(dma_inited) {
 		gfx_show_message_screen("loading", "", "");
 	} else {
+		BIU_COM_DELAY = 0x1325;
 		BIU_DEV5_CTRL = 0x00020943; // enable cdrom bus
 		DMA_DPCR |= DMA_DPCR_ENABLE << (DMA_CDROM * 4); // enable CD DMA
 		CDROM_ADDRESS = 1;
@@ -310,6 +311,12 @@ void cd_read(void* out, u32 pos, u32 size) {
 		CDROM_ATV2 = 128;
 		CDROM_ATV3 = 0;
 		CDROM_ADPCTL = CDROM_ADPCTL_CHNGATV;
+		// initialize
+		psx_cd_run_cmd(CDROM_NOP, NULL, 0);
+		psx_cd_run_cmd(CDROM_NOP, NULL, 0);
+		psx_cd_run_cmd(CDROM_INIT, NULL, 0);
+		psx_cd_run_cmd(CDROM_DEMUTE, NULL, 0);
+
 		dat_lba = psx_cd_find_file_lba("EXT.DAT;1");
 		assert(dat_lba);
 		dma_inited = true;
