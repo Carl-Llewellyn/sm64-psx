@@ -76,14 +76,19 @@ typedef ALIGNED4 struct {
 STATIC_ASSERT(sizeof(GfxVtx) + 4 <= sizeof(Vtx), "GfxVtx must be at least 4 bytes smaller than Vtx");
 
 typedef union {
-	struct {
+	struct VtxListPsx {
 		u32 tag;
 		GfxVtx psx[];
-	};
-	struct {
+	} psx_list;
+	struct VtxListN64 {
+		u32 tag;
 		Vtx n64[];
-	};
+	} n64_list;
 } VtxList;
+
+#define VTXLIST_TAG(list)   ((list)->psx_list.tag)
+#define VTXLIST_PSX(list)   ((list)->psx_list.psx)
+#define VTXLIST_N64(list)   ((list)->n64_list.n64)
 
 void ensure_vertices_converted(VtxList* vtx_list, u32 count);
 

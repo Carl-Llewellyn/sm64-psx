@@ -255,12 +255,14 @@ void gfx_reset_dl_exec() {
 ALWAYS_INLINE static void set_light_from_cmd(dl_t cmd, u32 light_idx) {
 	Light_t* n64light = DL_UNPACK_PTR(cmd);
 
-	u32 normals = *(u32*) n64light->dir;
+	u32 normals;
+	memcpy(&normals, n64light->dir, sizeof(normals));
 	gte_setDataReg(GTE_VXY0, (u32) ((s32) normals << 24 >> 8) >> 16 | (s32) (normals & 0xFF00) << 16 >> 8);
 	gte_setDataReg(GTE_VZ0, (s32) normals << 8 >> 24);
 	gte_commandNoNop(GTE_CMD_MVMVA | GTE_SF | GTE_V_V0 | GTE_MX_RT | GTE_CV_NONE);
 
-	u32 rgb = *(u32*) n64light->col;
+	u32 rgb;
+	memcpy(&rgb, n64light->col, sizeof(rgb));
 	u32 r = rgb << 4 & 0xFF0;
 	u32 g = rgb >> 4 & 0xFF0;
 	u32 b = rgb >> 12 & 0xFF0;

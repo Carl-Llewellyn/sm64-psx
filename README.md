@@ -47,12 +47,33 @@ An original copy of the game is required to extract the assets.
 
 ### Linux
 
-1. Build and install the mipsel-none-elf-gcc toolchain. For Arch users, it is available on [AUR](https://aur.archlinux.org/packages/mipsel-none-elf-gcc-git). (You can also install it on your system from https://github.com/malucard/poeng by running `make install-gcc` from there. This may take a long time.)
+1. Build and install the mipsel-none-elf-gcc toolchain. For Arch users, it is available on [AUR](https://aur.archlinux.org/packages/mipsel-none-elf-gcc-git). (You can also install it on your system from https://github.com/malucard/poeng by running `make install-gcc` from there. This may take a long time.) Binutils 2.45 is known-good; newer snapshots (for example 2.45.50) have produced invalid MIPS assembly and should be avoided.
 2. Clone the repo: `git clone https://github.com/malucard/sm64-psx`, which will create a directory `sm64-port` and then **enter** it `cd sm64-port`.
 3. Place a Super Mario 64 ROM called `baserom.<VERSION>.z64` into the repository's root directory for asset extraction, ~~where `VERSION` can be `us`, `jp`, or `eu`~~. (For now, only `us` is supported.)
 4. (Optional) Create a folder named `.local` in the root of the repo and place every track of the soundtrack in it as a .wav file, numbered from 0 to 37 (0.wav, 1.wav, etc).
 5. Run `make` to build. To build the benchmark version without music, run `make BENCH=1`.
 The disc image will be located at `build/<VERSION>_psx/sm64.<VERSION>.iso`. The benchmark version will not generate an iso, only an elf and an exe, and it will require a PSX with 8MB of RAM (an emulator or a debug unit).
+
+### Docker (PSX build)
+
+The provided Dockerfile builds a PS1-capable mipsel-none-elf toolchain pinned to binutils 2.45.
+
+To build the image and produce the ISO/CUE inside it:
+
+```
+docker build -t sm64-psx-ps1 .
+mkdir -p out
+docker run --rm -v "$PWD/out":/out sm64-psx-ps1
+ls out
+```
+
+For iterative local builds using your working tree, build only the environment stage and mount the repo:
+
+```
+docker build --target env -t sm64-psx-env .
+docker run --rm -v "$PWD":/sm64-psx -w /sm64-psx sm64-psx-env \
+  bash -lc "make -C tools -j$(nproc) all-except-recomp && make -j$(nproc) VERSION=us"
+```
 
 ### Windows (untested)
 

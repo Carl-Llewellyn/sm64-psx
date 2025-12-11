@@ -46,9 +46,9 @@ static int clamp(int x, int a, int b) {
 
 void ensure_vertices_converted(VtxList* list, u32 count) {
 	TexHeader* tex = compilation_tex_header;
-	if(list->tag != COMPILED_TAG) {
+	if(VTXLIST_TAG(list) != COMPILED_TAG) {
 		for(u32 i = 0; i < count; i++) {
-			Vtx* n64 = &list->n64[i];
+			Vtx* n64 = &VTXLIST_N64(list)[i];
 			s16 x = n64->v.ob[0];
 			s16 y = n64->v.ob[1];
 			s16 z = n64->v.ob[2];
@@ -73,7 +73,7 @@ void ensure_vertices_converted(VtxList* list, u32 count) {
 			}
 			Color color = (Color) {.r = n64->v.cn[0], .g = n64->v.cn[1], .b = n64->v.cn[2], ._pad = 0};
 
-			GfxVtx* psx = &list->psx[i];
+			GfxVtx* psx = &VTXLIST_PSX(list)[i];
 			psx->x = x;
 			psx->y = y;
 			psx->z = z;
@@ -81,7 +81,7 @@ void ensure_vertices_converted(VtxList* list, u32 count) {
 			psx->v = v;
 			psx->color = color;
 		}
-		list->tag = COMPILED_TAG;
+		VTXLIST_TAG(list) = COMPILED_TAG;
 	}
 }
 
@@ -122,7 +122,7 @@ static int max3(int x, int y, int z) {
 				assert(count <= 16);
 				ensure_vertices_converted(vtx_list, count);
 				compilation_vertices = vtx_list;
-				*(out++) = DL_PACK_OP(DL_CMD_VTX) | DL_PACK_PTR(vtx_list->psx);
+				*(out++) = DL_PACK_OP(DL_CMD_VTX) | DL_PACK_PTR(VTXLIST_PSX(vtx_list));
 				break;
 			}
 			case (u8) G_TRI1: {
@@ -135,16 +135,16 @@ static int max3(int x, int y, int z) {
 				i1 = cmd->words.w1 >> 16 & 0xF;
 				i2 = cmd->words.w1 >> 8 & 0xF;
 				u32 i3 = cmd->words.w1 & 0xF;
-				GfxVtx* v3 = &compilation_vertices->psx[i3];
+				GfxVtx* v3 = &VTXLIST_PSX(compilation_vertices)[i3];
 				goto process_poly_cmd;
 			case (u8) G_PORT_TRI2:
 				i0 = cmd->words.w0 >> 16 & 0xF;
 				i1 = cmd->words.w0 >> 8 & 0xF;
 				i2 = cmd->words.w0 & 0xF;
 			process_poly_cmd:
-				GfxVtx* v0 = &compilation_vertices->psx[i0];
-				GfxVtx* v1 = &compilation_vertices->psx[i1];
-				GfxVtx* v2 = &compilation_vertices->psx[i2];
+				GfxVtx* v0 = &VTXLIST_PSX(compilation_vertices)[i0];
+				GfxVtx* v1 = &VTXLIST_PSX(compilation_vertices)[i1];
+				GfxVtx* v2 = &VTXLIST_PSX(compilation_vertices)[i2];
 				u32 flags = 0;
 				if(use_texture && compilation_tex_header) flags |= PRIM_FLAG_TEXTURED;
 				if(use_env_color) flags |= PRIM_FLAG_ENV_COLOR;

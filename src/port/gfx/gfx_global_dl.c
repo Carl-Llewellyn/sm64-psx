@@ -74,7 +74,7 @@ void gfx_emit_vertices_native(void* ptr) {
 
 void gfx_emit_vertices_n64(void* ptr, u32 count) {
 	ensure_vertices_converted(ptr, count);
-	gfx_emit_vertices_native(((VtxList*) ptr)->psx);
+	gfx_emit_vertices_native(VTXLIST_PSX((VtxList*) ptr));
 }
 
 void gfx_emit_tri(u32 i0, u32 i1, u32 i2, u32 flags) {
@@ -122,30 +122,30 @@ bool compile_as_ortho = false;
 void gfx_emit_screen_quad(s16 x0, s16 y0, s16 x1, s16 y1) {
 	VtxList* list = gfx_alloc_in_global_dl(4 + sizeof(GfxVtx) * 4);
 	// not setting the tag, it won't be checked
-	list->psx[0].x = x0;
-	list->psx[0].y = y0;
-	list->psx[1].x = x0;
-	list->psx[1].y = y1;
-	list->psx[2].x = x1;
-	list->psx[2].y = y0;
-	list->psx[3].x = x1;
-	list->psx[3].y = y1;
+	VTXLIST_PSX(list)[0].x = x0;
+	VTXLIST_PSX(list)[0].y = y0;
+	VTXLIST_PSX(list)[1].x = x0;
+	VTXLIST_PSX(list)[1].y = y1;
+	VTXLIST_PSX(list)[2].x = x1;
+	VTXLIST_PSX(list)[2].y = y0;
+	VTXLIST_PSX(list)[3].x = x1;
+	VTXLIST_PSX(list)[3].y = y1;
 	u32 flags = PRIM_FLAG_ENV_COLOR;
 #ifdef PRIM_FLAG_ENV_ALPHA
 	flags |= PRIM_FLAG_ENV_ALPHA;
 #endif
 	if(last_tex) {
-		list->psx[0].u = 0;
-		list->psx[0].v = 0;
-		list->psx[1 + last_tex->rotated].u = 0;
-		list->psx[1 + last_tex->rotated].v = last_tex->height - 1;
-		list->psx[2 - last_tex->rotated].u = last_tex->width - 1;
-		list->psx[2 - last_tex->rotated].v = 0;
-		list->psx[3].u = last_tex->width - 1;
-		list->psx[3].v = last_tex->height - 1;
+		VTXLIST_PSX(list)[0].u = 0;
+		VTXLIST_PSX(list)[0].v = 0;
+		VTXLIST_PSX(list)[1 + last_tex->rotated].u = 0;
+		VTXLIST_PSX(list)[1 + last_tex->rotated].v = last_tex->height - 1;
+		VTXLIST_PSX(list)[2 - last_tex->rotated].u = last_tex->width - 1;
+		VTXLIST_PSX(list)[2 - last_tex->rotated].v = 0;
+		VTXLIST_PSX(list)[3].u = last_tex->width - 1;
+		VTXLIST_PSX(list)[3].v = last_tex->height - 1;
 		flags |= PRIM_FLAG_TEXTURED;
 	}
-	*(global_dl++) = DL_PACK_OP(DL_CMD_VTX) | DL_PACK_PTR(list->psx);
+	*(global_dl++) = DL_PACK_OP(DL_CMD_VTX) | DL_PACK_PTR(VTXLIST_PSX(list));
 	if(!compile_as_ortho) {
 		gfx_emit_set_ortho(true);
 	}

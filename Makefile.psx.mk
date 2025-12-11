@@ -140,15 +140,15 @@ TARGET_CFLAGS += -fconserve-stack
 TARGET_CFLAGS += -fstrict-aliasing -fstrict-overflow -mno-check-zero-division -ffast-math -ffp-contract=fast \
 	-flimit-function-alignment -falign-functions=16:8 -fno-align-labels -fno-align-jumps -falign-loops=16:8 \
 	--param l1-cache-line-size=0 --param l1-cache-size=0 --param l2-cache-size=0 \
-	-fsection-anchors -Wa,--strip-local-absolute -fallow-store-data-races -favoid-store-forwarding \
+	-fsection-anchors -Wa,--strip-local-absolute -fallow-store-data-races \
 	-fno-semantic-interposition
 
 # experiment zone
 TARGET_CFLAGS += -free -fira-loop-pressure -fpredictive-commoning -fsched-pressure -fsched-spec-load \
 	-ftree-pre -ftree-partial-pre -ftree-loop-im -ftree-loop-distribution -floop-interchange -freorder-blocks-algorithm=simple \
 	-fweb -frename-registers -fgcse-sm -fgcse-las -fgcse-after-reload \
-	-fipa-pta -fipa-icf -fipa-reorder-for-locality -fipa-bit-cp -fipa-vrp \
-	-favoid-store-forwarding -fno-prefetch-loop-arrays
+	-fipa-pta -fipa-icf -fipa-bit-cp -fipa-vrp \
+	-fno-prefetch-loop-arrays
 
 # -O3 territory 🥶
 #TARGET_CFLAGS += -fgcse-after-reload -fipa-cp-clone -ftracer \
@@ -167,14 +167,8 @@ ifeq ($(DEV),1)
 	TARGET_CFLAGS += -Og
 endif
 
-# C compiler options
-CFLAGS := -std=gnu2x --embed-dir=$(BUILD_DIR) $(TARGET_CFLAGS) $(if $(filter 1,$(SAFE) $(DEV)),-G8,-G32)
-ifeq ($(DEV),1)
-	CFLAGS += -fno-lto
-else
-	$(shell mkdir -p "$(BUILD_DIR)/lto_incremental")
-	CFLAGS += -flto -fno-fat-lto-objects -fwhole-program -flto-incremental=$(BUILD_DIR)/lto_incremental
-endif
+CFLAGS := -std=gnu2x $(TARGET_CFLAGS) $(if $(filter 1,$(SAFE) $(DEV)),-G8,-G32)
+CFLAGS += -fno-lto
 EXT_CFLAGS := -std=gnu2x $(TARGET_CFLAGS) -G0 -fno-lto
 
 CFLAGS_FILE := $(BUILD_DIR)/cflags.txt

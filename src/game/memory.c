@@ -415,7 +415,9 @@ void mem_pool_free(struct MemoryPool* pool, void* addr) {
 void setup_dma_table_list(struct DmaHandlerList *list, void *segment_start, void *segment_end, void *buffer) {
 	ALIGNED8 u8 seg_buf[segment_end - segment_start];
 	dma_read(seg_buf, segment_start, segment_end);
-	u32 table_size = ((struct DmaTable*) seg_buf)->count * sizeof(struct OffsetSizePair) + sizeof(struct DmaTable);
+	struct DmaTable header_tmp;
+	memcpy(&header_tmp, seg_buf, sizeof(header_tmp));
+	u32 table_size = header_tmp.count * sizeof(struct OffsetSizePair) + sizeof(struct DmaTable);
 	void* dest = main_pool_alloc(table_size, MEMORY_POOL_LEFT);
 	assert(dest);
 	memcpy(dest, seg_buf, table_size);
